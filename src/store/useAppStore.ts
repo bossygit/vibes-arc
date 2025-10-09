@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Identity, Habit, ViewType } from '@/types';
-import BrowserDatabaseClient from '@/database/browser-client';
+import SupabaseDatabaseClient from '@/database/supabase-client';
 
 interface AppState {
     // State
@@ -18,14 +18,20 @@ interface AppState {
     updateHabit: (id: number, updates: Partial<Habit>) => void;
 }
 
-export const useAppStore = create<AppState>()((set) => {
-    const db = BrowserDatabaseClient.getInstance();
+export const useAppStore = create<AppState>()((set, get) => {
+    const db = SupabaseDatabaseClient.getInstance();
 
     // Charger les données initiales
-    const loadInitialData = () => {
-        const identities = db.getIdentities();
-        const habits = db.getHabits();
-        set({ identities, habits });
+    const loadInitialData = async () => {
+        try {
+            const identities = await db.getIdentities();
+            const habits = await db.getHabits();
+            set({ identities, habits });
+        } catch (error) {
+            console.error('Erreur lors du chargement des données:', error);
+            // En cas d'erreur, initialiser avec des tableaux vides
+            set({ identities: [], habits: [] });
+        }
     };
 
     // Charger les données au démarrage
@@ -40,71 +46,95 @@ export const useAppStore = create<AppState>()((set) => {
         // Actions
         setView: (view) => set({ view }),
 
-        addIdentity: (identityData) => {
-            const newIdentity = db.createIdentity(identityData.name, identityData.description);
-            set((state) => ({
-                identities: [...state.identities, newIdentity],
-            }));
-        },
-
-        deleteIdentity: (id) => {
-            const success = db.deleteIdentity(id);
-            if (success) {
+        addIdentity: async (identityData) => {
+            try {
+                const newIdentity = await db.createIdentity(identityData.name, identityData.description);
                 set((state) => ({
-                    identities: state.identities.filter(i => i.id !== id),
-                    habits: state.habits.map(h => ({
-                        ...h,
-                        linkedIdentities: h.linkedIdentities.filter(iId => iId !== id)
-                    }))
+                    identities: [...state.identities, newIdentity],
                 }));
+            } catch (error) {
+                console.error('Erreur lors de la création de l\'identité:', error);
             }
         },
 
-        addHabit: (habitData) => {
-            const newHabit = db.createHabit(
-                habitData.name,
-                habitData.type,
-                habitData.totalDays,
-                habitData.linkedIdentities
-            );
-            set((state) => ({
-                habits: [...state.habits, newHabit],
-            }));
-        },
-
-        deleteHabit: (id) => {
-            const success = db.deleteHabit(id);
-            if (success) {
-                set((state) => ({
-                    habits: state.habits.filter(h => h.id !== id),
-                }));
+        deleteIdentity: async (id) => {
+            try {
+                const success = await db.deleteIdentity(id);
+                if (success) {
+                    set((state) => ({
+                        identities: state.identities.filter(i => i.id !== id),
+                        habits: state.habits.map(h => ({
+                            ...h,
+                            linkedIdentities: h.linkedIdentities.filter(iId => iId !== id)
+                        }))
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur lors de la suppression de l\'identité:', error);
             }
         },
 
-        toggleHabitDay: (habitId, dayIndex) => {
-            const success = db.toggleHabitDay(habitId, dayIndex);
-            if (success) {
+        addHabit: async (habitData) => {
+            try {
+                const newHabit = await db.createHabit(
+                    habitData.name,
+                    habitData.type,
+                    habitData.totalDays,
+                    habitData.linkedIdentities
+                );
                 set((state) => ({
-                    habits: state.habits.map(h => {
-                        if (h.id === habitId) {
-                            const newProgress = [...h.progress];
-                            newProgress[dayIndex] = !newProgress[dayIndex];
-                            return { ...h, progress: newProgress };
-                        }
-                        return h;
-                    }),
+                    habits: [...state.habits, newHabit],
                 }));
+            } catch (error) {
+                console.error('Erreur lors de la création de l\'habitude:', error);
             }
         },
 
-        updateHabit: (id, updates) => {
-            const success = db.updateHabit(id, updates);
-            if (success) {
-                set((state) => ({
-                    habits: state.habits.map(h =>
-                        h.id === id ? { ...h, ...updates } : h
-                    ),
-                }));
+        deleteHabit: async (id) => {
+            try {
+                const success = await db.deleteHabit(id);
+                if (success) {
+                    set((state) => ({
+                        habits: state.habits.filter(h => h.id !== id),
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur lors de la suppression de l\'habitude:', error);
+            }
+        },
+
+        toggleHabitDay: async (habitId, dayIndex) => {
+            try {
+                const success = await db.toggleHabitDay(habitId, dayIndex);
+                if (success) {
+                    set((state) => ({
+                        habits: state.habits.map(h => {
+                            if (h.id === habitId) {
+                                const newProgress = [...h.progress];
+                                newProgress[dayIndex] = !newProgress[dayIndex];
+                                return { ...h, progress: newProgress };
+                            }
+                            return h;
+                        }),
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur lors de la mise à jour de la progression:', error);
+            }
+        },
+
+        updateHabit: async (id, updates) => {
+            try {
+                const success = await db.updateHabit(id, updates);
+                if (success) {
+                    set((state) => ({
+                        habits: state.habits.map(h =>
+                            h.id === id ? { ...h, ...updates } : h
+                        ),
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur lors de la mise à jour de l\'habitude:', error);
             }
         },
     };
