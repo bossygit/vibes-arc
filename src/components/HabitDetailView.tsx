@@ -1,12 +1,14 @@
-import React from 'react';
-import { ArrowLeft, TrendingUp, Target, Calendar, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, TrendingUp, Target, Calendar, Trash2, Edit2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { calculateHabitStats } from '@/utils/habitUtils';
 import HabitCalendar from './HabitCalendar';
+import EditHabitModal from './EditHabitModal';
 import { motion } from 'framer-motion';
 
 const HabitDetailView: React.FC = () => {
-    const { habits, identities, selectedHabitId, setView, toggleHabitDay, deleteHabit } = useAppStore();
+    const { habits, identities, selectedHabitId, setView, toggleHabitDay, deleteHabit, updateHabit } = useAppStore();
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     const habit = habits.find(h => h.id === selectedHabitId);
 
@@ -47,13 +49,22 @@ const HabitDetailView: React.FC = () => {
                     <ArrowLeft className="w-5 h-5" />
                     Retour
                 </button>
-                <button
-                    onClick={handleDelete}
-                    className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                >
-                    <Trash2 className="w-4 h-4" />
-                    Supprimer
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setIsEditModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                    >
+                        <Edit2 className="w-4 h-4" />
+                        Modifier
+                    </button>
+                    <button
+                        onClick={handleDelete}
+                        className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                        Supprimer
+                    </button>
+                </div>
             </div>
 
             {/* Habit Title & Type */}
@@ -213,6 +224,15 @@ const HabitDetailView: React.FC = () => {
                 </h2>
                 <HabitCalendar habit={habit} onToggleDay={toggleHabitDay} />
             </motion.div>
+
+            {/* Edit Modal */}
+            <EditHabitModal
+                habit={habit}
+                identities={identities}
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                onSave={(updates) => updateHabit(habit.id, updates)}
+            />
         </div>
     );
 };

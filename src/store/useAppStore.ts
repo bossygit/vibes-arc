@@ -13,6 +13,7 @@ interface AppState {
     setView: (view: ViewType) => void;
     setSelectedHabit: (habitId: number | null) => void;
     addIdentity: (identity: Omit<Identity, 'id' | 'createdAt'>) => void;
+    updateIdentity: (id: number, name: string, description?: string) => void;
     deleteIdentity: (id: number) => void;
     addHabit: (habit: Omit<Habit, 'id' | 'createdAt' | 'progress'>) => void;
     deleteHabit: (id: number) => void;
@@ -58,6 +59,21 @@ export const useAppStore = create<AppState>()((set) => {
                 }));
             } catch (error) {
                 console.error('Erreur lors de la création de l\'identité:', error);
+            }
+        },
+
+        updateIdentity: async (id, name, description) => {
+            try {
+                const success = await db.updateIdentity(id, name, description);
+                if (success) {
+                    set((state) => ({
+                        identities: state.identities.map(i =>
+                            i.id === id ? { ...i, name, description } : i
+                        ),
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur lors de la mise à jour de l\'identité:', error);
             }
         },
 

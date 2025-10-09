@@ -1,17 +1,25 @@
 import React, { useState } from 'react';
-import { Plus, X, CheckCircle2 } from 'lucide-react';
+import { Plus, X, CheckCircle2, Edit2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { calculateIdentityScore } from '@/utils/habitUtils';
+import EditIdentityModal from './EditIdentityModal';
+import { Identity } from '@/types';
 
 const IdentitiesView: React.FC = () => {
-    const { identities, habits, addIdentity, deleteIdentity } = useAppStore();
+    const { identities, habits, addIdentity, updateIdentity, deleteIdentity } = useAppStore();
     const [newIdentity, setNewIdentity] = useState({ name: '', description: '' });
+    const [editingIdentity, setEditingIdentity] = useState<Identity | null>(null);
 
     const handleAddIdentity = () => {
         if (newIdentity.name.trim()) {
             addIdentity(newIdentity);
             setNewIdentity({ name: '', description: '' });
         }
+    };
+
+    const handleUpdateIdentity = (id: number, name: string, description?: string) => {
+        updateIdentity(id, name, description);
+        setEditingIdentity(null);
     };
 
     return (
@@ -52,12 +60,20 @@ const IdentitiesView: React.FC = () => {
                     <div key={identity.id} className="card">
                         <div className="flex items-start justify-between mb-2">
                             <h3 className="font-semibold text-slate-800 flex-1">{identity.name}</h3>
-                            <button
-                                onClick={() => deleteIdentity(identity.id)}
-                                className="text-slate-400 hover:text-red-500 transition"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setEditingIdentity(identity)}
+                                    className="text-slate-400 hover:text-indigo-500 transition"
+                                >
+                                    <Edit2 className="w-5 h-5" />
+                                </button>
+                                <button
+                                    onClick={() => deleteIdentity(identity.id)}
+                                    className="text-slate-400 hover:text-red-500 transition"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
                         </div>
                         {identity.description && (
                             <p className="text-sm text-slate-600 mb-3">{identity.description}</p>
@@ -69,6 +85,16 @@ const IdentitiesView: React.FC = () => {
                     </div>
                 ))}
             </div>
+
+            {/* Edit Identity Modal */}
+            {editingIdentity && (
+                <EditIdentityModal
+                    identity={editingIdentity}
+                    isOpen={!!editingIdentity}
+                    onClose={() => setEditingIdentity(null)}
+                    onSave={handleUpdateIdentity}
+                />
+            )}
         </div>
     );
 };
