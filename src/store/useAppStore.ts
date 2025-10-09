@@ -7,9 +7,11 @@ interface AppState {
     identities: Identity[];
     habits: Habit[];
     view: ViewType;
+    selectedHabitId: number | null;
 
     // Actions
     setView: (view: ViewType) => void;
+    setSelectedHabit: (habitId: number | null) => void;
     addIdentity: (identity: Omit<Identity, 'id' | 'createdAt'>) => void;
     deleteIdentity: (id: number) => void;
     addHabit: (habit: Omit<Habit, 'id' | 'createdAt' | 'progress'>) => void;
@@ -42,9 +44,11 @@ export const useAppStore = create<AppState>()((set) => {
         identities: [],
         habits: [],
         view: 'dashboard',
+        selectedHabitId: null,
 
         // Actions
         setView: (view) => set({ view }),
+        setSelectedHabit: (habitId) => set({ selectedHabitId: habitId }),
 
         addIdentity: async (identityData) => {
             try {

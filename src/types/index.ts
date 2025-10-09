@@ -33,7 +33,8 @@ export interface Streak {
 export interface AppState {
     identities: Identity[];
     habits: Habit[];
-    view: 'dashboard' | 'identities' | 'addHabit';
+    view: 'dashboard' | 'identities' | 'addHabit' | 'habitDetail';
+    selectedHabitId: number | null;
 }
 
-export type ViewType = 'dashboard' | 'identities' | 'addHabit';
+export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail';

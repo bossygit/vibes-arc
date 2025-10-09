@@ -1,7 +1,6 @@
 import React from 'react';
 import { Habit, Identity, HabitStats } from '@/types';
 import { useAppStore } from '@/store/useAppStore';
-import HabitCalendar from './HabitCalendar';
 
 interface HabitCardProps {
     habit: Habit;
@@ -10,11 +9,19 @@ interface HabitCardProps {
 }
 
 const HabitCard: React.FC<HabitCardProps> = ({ habit, identities, stats }) => {
-    const { toggleHabitDay } = useAppStore();
+    const { setView, setSelectedHabit } = useAppStore();
+
+    const handleClick = () => {
+        setSelectedHabit(habit.id);
+        setView('habitDetail');
+    };
 
     return (
-        <div className="card">
-            <div className="flex items-start justify-between mb-4">
+        <div 
+            className="card cursor-pointer hover:shadow-lg transition-shadow duration-200"
+            onClick={handleClick}
+        >
+            <div className="flex items-start justify-between">
                 <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-semibold text-slate-800">{habit.name}</h3>
@@ -25,53 +32,47 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, identities, stats }) => {
                             {habit.type === 'start' ? '▲ Commencer' : '▼ Arrêter'}
                         </span>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-slate-600">
-                        <span>🔥 Streak actuel: {stats.currentStreak} jours</span>
-                        <span>🏆 Meilleur streak: {stats.longestStreak} jours</span>
+                    <div className="flex items-center gap-4 text-sm text-slate-600 mb-3">
+                        <span>🔥 {stats.currentStreak} jours</span>
+                        <span>🏆 {stats.longestStreak} jours</span>
                         <span>✓ {stats.completed}/{stats.totalDays} jours</span>
-                        <span className="font-semibold text-indigo-600">{stats.percentage}%</span>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="flex items-center gap-3">
+                        <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 transition-all duration-300"
+                                style={{ width: `${stats.percentage}%` }}
+                            />
+                        </div>
+                        <span className="text-lg font-bold text-indigo-600 min-w-[50px] text-right">
+                            {stats.percentage}%
+                        </span>
                     </div>
                 </div>
             </div>
 
-            {/* Streaks Summary */}
-            {stats.streaks.length > 0 && (
-                <div className="mb-4 p-4 bg-slate-50 rounded-lg">
-                    <h4 className="text-sm font-semibold text-slate-700 mb-2">
-                        📊 Historique des streaks ({stats.streaks.length})
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                        {stats.streaks.sort((a, b) => b.length - a.length).map((streak, idx) => (
-                            <div
-                                key={idx}
-                                className="px-3 py-2 bg-white rounded-lg border border-slate-200 text-xs"
+            {/* Linked Identities */}
+            {habit.linkedIdentities.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-4">
+                    {habit.linkedIdentities.map(identityId => {
+                        const identity = identities.find(i => i.id === identityId);
+                        return identity ? (
+                            <span
+                                key={identityId}
+                                className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium"
                             >
-                                <span className="font-bold text-indigo-600">{streak.length} jours</span>
-                                <span className="text-slate-500 ml-2">
-                                    ({streak.startDate} → {streak.endDate})
-                                </span>
-                            </div>
-                        ))}
-                    </div>
+                                {identity.name}
+                            </span>
+                        ) : null;
+                    })}
                 </div>
             )}
 
-            {/* Calendar Grid */}
-            <HabitCalendar habit={habit} onToggleDay={toggleHabitDay} />
-
-            {/* Linked Identities */}
-            <div className="flex flex-wrap gap-2 mt-4">
-                {habit.linkedIdentities.map(identityId => {
-                    const identity = identities.find(i => i.id === identityId);
-                    return identity ? (
-                        <span
-                            key={identityId}
-                            className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium"
-                        >
-                            {identity.name}
-                        </span>
-                    ) : null;
-                })}
+            {/* Click indicator */}
+            <div className="mt-3 text-xs text-slate-400 text-right">
+                Cliquez pour voir les détails →
             </div>
         </div>
     );

@@ -69,11 +69,15 @@ export const calculateIdentityScore = (identityId: number, habits: Habit[]): num
     );
     if (linkedHabits.length === 0) return 0;
 
-    const avgPercentage = linkedHabits.reduce((sum, h) => {
-        return sum + calculateHabitStats(h).percentage;
-    }, 0) / linkedHabits.length;
+    // Calculer la progression basée sur le nombre de cases cochées
+    const totalDays = linkedHabits.reduce((sum, h) => sum + h.totalDays, 0);
+    const completedDays = linkedHabits.reduce((sum, h) => {
+        return sum + h.progress.filter(Boolean).length;
+    }, 0);
 
-    return Math.round(avgPercentage);
+    if (totalDays === 0) return 0;
+
+    return Math.round((completedDays / totalDays) * 100);
 };
 
 export const getHabitProgressForMonth = (habit: Habit, month: number, year: number): boolean[] => {

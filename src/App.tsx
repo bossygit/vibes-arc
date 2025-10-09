@@ -3,6 +3,7 @@ import { useAppStore } from '@/store/useAppStore';
 import Dashboard from '@/components/Dashboard';
 import IdentitiesView from '@/components/IdentitiesView';
 import AddHabitView from '@/components/AddHabitView';
+import HabitDetailView from '@/components/HabitDetailView';
 import Header from '@/components/Header';
 import Auth from '@/components/Auth';
 import SupabaseDatabaseClient from '@/database/supabase-client';
@@ -41,6 +42,8 @@ function App() {
                 return <IdentitiesView />;
             case 'addHabit':
                 return <AddHabitView />;
+            case 'habitDetail':
+                return <HabitDetailView />;
             default:
                 return <Dashboard />;
         }
