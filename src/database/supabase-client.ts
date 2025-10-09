@@ -3,45 +3,20 @@ import { Identity, Habit } from '@/types';
 
 // Types pour Supabase
 interface SupabaseIdentity {
-    id: number;
-    name: string;
-    description?: string;
-    created_at: string;
-    user_id: string;
-}
-
-interface SupabaseHabit {
-    id: number;
-    name: string;
-    type: 'start' | 'stop';
-    total_days: number;
-    created_at: string;
-    user_id: string;
-}
-
-interface SupabaseHabitIdentity {
-    habit_id: number;
-    identity_id: number;
-    created_at: string;
-}
-
-interface SupabaseHabitProgress {
-    id: number;
-    habit_id: number;
-    day_index: number;
-    completed: boolean;
-    completed_at?: string;
-    created_at: string;
-    updated_at: string;
+  id: number;
+  name: string;
+  description?: string;
+  created_at: string;
+  user_id: string;
 }
 
 class SupabaseDatabaseClient {
     private static instance: SupabaseDatabaseClient;
     private supabase;
 
-    private constructor() {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  private constructor() {
+    const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+    const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
 
         if (!supabaseUrl || !supabaseKey) {
             throw new Error('Variables d\'environnement Supabase manquantes');
@@ -368,26 +343,29 @@ class SupabaseDatabaseClient {
             return { identities: 0, habits: 0, totalProgress: 0 };
         }
 
-        const [identitiesResult, habitsResult, progressResult] = await Promise.all([
-            this.supabase
-                .from('identities')
-                .select('id', { count: 'exact' })
-                .eq('user_id', user.id),
-            this.supabase
-                .from('habits')
-                .select('id', { count: 'exact' })
-                .eq('user_id', user.id),
-            this.supabase
-                .from('habit_progress')
-                .select('id', { count: 'exact' })
-                .eq('completed', true)
-                .in('habit_id',
-                    this.supabase
-                        .from('habits')
-                        .select('id')
-                        .eq('user_id', user.id)
-                ),
-        ]);
+    // Récupérer les IDs des habitudes de l'utilisateur
+    const { data: userHabits } = await this.supabase
+      .from('habits')
+      .select('id')
+      .eq('user_id', user.id);
+
+    const habitIds = userHabits?.map(h => h.id) || [];
+
+    const [identitiesResult, habitsResult, progressResult] = await Promise.all([
+      this.supabase
+        .from('identities')
+        .select('id', { count: 'exact' })
+        .eq('user_id', user.id),
+      this.supabase
+        .from('habits')
+        .select('id', { count: 'exact' })
+        .eq('user_id', user.id),
+      habitIds.length > 0 ? this.supabase
+        .from('habit_progress')
+        .select('id', { count: 'exact' })
+        .eq('completed', true)
+        .in('habit_id', habitIds) : { count: 0 },
+    ]);
 
         return {
             identities: identitiesResult.count || 0,

@@ -18,7 +18,7 @@ interface AppState {
     updateHabit: (id: number, updates: Partial<Habit>) => void;
 }
 
-export const useAppStore = create<AppState>()((set, get) => {
+export const useAppStore = create<AppState>()((set) => {
     const db = SupabaseDatabaseClient.getInstance();
 
     // Charger les données initiales
