@@ -5,6 +5,7 @@ import { calculateIdentityScore, calculateHabitStats } from '@/utils/habitUtils'
 import IdentityCard from './IdentityCard';
 import HabitCard from './HabitCard';
 import DataManager from './DataManager';
+import IdentitiesProgressChart from './IdentitiesProgressChart';
 import { motion } from 'framer-motion';
 
 const Dashboard: React.FC = () => {
@@ -100,6 +101,13 @@ const Dashboard: React.FC = () => {
                             </div>
                         </motion.div>
                     </div>
+                </section>
+            )}
+
+            {/* Identities Progress Chart */}
+            {identities.length > 0 && (
+                <section>
+                    <IdentitiesProgressChart identities={identities} habits={habits} />
                 </section>
             )}
 
