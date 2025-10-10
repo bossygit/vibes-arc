@@ -1,5 +1,43 @@
 import { Habit, HabitStats, Streak } from '@/types';
-import { getDateForDay, formatDate } from './dateUtils';
+import { getDateForDay, formatDate, startDate } from './dateUtils';
+
+export interface Badge {
+    name: string;
+    level: number;
+    minDays: number;
+    color: string;
+    emoji: string;
+}
+
+export const badges: Badge[] = [
+    { name: 'Saiyan', level: 1, minDays: 3, color: 'bg-yellow-100 text-yellow-700', emoji: '⚡' },
+    { name: 'Super Saiyan', level: 2, minDays: 7, color: 'bg-amber-100 text-amber-700', emoji: '🔥' },
+    { name: 'Super Saiyan 2', level: 3, minDays: 21, color: 'bg-orange-100 text-orange-700', emoji: '⭐' },
+    { name: 'Super Saiyan 3', level: 4, minDays: 45, color: 'bg-red-100 text-red-700', emoji: '💫' },
+    { name: 'Super Saiyan 4', level: 5, minDays: 60, color: 'bg-purple-100 text-purple-700', emoji: '👑' },
+];
+
+export const getBadgeForStreak = (streakDays: number): Badge | null => {
+    // Retourne le badge le plus élevé atteint
+    for (let i = badges.length - 1; i >= 0; i--) {
+        if (streakDays >= badges[i].minDays) {
+            return badges[i];
+        }
+    }
+    return null;
+};
+
+export const getCurrentDayIndex = (): number => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
+    const diffTime = today.getTime() - start.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    return diffDays;
+};
 
 export const calculateHabitStats = (habit: Habit): HabitStats => {
     const completed = habit.progress.filter(Boolean).length;

@@ -6,6 +6,7 @@ import IdentityCard from './IdentityCard';
 import HabitCard from './HabitCard';
 import DataManager from './DataManager';
 import IdentitiesProgressChart from './IdentitiesProgressChart';
+import TodayStatus from './TodayStatus';
 import { motion } from 'framer-motion';
 
 const Dashboard: React.FC = () => {
@@ -26,6 +27,13 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="space-y-8">
+            {/* Today Status */}
+            {habits.length > 0 && (
+                <section>
+                    <TodayStatus habits={habits} />
+                </section>
+            )}
+
             {/* Global Stats */}
             {habits.length > 0 && (
                 <section>

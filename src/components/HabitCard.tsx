@@ -1,6 +1,7 @@
 import React from 'react';
 import { Habit, Identity, HabitStats } from '@/types';
 import { useAppStore } from '@/store/useAppStore';
+import { getBadgeForStreak } from '@/utils/habitUtils';
 
 interface HabitCardProps {
     habit: Habit;
@@ -10,6 +11,7 @@ interface HabitCardProps {
 
 const HabitCard: React.FC<HabitCardProps> = ({ habit, identities, stats }) => {
     const { setView, setSelectedHabit } = useAppStore();
+    const currentBadge = getBadgeForStreak(stats.currentStreak);
 
     const handleClick = () => {
         setSelectedHabit(habit.id);
@@ -17,7 +19,7 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, identities, stats }) => {
     };
 
     return (
-        <div 
+        <div
             className="card cursor-pointer hover:shadow-lg transition-shadow duration-200"
             onClick={handleClick}
         >
@@ -26,11 +28,17 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, identities, stats }) => {
                     <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-semibold text-slate-800">{habit.name}</h3>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${habit.type === 'start'
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-red-100 text-red-700'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
                             }`}>
                             {habit.type === 'start' ? '▲ Commencer' : '▼ Arrêter'}
                         </span>
+                        {currentBadge && (
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${currentBadge.color} border-2 flex items-center gap-1 animate-pulse`}>
+                                <span>{currentBadge.emoji}</span>
+                                <span>{currentBadge.name}</span>
+                            </span>
+                        )}
                     </div>
                     <div className="flex items-center gap-4 text-sm text-slate-600 mb-3">
                         <span>🔥 {stats.currentStreak} jours</span>
