@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, CheckCircle2 } from 'lucide-react';
+import { Plus, CheckCircle2, Info } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 
 const AddHabitView: React.FC = () => {
@@ -36,6 +36,21 @@ const AddHabitView: React.FC = () => {
     return (
         <div className="space-y-6">
             <h2 className="text-2xl font-bold text-slate-800">Créer une nouvelle habitude</h2>
+
+            {/* Presentation Text */}
+            <div className="card bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200">
+                <div className="flex items-start gap-4">
+                    <div className="p-3 bg-green-100 rounded-lg flex-shrink-0">
+                        <Info className="w-6 h-6 text-green-600" />
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-green-900 mb-2">Qu'est-ce qu'une habitude ?</h3>
+                        <p className="text-slate-700 leading-relaxed">
+                            Une habitude est une routine ou un comportement régulier qui se manifeste automatiquement en réponse à un stimulus spécifique. Il décrit les habitudes comme les "atomes" de la vie, des petites actions qui paraissent insignifiantes à première vue, mais qui s'additionnent sur le temps pour produire des résultats significatifs et puissants. Ces habitudes sont donc des unités fondamentales contribuant à l'amélioration personnelle continue.
+                        </p>
+                    </div>
+                </div>
+            </div>
 
             <div className="card space-y-6">
                 <div>

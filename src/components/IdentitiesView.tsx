@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X, CheckCircle2, Edit2 } from 'lucide-react';
+import { Plus, X, CheckCircle2, Edit2, Info } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { calculateIdentityScore } from '@/utils/habitUtils';
 import EditIdentityModal from './EditIdentityModal';
@@ -25,6 +25,21 @@ const IdentitiesView: React.FC = () => {
     return (
         <div className="space-y-6">
             <h2 className="text-2xl font-bold text-slate-800">Gérer mes Identités</h2>
+
+            {/* Presentation Text */}
+            <div className="card bg-gradient-to-br from-indigo-50 to-purple-50 border-2 border-indigo-200">
+                <div className="flex items-start gap-4">
+                    <div className="p-3 bg-indigo-100 rounded-lg flex-shrink-0">
+                        <Info className="w-6 h-6 text-indigo-600" />
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-indigo-900 mb-2">Qu'est-ce qu'une identité ?</h3>
+                        <p className="text-slate-700 leading-relaxed">
+                            L'identité est la couche la plus profonde du changement de comportement. Il explique que le véritable changement durable ne se base pas uniquement sur les résultats ou les objectifs à atteindre, mais sur la transformation de l'identité personnelle, c'est-à-dire la perception que l'on a de soi-même.
+                        </p>
+                    </div>
+                </div>
+            </div>
 
             {/* Add Identity Form */}
             <div className="card">
