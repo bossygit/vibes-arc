@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { Habit } from '@/types';
-import { getDaysInMonth, getFirstDayOfMonth, formatDateFull, startDate } from '@/utils/dateUtils';
+import { getDaysInMonth, getFirstDayOfMonth, startDate } from '@/utils/dateUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
