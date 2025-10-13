@@ -7,6 +7,7 @@ import HabitCard from './HabitCard';
 import DataManager from './DataManager';
 import IdentitiesProgressChart from './IdentitiesProgressChart';
 import TodayStatus from './TodayStatus';
+import OverallCalendar from './OverallCalendar';
 import { motion } from 'framer-motion';
 
 const Dashboard: React.FC = () => {
@@ -31,6 +32,13 @@ const Dashboard: React.FC = () => {
             {habits.length > 0 && (
                 <section>
                     <TodayStatus habits={habits} />
+                </section>
+            )}
+
+            {/* Overall Calendar */}
+            {habits.length > 0 && (
+                <section>
+                    <OverallCalendar habits={habits} />
                 </section>
             )}
 
