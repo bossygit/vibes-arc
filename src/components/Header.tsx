@@ -10,6 +10,7 @@ const Header: React.FC = () => {
         { key: 'dashboard', label: 'Tableau de bord' },
         { key: 'identities', label: 'Identités' },
         { key: 'addHabit', label: 'Ajouter Habitude' },
+        { key: 'templates', label: 'Templates' },
         { key: 'rewards', label: 'Récompenses' },
     ] as const;
 

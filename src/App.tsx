@@ -7,8 +7,9 @@ import HabitDetailView from '@/components/HabitDetailView';
 import Header from '@/components/Header';
 import Auth from '@/components/Auth';
 import SupabaseDatabaseClient from '@/database/supabase-client';
- 
+
 import RewardsChallenges from '@/components/RewardsChallenges';
+import TemplatesView from '@/components/TemplatesView';
 
 function App() {
     const { view } = useAppStore();
@@ -48,6 +49,8 @@ function App() {
                 return <HabitDetailView />;
             case 'rewards':
                 return <RewardsChallenges />;
+            case 'templates':
+                return <TemplatesView />;
             default:
                 return <Dashboard />;
         }

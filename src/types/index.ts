@@ -33,11 +33,11 @@ export interface Streak {
 export interface AppState {
     identities: Identity[];
     habits: Habit[];
-    view: 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards';
+    view: 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates';
     selectedHabitId: number | null;
 }
 
-export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards';
+export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates';
 
 // Extensions motivation/gamification
 export interface Reward {
@@ -67,5 +67,17 @@ export type SkipsByHabit = Record<number, number[]>; // habitId -> liste d'index
 
 export interface UserPrefs {
     notifHour: number; // 0..23
+}
+
+export interface HabitTemplate {
+    id: string;
+    name: string;
+    type: 'start' | 'stop';
+    category: 'screens' | 'substances' | 'movement' | 'connection' | 'routine';
+    description: string;
+    suggestedDuration: number[];
+    advice: string[];
+    difficulty: 'easy' | 'medium' | 'hard';
+    icon: string;
 }
 

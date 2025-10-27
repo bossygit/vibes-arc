@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Plus, CheckCircle2, Info } from 'lucide-react';
+import { Plus, CheckCircle2, Info, Sparkles } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
+import { detoxTemplates } from '@/data/detoxTemplates';
 
 const AddHabitView: React.FC = () => {
     const { identities, addHabit, setView } = useAppStore();
@@ -35,7 +36,16 @@ const AddHabitView: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-slate-800">Créer une nouvelle habitude</h2>
+            <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-slate-800">Créer une nouvelle habitude</h2>
+                <button
+                    onClick={() => setView('templates')}
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition"
+                >
+                    <Sparkles className="w-4 h-4" />
+                    Templates Detox
+                </button>
+            </div>
 
             {/* Presentation Text */}
             <div className="card bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200">
@@ -48,6 +58,29 @@ const AddHabitView: React.FC = () => {
                         <p className="text-slate-700 leading-relaxed">
                             Une habitude est une routine ou un comportement régulier qui se manifeste automatiquement en réponse à un stimulus spécifique. Il décrit les habitudes comme les "atomes" de la vie, des petites actions qui paraissent insignifiantes à première vue, mais qui s'additionnent sur le temps pour produire des résultats significatifs et puissants. Ces habitudes sont donc des unités fondamentales contribuant à l'amélioration personnelle continue.
                         </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Templates suggérés */}
+            <div className="card bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
+                <div className="flex items-start gap-4">
+                    <div className="p-3 bg-purple-100 rounded-lg flex-shrink-0">
+                        <Sparkles className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-purple-900 mb-2">Templates Detox Dopamine</h3>
+                        <p className="text-slate-700 leading-relaxed mb-3">
+                            Découvre nos templates d'habitudes spécialement conçus pour une detox dopamine.
+                            Chaque template inclut des conseils personnalisés et des durées suggérées (21, 30, 66, 90 jours).
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {detoxTemplates.slice(0, 4).map(template => (
+                                <span key={template.id} className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">
+                                    {template.icon} {template.name}
+                                </span>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
