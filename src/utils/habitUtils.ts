@@ -1,4 +1,4 @@
-import { Habit, HabitStats, Streak, SkipsByHabit } from '@/types';
+import { Habit, HabitStats, Streak } from '@/types';
 import { getDateForDay, formatDate, startDate } from './dateUtils';
 
 export interface Badge {
@@ -59,7 +59,7 @@ export const getCurrentDayIndex = (): number => {
 
 export const calculateHabitStats = (habit: Habit, skippedDays: number[] = []): HabitStats => {
     const skippedSet = new Set(skippedDays);
-    const completed = habit.progress.reduce((sum, v, idx) => sum + (v ? 1 : 0), 0);
+    const completed = habit.progress.reduce((sum, v) => sum + (v ? 1 : 0), 0);
     const effectiveTotal = Math.max(0, habit.totalDays - skippedSet.size);
     const percentage = effectiveTotal > 0 ? Math.round((completed / effectiveTotal) * 100) : 0;
 

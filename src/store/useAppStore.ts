@@ -151,7 +151,7 @@ export const useAppStore = create<AppState>()((set) => {
                         const updatedHabits = state.habits.map(h => {
                             if (h.id === habitId) {
                                 const newProgress = [...h.progress];
-                                const wasChecked = newProgress[dayIndex];
+
                                 newProgress[dayIndex] = !newProgress[dayIndex];
                                 return { ...h, progress: newProgress };
                             }
@@ -211,7 +211,7 @@ export const useAppStore = create<AppState>()((set) => {
             }
         },
 
-        
+
 
         addPoints: (amount) => {
             set((state) => {

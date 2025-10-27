@@ -6,7 +6,7 @@ import EditIdentityModal from './EditIdentityModal';
 import { Identity } from '@/types';
 
 const IdentitiesView: React.FC = () => {
-    const { identities, habits, addIdentity, updateIdentity, deleteIdentity, gamification, createReward, claimReward } = useAppStore() as any;
+    const { identities, habits, addIdentity, updateIdentity, deleteIdentity, gamification, createReward, claimReward } = useAppStore();
     const [newIdentity, setNewIdentity] = useState({ name: '', description: '' });
     const [editingIdentity, setEditingIdentity] = useState<Identity | null>(null);
 

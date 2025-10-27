@@ -9,7 +9,7 @@ interface HabitCalendarProps {
 }
 
 const HabitCalendar: React.FC<HabitCalendarProps> = ({ habit, onToggleDay }) => {
-    const { skipsByHabit, toggleSkipDay } = useAppStore();
+    const { skipsByHabit } = useAppStore();
     const skips = skipsByHabit[habit.id] || [];
     const months = [
         { name: 'Octobre 2025', startDay: 0, days: 31, emptyCells: 2 },

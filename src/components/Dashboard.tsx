@@ -12,7 +12,7 @@ import { motion } from 'framer-motion';
 import { getCurrentDayIndex } from '@/utils/habitUtils';
 
 const Dashboard: React.FC = () => {
-    const { identities, habits, setView, gamification, addPoints, createReward, claimReward } = useAppStore() as any;
+    const { identities, habits, setView, gamification, addPoints, createReward, claimReward } = useAppStore();
 
     const handleDataChange = () => {
         // Recharger les données depuis le store
@@ -21,10 +21,10 @@ const Dashboard: React.FC = () => {
 
     // Calculer les statistiques globales
     const totalHabits = habits.length;
-    const totalDays = habits.reduce((sum: number, h: any) => sum + h.totalDays, 0);
-    const completedDays = habits.reduce((sum: number, h: any) => sum + h.progress.filter(Boolean).length, 0);
+    const totalDays = habits.reduce<number>((sum, h) => sum + h.totalDays, 0);
+    const completedDays = habits.reduce<number>((sum, h) => sum + h.progress.filter(Boolean).length, 0);
     const overallProgress = totalDays > 0 ? Math.round((completedDays / totalDays) * 100) : 0;
-    const currentStreaks = habits.map((h: any) => calculateHabitStats(h).currentStreak);
+    const currentStreaks = habits.map(h => calculateHabitStats(h).currentStreak);
     const longestCurrentStreak = currentStreaks.length > 0 ? Math.max(...currentStreaks) : 0;
 
     // Tendance hebdo globale: sur l'ensemble des habitudes actives par jour
@@ -225,7 +225,7 @@ const Dashboard: React.FC = () => {
                         Mes Identités
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {identities.map((identity: any) => (
+                        {identities.map((identity) => (
                             <IdentityCard
                                 key={identity.id}
                                 identity={identity}
@@ -256,7 +256,7 @@ const Dashboard: React.FC = () => {
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {habits.map((habit: any) => (
+                        {habits.map((habit) => (
                             <HabitCard
                                 key={habit.id}
                                 habit={habit}
@@ -283,7 +283,7 @@ const Dashboard: React.FC = () => {
                                 // calculer complétions sur les 7 derniers jours
                                 const todayIdx = getCurrentDayIndex();
                                 const start = Math.max(0, todayIdx - 6);
-                                const daysCompleted = Array.from({ length: todayIdx - start + 1 }).reduce((sum, _, offset) => {
+                                const daysCompleted: number = Array.from({ length: todayIdx - start + 1 }).reduce<number>((sum, _, offset) => {
                                     const idx = start + offset;
                                     const active = habits.filter(h => idx >= 0 && idx < h.progress.length);
                                     if (active.length === 0) return sum;
