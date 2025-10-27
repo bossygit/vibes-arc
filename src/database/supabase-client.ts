@@ -62,7 +62,7 @@ class SupabaseDatabaseClient {
 
     // ===== IDENTITIES =====
 
-    async createIdentity(name: string, description?: string): Promise<Identity> {
+    async createIdentity(name: string, description?: string, color: string = 'blue'): Promise<Identity> {
         const user = await this.getCurrentUser();
         if (!user) throw new Error('Utilisateur non authentifié');
 
@@ -71,6 +71,7 @@ class SupabaseDatabaseClient {
             .insert({
                 name,
                 description,
+                color,
                 user_id: user.id,
             })
             .select()
@@ -82,6 +83,7 @@ class SupabaseDatabaseClient {
             id: data.id,
             name: data.name,
             description: data.description,
+            color: data.color,
             createdAt: data.created_at,
         };
     }
@@ -102,6 +104,7 @@ class SupabaseDatabaseClient {
             id: item.id,
             name: item.name,
             description: item.description,
+            color: item.color || 'blue',
             createdAt: item.created_at,
         }));
     }
@@ -398,7 +401,7 @@ class SupabaseDatabaseClient {
 
             if (data.identities && Array.isArray(data.identities)) {
                 for (const identity of data.identities) {
-                    await this.createIdentity(identity.name, identity.description);
+                    await this.createIdentity(identity.name, identity.description, identity.color);
                 }
             }
 

@@ -7,13 +7,13 @@ import { Identity } from '@/types';
 
 const IdentitiesView: React.FC = () => {
     const { identities, habits, addIdentity, updateIdentity, deleteIdentity, gamification, createReward, claimReward } = useAppStore();
-    const [newIdentity, setNewIdentity] = useState({ name: '', description: '' });
+    const [newIdentity, setNewIdentity] = useState({ name: '', description: '', color: 'blue' });
     const [editingIdentity, setEditingIdentity] = useState<Identity | null>(null);
 
     const handleAddIdentity = () => {
         if (newIdentity.name.trim()) {
             addIdentity(newIdentity);
-            setNewIdentity({ name: '', description: '' });
+            setNewIdentity({ name: '', description: '', color: 'blue' });
         }
     };
 

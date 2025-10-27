@@ -19,12 +19,13 @@ class BrowserDatabaseClient {
 
     // ===== IDENTITIES =====
 
-    public createIdentity(name: string, description?: string): Identity {
+    public createIdentity(name: string, description?: string, color: string = 'blue'): Identity {
         const identities = this.getIdentities();
         const newIdentity: Identity = {
             id: Date.now(),
             name,
             description,
+            color,
             createdAt: new Date().toISOString()
         };
 

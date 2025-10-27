@@ -39,25 +39,26 @@ class DatabaseService {
 
     // ===== IDENTITIES =====
 
-    public createIdentity(name: string, description?: string): Identity {
+    public createIdentity(name: string, description?: string, color: string = 'blue'): Identity {
         const stmt = this.db.prepare(`
-      INSERT INTO identities (name, description) 
-      VALUES (?, ?)
+      INSERT INTO identities (name, description, color) 
+      VALUES (?, ?, ?)
     `);
 
-        const result = stmt.run(name, description || null);
+        const result = stmt.run(name, description || null, color);
 
         return {
             id: result.lastInsertRowid as number,
             name,
             description,
+            color,
             createdAt: new Date().toISOString()
         };
     }
 
     public getIdentities(): Identity[] {
         const stmt = this.db.prepare(`
-      SELECT id, name, description, created_at as createdAt 
+      SELECT id, name, description, color, created_at as createdAt 
       FROM identities 
       ORDER BY created_at DESC
     `);
