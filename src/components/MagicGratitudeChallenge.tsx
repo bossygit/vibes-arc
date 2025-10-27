@@ -11,7 +11,7 @@ import {
   ArrowLeft,
   Target
 } from 'lucide-react';
-import { magicGratitudeChallenge, getMagicGratitudeDay, getCompletedDays, getProgressPercentage, isChallengeCompleted } from '@/data/magicGratitudeChallenge';
+import { getMagicGratitudeDay, getProgressPercentage, isChallengeCompleted } from '@/data/magicGratitudeChallenge';
 
 const MagicGratitudeChallenge: React.FC = () => {
   const [currentDay, setCurrentDay] = useState(1);
