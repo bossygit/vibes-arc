@@ -8,110 +8,99 @@ export interface MagicGratitudeDay {
   completed: boolean;
   completedAt?: string;
   notes?: string;
+  theme: 'present' | 'desires' | 'integration';
+  themeTitle: string;
+  isDailyPractice?: boolean; // Pour les exercices quotidiens (jour 1 et 2)
 }
 
 export const magicGratitudeChallenge: MagicGratitudeDay[] = [
+  // ===== PARTIE 1: GRATITUDE POUR LE PRÉSENT ET LE PASSÉ (Jours 1-12) =====
   {
     day: 1,
     title: "Comptez vos bénédictions",
     exercise: "Listez 10 choses pour lesquelles vous êtes reconnaissant",
     instructions: [
-      "Prenez un moment de calme",
+      "Prenez un moment de calme chaque matin",
       "Listez 10 choses pour lesquelles vous êtes reconnaissant",
       "Pour chaque chose, écrivez pourquoi vous en êtes reconnaissant",
-      "Ressentez vraiment la gratitude pour chaque élément"
+      "Dites 'Merci, merci, merci' en ressentant vraiment la gratitude"
     ],
     reflection: "Comment vous sentez-vous après avoir listé ces 10 bénédictions ?",
     affirmation: "Je suis reconnaissant pour toutes les bénédictions de ma vie",
-    completed: false
+    completed: false,
+    theme: 'present',
+    themeTitle: 'Gratitude pour le Présent et le Passé',
+    isDailyPractice: true
   },
   {
     day: 2,
-    title: "La pierre de gratitude",
-    exercise: "Trouvez une pierre de gratitude",
+    title: "La pierre magique",
+    exercise: "Trouvez votre pierre magique de gratitude",
     instructions: [
       "Trouvez une petite pierre qui vous plaît",
-      "Appelez-la votre 'Pierre de Gratitude'",
+      "Appelez-la votre 'Pierre Magique'",
       "Chaque soir, tenez-la en main",
-      "Répétez 'Merci' pour le meilleur moment de votre journée"
+      "Repensez à votre journée et trouvez la meilleure chose qui vous soit arrivée",
+      "Dites 'Merci' pour ce moment précis"
     ],
     reflection: "Quel a été le meilleur moment de votre journée ?",
     affirmation: "Je suis reconnaissant pour les moments de joie de ma journée",
-    completed: false
+    completed: false,
+    theme: 'present',
+    themeTitle: 'Gratitude pour le Présent et le Passé',
+    isDailyPractice: true
   },
   {
     day: 3,
-    title: "Gratitude envers les autres",
-    exercise: "Exprimez votre gratitude à 3 personnes",
+    title: "Relations magiques",
+    exercise: "Exprimez votre gratitude à 3 personnes proches",
     instructions: [
-      "Choisissez 3 personnes importantes dans votre vie",
-      "Écrivez-leur un message de gratitude",
-      "Expliquez pourquoi vous êtes reconnaissant pour elles",
-      "Envoyez ou donnez-leur le message"
+      "Choisissez 3 de vos relations les plus proches",
+      "Trouvez ce que vous appréciez le plus chez chaque personne",
+      "Exprimez-leur votre gratitude (mentalement ou directement)",
+      "Ressentez l'amour et l'appréciation pour ces personnes"
     ],
-    reflection: "Comment vous sentez-vous après avoir exprimé votre gratitude ?",
-    affirmation: "Je suis reconnaissant pour les personnes merveilleuses de ma vie",
-    completed: false
+    reflection: "Comment vous sentez-vous en exprimant votre gratitude à ces personnes ?",
+    affirmation: "Je suis reconnaissant pour les relations merveilleuses de ma vie",
+    completed: false,
+    theme: 'present',
+    themeTitle: 'Gratitude pour le Présent et le Passé'
   },
   {
     day: 4,
-    title: "Gratitude pour la santé",
-    exercise: "Remerciez pour 10 aspects de votre santé",
+    title: "Santé magique",
+    exercise: "Remerciez pour le don de la santé",
     instructions: [
-      "Listez 10 aspects positifs de votre santé",
-      "Remerciez pour chaque partie de votre corps qui fonctionne",
+      "Concentrez-vous sur chaque partie de votre corps",
+      "Remerciez chaque organe pour son fonctionnement",
       "Appréciez votre capacité à voir, entendre, marcher, etc.",
       "Ressentez de la gratitude pour votre vitalité"
     ],
     reflection: "Quelle partie de votre corps appréciez-vous le plus ?",
     affirmation: "Je suis reconnaissant pour ma santé et ma vitalité",
-    completed: false
+    completed: false,
+    theme: 'present',
+    themeTitle: 'Gratitude pour le Présent et le Passé'
   },
   {
     day: 5,
-    title: "Gratitude pour les défis passés",
-    exercise: "Trouvez la gratitude dans 5 situations difficiles",
+    title: "Argent magique",
+    exercise: "Remerciez pour tout l'argent reçu dans votre vie",
     instructions: [
-      "Identifiez 5 situations difficiles de votre passé",
-      "Pour chaque situation, trouvez ce qu'elle vous a appris",
-      "Remerciez pour la force que vous avez développée",
-      "Reconnaissez comment ces épreuves vous ont fait grandir"
-    ],
-    reflection: "Quelle leçon importante avez-vous apprise d'une difficulté ?",
-    affirmation: "Je suis reconnaissant pour les leçons de mes défis passés",
-    completed: false
-  },
-  {
-    day: 6,
-    title: "Gratitude pour vos rêves",
-    exercise: "Visualisez 10 de vos désirs réalisés",
-    instructions: [
-      "Listez 10 désirs ou objectifs importants",
-      "Imaginez chacun d'eux comme déjà réalisé",
-      "Ressentez la gratitude comme si c'était déjà là",
-      "Remerciez l'univers pour ces bénédictions futures"
-    ],
-    reflection: "Quel rêve vous excite le plus ?",
-    affirmation: "Je suis reconnaissant pour la réalisation de mes rêves",
-    completed: false
-  },
-  {
-    day: 7,
-    title: "Gratitude pour l'argent",
-    exercise: "Remerciez pour tout l'argent reçu",
-    instructions: [
-      "Remerciez pour tout l'argent que vous avez reçu dans votre vie",
+      "Remerciez pour tout l'argent que vous avez reçu (même enfant)",
       "Appréciez chaque source de revenus",
       "Remerciez pour les achats que vous avez pu faire",
       "Ressentez de la gratitude pour l'abondance financière"
     ],
     reflection: "Pour quoi êtes-vous le plus reconnaissant financièrement ?",
     affirmation: "Je suis reconnaissant pour l'abondance financière dans ma vie",
-    completed: false
+    completed: false,
+    theme: 'present',
+    themeTitle: 'Gratitude pour le Présent et le Passé'
   },
   {
-    day: 8,
-    title: "Gratitude pour le travail",
+    day: 6,
+    title: "Travail magique",
     exercise: "Remerciez pour 10 aspects de votre travail",
     instructions: [
       "Listez 10 choses positives dans votre travail",
@@ -121,11 +110,29 @@ export const magicGratitudeChallenge: MagicGratitudeDay[] = [
     ],
     reflection: "Qu'est-ce que vous aimez le plus dans votre travail ?",
     affirmation: "Je suis reconnaissant pour les opportunités de travail",
-    completed: false
+    completed: false,
+    theme: 'present',
+    themeTitle: 'Gratitude pour le Présent et le Passé'
   },
   {
-    day: 9,
-    title: "Gratitude pour votre foyer",
+    day: 7,
+    title: "Sortir de la négativité",
+    exercise: "Trouvez 10 raisons d'être reconnaissant dans une situation négative",
+    instructions: [
+      "Choisissez une situation négative de votre passé",
+      "Trouvez 10 choses pour lesquelles être reconnaissant dans cette situation",
+      "Identifiez les leçons apprises",
+      "Remerciez pour la force développée"
+    ],
+    reflection: "Quelle leçon importante avez-vous apprise de cette difficulté ?",
+    affirmation: "Je suis reconnaissant pour les leçons de mes défis passés",
+    completed: false,
+    theme: 'present',
+    themeTitle: 'Gratitude pour le Présent et le Passé'
+  },
+  {
+    day: 8,
+    title: "Foyer magique",
     exercise: "Remerciez pour votre maison et ses commodités",
     instructions: [
       "Remerciez pour votre maison ou appartement",
@@ -135,11 +142,13 @@ export const magicGratitudeChallenge: MagicGratitudeDay[] = [
     ],
     reflection: "Quelle partie de votre foyer appréciez-vous le plus ?",
     affirmation: "Je suis reconnaissant pour mon foyer et son confort",
-    completed: false
+    completed: false,
+    theme: 'present',
+    themeTitle: 'Gratitude pour le Présent et le Passé'
   },
   {
-    day: 10,
-    title: "Gratitude pour les mentors",
+    day: 9,
+    title: "Mentors magiques",
     exercise: "Remerciez pour les personnes qui vous ont marqué",
     instructions: [
       "Identifiez les personnes qui vous ont inspiré",
@@ -149,11 +158,13 @@ export const magicGratitudeChallenge: MagicGratitudeDay[] = [
     ],
     reflection: "Qui a eu le plus d'impact positif sur votre vie ?",
     affirmation: "Je suis reconnaissant pour mes mentors et guides",
-    completed: false
+    completed: false,
+    theme: 'present',
+    themeTitle: 'Gratitude pour le Présent et le Passé'
   },
   {
-    day: 11,
-    title: "Gratitude pour la famille",
+    day: 10,
+    title: "Famille magique",
     exercise: "Remerciez pour 10 aspects de votre famille",
     instructions: [
       "Listez 10 choses positives de votre famille",
@@ -163,11 +174,13 @@ export const magicGratitudeChallenge: MagicGratitudeDay[] = [
     ],
     reflection: "Quel est votre plus beau souvenir familial ?",
     affirmation: "Je suis reconnaissant pour l'amour de ma famille",
-    completed: false
+    completed: false,
+    theme: 'present',
+    themeTitle: 'Gratitude pour le Présent et le Passé'
   },
   {
-    day: 12,
-    title: "Gratitude pour les collègues",
+    day: 11,
+    title: "Collègues magiques",
     exercise: "Remerciez pour les personnes qui vous aident au travail",
     instructions: [
       "Identifiez les collègues qui vous soutiennent",
@@ -177,25 +190,13 @@ export const magicGratitudeChallenge: MagicGratitudeDay[] = [
     ],
     reflection: "Quel collègue vous aide le plus ?",
     affirmation: "Je suis reconnaissant pour mes collègues de travail",
-    completed: false
+    completed: false,
+    theme: 'present',
+    themeTitle: 'Gratitude pour le Présent et le Passé'
   },
   {
-    day: 13,
-    title: "Gratitude pour le corps",
-    exercise: "Remerciez pour 10 aspects de votre corps",
-    instructions: [
-      "Listez 10 parties de votre corps que vous appréciez",
-      "Remerciez pour leur fonctionnement",
-      "Appréciez leur beauté et leur force",
-      "Ressentez de la gratitude pour votre corps"
-    ],
-    reflection: "Quelle partie de votre corps appréciez-vous le plus ?",
-    affirmation: "Je suis reconnaissant pour mon corps et sa santé",
-    completed: false
-  },
-  {
-    day: 14,
-    title: "Gratitude pour la nourriture",
+    day: 12,
+    title: "Nourriture magique",
     exercise: "Remerciez pour les aliments que vous consommez",
     instructions: [
       "Remerciez pour chaque repas de la journée",
@@ -205,11 +206,47 @@ export const magicGratitudeChallenge: MagicGratitudeDay[] = [
     ],
     reflection: "Quel aliment appréciez-vous le plus ?",
     affirmation: "Je suis reconnaissant pour l'abondance de nourriture",
-    completed: false
+    completed: false,
+    theme: 'present',
+    themeTitle: 'Gratitude pour le Présent et le Passé'
+  },
+
+  // ===== PARTIE 2: GRATITUDE POUR VOS DÉSIRS ET RÊVES (Jours 13-22) =====
+  {
+    day: 13,
+    title: "Réalisez tous vos désirs",
+    exercise: "Listez vos 10 principaux désirs et remerciez comme s'ils étaient réalisés",
+    instructions: [
+      "Listez vos 10 principaux désirs",
+      "Pour chacun, écrivez comme s'il était déjà réalisé",
+      "Ressentez une gratitude intense pour chaque désir",
+      "Remerciez l'univers pour ces bénédictions futures"
+    ],
+    reflection: "Quel rêve vous excite le plus ?",
+    affirmation: "Je suis reconnaissant pour la réalisation de mes rêves",
+    completed: false,
+    theme: 'desires',
+    themeTitle: 'Gratitude pour vos Désirs et Rêves'
+  },
+  {
+    day: 14,
+    title: "Une journée magique",
+    exercise: "Planifiez votre journée et remerciez pour chaque événement à l'avance",
+    instructions: [
+      "Planifiez votre journée à l'avance",
+      "Pour chaque événement, exprimez votre gratitude avant qu'il ne se produise",
+      "Visualisez un déroulement parfait",
+      "Ressentez la gratitude pour cette journée magique"
+    ],
+    reflection: "Comment vous sentez-vous en planifiant votre journée avec gratitude ?",
+    affirmation: "Je suis reconnaissant pour cette journée magique",
+    completed: false,
+    theme: 'desires',
+    themeTitle: 'Gratitude pour vos Désirs et Rêves'
   },
   {
     day: 15,
-    title: "Gratitude pour les objets quotidiens",
+    title: "Objets magiques",
     exercise: "Remerciez pour les choses que vous utilisez chaque jour",
     instructions: [
       "Identifiez 10 objets que vous utilisez quotidiennement",
@@ -219,11 +256,13 @@ export const magicGratitudeChallenge: MagicGratitudeDay[] = [
     ],
     reflection: "Quel objet quotidien appréciez-vous le plus ?",
     affirmation: "Je suis reconnaissant pour les commodités de ma vie",
-    completed: false
+    completed: false,
+    theme: 'desires',
+    themeTitle: 'Gratitude pour vos Désirs et Rêves'
   },
   {
     day: 16,
-    title: "Gratitude pour les sens",
+    title: "Sens magiques",
     exercise: "Remerciez pour vos 5 sens",
     instructions: [
       "Remerciez pour votre vue et la beauté que vous voyez",
@@ -233,11 +272,29 @@ export const magicGratitudeChallenge: MagicGratitudeDay[] = [
     ],
     reflection: "Quel sens appréciez-vous le plus ?",
     affirmation: "Je suis reconnaissant pour mes 5 sens",
-    completed: false
+    completed: false,
+    theme: 'desires',
+    themeTitle: 'Gratitude pour vos Désirs et Rêves'
   },
   {
     day: 17,
-    title: "Gratitude pour l'inspiration",
+    title: "Le chèque magique",
+    exercise: "Remplissez un chèque magique de l'Univers",
+    instructions: [
+      "Remplissez un 'chèque magique' avec votre nom",
+      "Écrivez le montant désiré pour quelque chose de spécifique",
+      "Remerciez comme si vous aviez reçu cet argent",
+      "Ressentez la gratitude pour cette abondance"
+    ],
+    reflection: "Pour quoi aimeriez-vous utiliser cet argent ?",
+    affirmation: "Je suis reconnaissant pour l'abondance financière",
+    completed: false,
+    theme: 'desires',
+    themeTitle: 'Gratitude pour vos Désirs et Rêves'
+  },
+  {
+    day: 18,
+    title: "Inspiration magique",
     exercise: "Remerciez pour les personnes qui vous inspirent",
     instructions: [
       "Identifiez les personnes qui vous inspirent",
@@ -247,11 +304,13 @@ export const magicGratitudeChallenge: MagicGratitudeDay[] = [
     ],
     reflection: "Qui vous inspire le plus actuellement ?",
     affirmation: "Je suis reconnaissant pour mes sources d'inspiration",
-    completed: false
+    completed: false,
+    theme: 'desires',
+    themeTitle: 'Gratitude pour vos Désirs et Rêves'
   },
   {
-    day: 18,
-    title: "Gratitude pour les défis",
+    day: 19,
+    title: "Défis magiques",
     exercise: "Remerciez pour les défis surmontés",
     instructions: [
       "Identifiez les défis que vous avez surmontés",
@@ -261,11 +320,13 @@ export const magicGratitudeChallenge: MagicGratitudeDay[] = [
     ],
     reflection: "Quel défi vous a le plus fait grandir ?",
     affirmation: "Je suis reconnaissant pour ma force et ma résilience",
-    completed: false
+    completed: false,
+    theme: 'desires',
+    themeTitle: 'Gratitude pour vos Désirs et Rêves'
   },
   {
-    day: 19,
-    title: "Gratitude pour la nature",
+    day: 20,
+    title: "Nature magique",
     exercise: "Remerciez pour 10 aspects de la nature",
     instructions: [
       "Listez 10 éléments de la nature que vous appréciez",
@@ -275,81 +336,29 @@ export const magicGratitudeChallenge: MagicGratitudeDay[] = [
     ],
     reflection: "Quel aspect de la nature vous émerveille le plus ?",
     affirmation: "Je suis reconnaissant pour la beauté de la nature",
-    completed: false
-  },
-  {
-    day: 20,
-    title: "Gratitude pour les opportunités",
-    exercise: "Remerciez pour les opportunités qui se présentent",
-    instructions: [
-      "Identifiez les opportunités récentes",
-      "Remerciez pour les portes qui s'ouvrent",
-      "Appréciez les possibilités de croissance",
-      "Ressentez de la gratitude pour les chances"
-    ],
-    reflection: "Quelle opportunité vous excite le plus ?",
-    affirmation: "Je suis reconnaissant pour les opportunités de ma vie",
-    completed: false
+    completed: false,
+    theme: 'desires',
+    themeTitle: 'Gratitude pour vos Désirs et Rêves'
   },
   {
     day: 21,
-    title: "Gratitude pour la joie",
-    exercise: "Remerciez pour les moments de joie",
+    title: "Résultats magnifiques",
+    exercise: "Choisissez 3 situations et remerciez pour des résultats magnifiques",
     instructions: [
-      "Rappelez-vous des moments de joie récents",
-      "Remerciez pour ces instants de bonheur",
-      "Appréciez la légèreté et l'enthousiasme",
-      "Ressentez de la gratitude pour la joie"
+      "Choisissez 3 situations où vous souhaitez un 'résultat magnifique'",
+      "Exprimez votre gratitude pour ce résultat idéal",
+      "Visualisez le déroulement parfait",
+      "Ressentez la gratitude avant que cela n'arrive"
     ],
-    reflection: "Quel moment de joie récent vous marque ?",
-    affirmation: "Je suis reconnaissant pour la joie dans ma vie",
-    completed: false
+    reflection: "Quel résultat magnifique vous excite le plus ?",
+    affirmation: "Je suis reconnaissant pour les résultats magnifiques",
+    completed: false,
+    theme: 'desires',
+    themeTitle: 'Gratitude pour vos Désirs et Rêves'
   },
   {
     day: 22,
-    title: "Gratitude pour l'éducation",
-    exercise: "Remerciez pour votre éducation et apprentissage",
-    instructions: [
-      "Remerciez pour votre éducation formelle",
-      "Appréciez les connaissances acquises",
-      "Remerciez pour les livres et enseignements",
-      "Ressentez de la gratitude pour l'apprentissage"
-    ],
-    reflection: "Quelle connaissance vous a le plus aidé ?",
-    affirmation: "Je suis reconnaissant pour mon éducation",
-    completed: false
-  },
-  {
-    day: 23,
-    title: "Gratitude pour les talents",
-    exercise: "Remerciez pour vos talents et compétences",
-    instructions: [
-      "Listez vos talents et compétences",
-      "Remerciez pour ces dons naturels",
-      "Appréciez votre capacité à créer",
-      "Ressentez de la gratitude pour vos capacités"
-    ],
-    reflection: "Quel talent appréciez-vous le plus ?",
-    affirmation: "Je suis reconnaissant pour mes talents uniques",
-    completed: false
-  },
-  {
-    day: 24,
-    title: "Gratitude pour les voyages",
-    exercise: "Remerciez pour vos expériences de voyage",
-    instructions: [
-      "Rappelez-vous vos voyages et découvertes",
-      "Remerciez pour les cultures rencontrées",
-      "Appréciez les paysages et monuments vus",
-      "Ressentez de la gratitude pour l'exploration"
-    ],
-    reflection: "Quel voyage vous a le plus marqué ?",
-    affirmation: "Je suis reconnaissant pour mes expériences de voyage",
-    completed: false
-  },
-  {
-    day: 25,
-    title: "Gratitude pour les amis",
+    title: "Amis magiques",
     exercise: "Remerciez pour 10 aspects de vos amitiés",
     instructions: [
       "Listez 10 choses positives de vos amitiés",
@@ -359,40 +368,96 @@ export const magicGratitudeChallenge: MagicGratitudeDay[] = [
     ],
     reflection: "Quel ami vous apporte le plus de joie ?",
     affirmation: "Je suis reconnaissant pour mes amitiés précieuses",
-    completed: false
+    completed: false,
+    theme: 'desires',
+    themeTitle: 'Gratitude pour vos Désirs et Rêves'
+  },
+
+  // ===== PARTIE 3: INTÉGRER LA GRATITUDE À UN NIVEAU SUPÉRIEUR (Jours 23-28) =====
+  {
+    day: 23,
+    title: "Éducation magique",
+    exercise: "Remerciez pour votre éducation et apprentissage",
+    instructions: [
+      "Remerciez pour votre éducation formelle",
+      "Appréciez les connaissances acquises",
+      "Remerciez pour les livres et enseignements",
+      "Ressentez de la gratitude pour l'apprentissage"
+    ],
+    reflection: "Quelle connaissance vous a le plus aidé ?",
+    affirmation: "Je suis reconnaissant pour mon éducation",
+    completed: false,
+    theme: 'integration',
+    themeTitle: 'Intégrer la Gratitude à un Niveau Supérieur'
+  },
+  {
+    day: 24,
+    title: "La baguette magique",
+    exercise: "Dirigez l'énergie de gratitude vers 3 personnes qui ont besoin d'aide",
+    instructions: [
+      "Choisissez 3 personnes qui ont besoin d'aide (santé, argent, bonheur)",
+      "Visualisez leur situation résolue",
+      "Dirigez l'énergie de gratitude vers elles",
+      "Ressentez la joie de les aider"
+    ],
+    reflection: "Comment vous sentez-vous en aidant les autres par la gratitude ?",
+    affirmation: "Je suis reconnaissant de pouvoir aider les autres",
+    completed: false,
+    theme: 'integration',
+    themeTitle: 'Intégrer la Gratitude à un Niveau Supérieur'
+  },
+  {
+    day: 25,
+    title: "Voyages magiques",
+    exercise: "Remerciez pour vos expériences de voyage",
+    instructions: [
+      "Rappelez-vous vos voyages et découvertes",
+      "Remerciez pour les cultures rencontrées",
+      "Appréciez les paysages et monuments vus",
+      "Ressentez de la gratitude pour l'exploration"
+    ],
+    reflection: "Quel voyage vous a le plus marqué ?",
+    affirmation: "Je suis reconnaissant pour mes expériences de voyage",
+    completed: false,
+    theme: 'integration',
+    themeTitle: 'Intégrer la Gratitude à un Niveau Supérieur'
   },
   {
     day: 26,
-    title: "Gratitude pour la solitude",
-    exercise: "Remerciez pour les moments de solitude",
+    title: "Transformez vos erreurs en bénédictions",
+    exercise: "Repensez à une 'erreur' et trouvez les bienfaits cachés",
     instructions: [
-      "Appréciez les moments de calme et de réflexion",
-      "Remerciez pour la paix intérieure",
-      "Valorisez le temps pour soi",
-      "Ressentez de la gratitude pour la sérénité"
+      "Repensez à une 'erreur' passée",
+      "Trouvez les leçons et bienfaits cachés",
+      "Remerciez pour chacun de ces bienfaits",
+      "Ressentez la gratitude pour cette transformation"
     ],
-    reflection: "Que vous apporte la solitude ?",
-    affirmation: "Je suis reconnaissant pour mes moments de paix",
-    completed: false
+    reflection: "Quelle leçon précieuse avez-vous apprise de cette 'erreur' ?",
+    affirmation: "Je suis reconnaissant pour la sagesse de mes expériences",
+    completed: false,
+    theme: 'integration',
+    themeTitle: 'Intégrer la Gratitude à un Niveau Supérieur'
   },
   {
     day: 27,
-    title: "Gratitude pour la technologie",
-    exercise: "Remerciez pour les avancées technologiques",
+    title: "Le miroir magique",
+    exercise: "Regardez-vous dans le miroir et exprimez votre gratitude",
     instructions: [
-      "Remerciez pour les technologies qui facilitent votre vie",
-      "Appréciez la connectivité et la communication",
-      "Remerciez pour l'accès à l'information",
-      "Ressentez de la gratitude pour le progrès"
+      "Regardez-vous dans le miroir",
+      "Exprimez une gratitude sincère pour la personne que vous voyez",
+      "Remerciez pour vos qualités et talents",
+      "Ressentez l'amour et l'appréciation pour vous-même"
     ],
-    reflection: "Quelle technologie vous aide le plus ?",
-    affirmation: "Je suis reconnaissant pour les technologies utiles",
-    completed: false
+    reflection: "Quelle qualité appréciez-vous le plus chez vous ?",
+    affirmation: "Je suis reconnaissant pour la personne que je suis",
+    completed: false,
+    theme: 'integration',
+    themeTitle: 'Intégrer la Gratitude à un Niveau Supérieur'
   },
   {
     day: 28,
-    title: "Gratitude pour la transformation",
-    exercise: "Réfléchissez à votre transformation",
+    title: "Se souvenir de la magie",
+    exercise: "Passez la journée à vous remémorer les bienfaits de la veille",
     instructions: [
       "Révisez les 27 jours précédents",
       "Notez les changements positifs observés",
@@ -401,7 +466,9 @@ export const magicGratitudeChallenge: MagicGratitudeDay[] = [
     ],
     reflection: "Comment avez-vous changé pendant ce défi ?",
     affirmation: "Je suis reconnaissant pour ma transformation positive",
-    completed: false
+    completed: false,
+    theme: 'integration',
+    themeTitle: 'Intégrer la Gratitude à un Niveau Supérieur'
   }
 ];
 
@@ -419,4 +486,28 @@ export const getProgressPercentage = (): number => {
 
 export const isChallengeCompleted = (): boolean => {
   return getCompletedDays() === magicGratitudeChallenge.length;
+};
+
+export const getThemeInfo = (theme: 'present' | 'desires' | 'integration') => {
+  const themes = {
+    present: {
+      title: 'Gratitude pour le Présent et le Passé',
+      description: 'Appréciez ce que vous avez déjà et ce que vous avez reçu',
+      color: 'blue',
+      icon: '🌅'
+    },
+    desires: {
+      title: 'Gratitude pour vos Désirs et Rêves',
+      description: 'Utilisez la gratitude pour attirer vos désirs comme s\'ils étaient déjà réalisés',
+      color: 'purple',
+      icon: '✨'
+    },
+    integration: {
+      title: 'Intégrer la Gratitude à un Niveau Supérieur',
+      description: 'Ancrez la gratitude comme mode de vie et aidez les autres',
+      color: 'green',
+      icon: '🌟'
+    }
+  };
+  return themes[theme];
 };

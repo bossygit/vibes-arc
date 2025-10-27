@@ -11,7 +11,7 @@ import {
   ArrowLeft,
   Target
 } from 'lucide-react';
-import { getMagicGratitudeDay, getProgressPercentage, isChallengeCompleted } from '@/data/magicGratitudeChallenge';
+import { getMagicGratitudeDay, getProgressPercentage, isChallengeCompleted, getThemeInfo } from '@/data/magicGratitudeChallenge';
 
 const MagicGratitudeChallenge: React.FC = () => {
   const [currentDay, setCurrentDay] = useState(1);
@@ -80,8 +80,10 @@ const MagicGratitudeChallenge: React.FC = () => {
   };
 
   const currentDayData = getMagicGratitudeDay(currentDay);
+  const nextDayData = getMagicGratitudeDay(currentDay + 1);
   const progress = getProgressPercentage();
   const isCompleted = isChallengeCompleted();
+  const currentTheme = currentDayData ? getThemeInfo(currentDayData.theme) : null;
 
   if (!isStarted) {
     return (
@@ -200,10 +202,23 @@ const MagicGratitudeChallenge: React.FC = () => {
         <div className="card">
           <div className="flex items-start justify-between mb-6">
             <div>
-              <h3 className="text-2xl font-bold text-slate-800 mb-2">
-                Jour {currentDayData.day} : {currentDayData.title}
-              </h3>
-              <p className="text-lg text-purple-600 font-medium">{currentDayData.exercise}</p>
+              <div className="flex items-center gap-3 mb-2">
+                <h3 className="text-2xl font-bold text-slate-800">
+                  Jour {currentDayData.day} : {currentDayData.title}
+                </h3>
+                {currentDayData.isDailyPractice && (
+                  <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
+                    Quotidien
+                  </span>
+                )}
+              </div>
+              <p className="text-lg text-purple-600 font-medium mb-2">{currentDayData.exercise}</p>
+              {currentTheme && (
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <span className="text-lg">{currentTheme.icon}</span>
+                  <span className="font-medium">{currentTheme.title}</span>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
               {completedDays.has(currentDay) ? (
@@ -267,6 +282,27 @@ const MagicGratitudeChallenge: React.FC = () => {
             </h4>
             <p className="text-slate-700 italic">"{currentDayData.affirmation}"</p>
           </div>
+
+          {/* Aperçu de l'exercice suivant */}
+          {nextDayData && (
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              <h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                <ArrowRight className="w-5 h-5 text-purple-600" />
+                Aperçu du jour suivant
+              </h4>
+              <div className="bg-slate-50 p-4 rounded-lg">
+                <h5 className="font-medium text-slate-800 mb-1">
+                  Jour {nextDayData.day} : {nextDayData.title}
+                </h5>
+                <p className="text-sm text-slate-600 mb-2">{nextDayData.exercise}</p>
+                {nextDayData.isDailyPractice && (
+                  <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
+                    Exercice quotidien
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

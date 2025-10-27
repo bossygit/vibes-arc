@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Calendar, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { Habit } from '@/types';
 import { getCurrentDayIndex } from '@/utils/habitUtils';
 import { formatDateFull } from '@/utils/dateUtils';
@@ -143,6 +143,20 @@ const TodayStatus: React.FC<TodayStatusProps> = ({ habits }) => {
                     </div>
                 </div>
             )}
+
+            {/* Bouton Magic Gratitude */}
+            <div className="mt-6 pt-6 border-t border-slate-200">
+                <button
+                    onClick={() => setView('magicGratitude')}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                    <Sparkles className="w-5 h-5" />
+                    <span className="font-medium">Magic Gratitude - Défi 28 jours</span>
+                </button>
+                <p className="text-xs text-slate-500 text-center mt-2">
+                    Transformez votre vie avec la gratitude basée sur "The Magic" de Rhonda Byrne
+                </p>
+            </div>
         </motion.div>
     );
 };
