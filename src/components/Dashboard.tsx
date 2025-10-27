@@ -21,10 +21,10 @@ const Dashboard: React.FC = () => {
 
     // Calculer les statistiques globales
     const totalHabits = habits.length;
-    const totalDays = habits.reduce((sum, h) => sum + h.totalDays, 0);
-    const completedDays = habits.reduce((sum, h) => sum + h.progress.filter(Boolean).length, 0);
+    const totalDays = habits.reduce((sum: number, h: any) => sum + h.totalDays, 0);
+    const completedDays = habits.reduce((sum: number, h: any) => sum + h.progress.filter(Boolean).length, 0);
     const overallProgress = totalDays > 0 ? Math.round((completedDays / totalDays) * 100) : 0;
-    const currentStreaks = habits.map(h => calculateHabitStats(h).currentStreak);
+    const currentStreaks = habits.map((h: any) => calculateHabitStats(h).currentStreak);
     const longestCurrentStreak = currentStreaks.length > 0 ? Math.max(...currentStreaks) : 0;
 
     // Tendance hebdo globale: sur l'ensemble des habitudes actives par jour
@@ -225,7 +225,7 @@ const Dashboard: React.FC = () => {
                         Mes Identités
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {identities.map(identity => (
+                        {identities.map((identity: any) => (
                             <IdentityCard
                                 key={identity.id}
                                 identity={identity}
@@ -256,7 +256,7 @@ const Dashboard: React.FC = () => {
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {habits.map(habit => (
+                        {habits.map((habit: any) => (
                             <HabitCard
                                 key={habit.id}
                                 habit={habit}

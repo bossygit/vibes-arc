@@ -7,7 +7,7 @@ import HabitDetailView from '@/components/HabitDetailView';
 import Header from '@/components/Header';
 import Auth from '@/components/Auth';
 import SupabaseDatabaseClient from '@/database/supabase-client';
-import { useMemo } from 'react';
+ 
 import RewardsChallenges from '@/components/RewardsChallenges';
 
 function App() {

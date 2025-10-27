@@ -71,7 +71,7 @@ const IdentitiesView: React.FC = () => {
 
             {/* Identities List */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {identities.map(identity => (
+                {identities.map((identity) => (
                     <div key={identity.id} className="card">
                         <div className="flex items-start justify-between mb-2">
                             <h3 className="font-semibold text-slate-800 flex-1">{identity.name}</h3>

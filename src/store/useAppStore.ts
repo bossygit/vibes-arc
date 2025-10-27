@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, Challenge, UserPrefs } from '@/types';
+import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs } from '@/types';
 import SupabaseDatabaseClient from '@/database/supabase-client';
 import { computePointsForAction, calculateHabitStats } from '@/utils/habitUtils';
 
@@ -211,16 +211,7 @@ export const useAppStore = create<AppState>()((set) => {
             }
         },
 
-        toggleSkipDay: (habitId, dayIndex) => {
-            set((state) => {
-                const current = state.skipsByHabit[habitId] || [];
-                const exists = current.includes(dayIndex);
-                const next = exists ? current.filter(d => d !== dayIndex) : [...current, dayIndex];
-                const skipsByHabit = { ...state.skipsByHabit, [habitId]: next };
-                localStorage.setItem('vibes-arc-skips', JSON.stringify(skipsByHabit));
-                return { skipsByHabit };
-            });
-        },
+        
 
         addPoints: (amount) => {
             set((state) => {

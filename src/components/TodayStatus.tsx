@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
+import { Calendar, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Habit } from '@/types';
 import { getCurrentDayIndex } from '@/utils/habitUtils';
 import { formatDateFull } from '@/utils/dateUtils';
