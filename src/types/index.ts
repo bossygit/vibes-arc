@@ -2,6 +2,7 @@ export interface Identity {
     id: number;
     name: string;
     description?: string;
+    color: string;
     createdAt: string;
 }
 
@@ -79,5 +80,20 @@ export interface HabitTemplate {
     advice: string[];
     difficulty: 'easy' | 'medium' | 'hard';
     icon: string;
+}
+
+export interface IdentityTemplate {
+    id: string;
+    name: string;
+    author: string;
+    book?: string;
+    description: string;
+    coreBeliefs: string[];
+    dailyPractices: string[];
+    habits: string[];
+    quotes: string[];
+    color: string;
+    icon: string;
+    difficulty: 'beginner' | 'intermediate' | 'advanced';
 }
 

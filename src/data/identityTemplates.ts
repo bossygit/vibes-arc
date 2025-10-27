@@ -1,19 +1,4 @@
-import { Identity } from '@/types';
-
-export interface IdentityTemplate {
-  id: string;
-  name: string;
-  author: string;
-  book?: string;
-  description: string;
-  coreBeliefs: string[];
-  dailyPractices: string[];
-  habits: string[];
-  quotes: string[];
-  color: string;
-  icon: string;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-}
+import { IdentityTemplate } from '@/types';
 
 export const identityTemplates: IdentityTemplate[] = [
   // ABRAHAM HICKS
