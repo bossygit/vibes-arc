@@ -7,6 +7,8 @@ import HabitDetailView from '@/components/HabitDetailView';
 import Header from '@/components/Header';
 import Auth from '@/components/Auth';
 import SupabaseDatabaseClient from '@/database/supabase-client';
+import { useMemo } from 'react';
+import RewardsChallenges from '@/components/RewardsChallenges';
 
 function App() {
     const { view } = useAppStore();
@@ -44,6 +46,8 @@ function App() {
                 return <AddHabitView />;
             case 'habitDetail':
                 return <HabitDetailView />;
+            case 'rewards':
+                return <RewardsChallenges />;
             default:
                 return <Dashboard />;
         }
@@ -70,8 +74,55 @@ function App() {
             <main className="max-w-6xl mx-auto px-6 py-8">
                 {renderView()}
             </main>
+            {/* Notifications intelligentes: heure préférée + heure optimale */}
+            <SmartNudges />
         </div>
     );
 }
 
 export default App;
+
+// Composant simple pour nudges (localStorage + Notification API si dispo)
+const SmartNudges: React.FC = () => {
+    useEffect(() => {
+        const schedule = async () => {
+            const now = new Date();
+            // Récupérer heure préférée et heure optimale (best-effort)
+            let preferredHour = 20;
+            try {
+                const supabase = SupabaseDatabaseClient.getInstance();
+                const prefs = await supabase.getUserPrefs();
+                preferredHour = prefs.notifHour ?? 20;
+                // Optionnel: calculer une heure optimale et prendre la moyenne arrondie
+                const optimal = await supabase.computeOptimalNotifHour();
+                preferredHour = Math.round((preferredHour + optimal) / 2);
+            } catch { }
+
+            const target = new Date();
+            target.setHours(preferredHour, 0, 0, 0);
+            let delay = target.getTime() - now.getTime();
+            if (delay < 0) delay += 24 * 60 * 60 * 1000; // demain 20h
+
+            const t = setTimeout(async () => {
+                try {
+                    // Demande de permission
+                    if ('Notification' in window && Notification.permission !== 'granted') {
+                        await Notification.requestPermission();
+                    }
+                    // Envoi
+                    if ('Notification' in window && Notification.permission === 'granted') {
+                        new Notification('Petit rappel Vibes Arc', { body: 'Un pas aujourd\'hui renforce ton identité 💪' });
+                    }
+                } finally {
+                    schedule(); // reprogrammer pour le lendemain
+                }
+            }, delay);
+            return t;
+        };
+
+        const timer = schedule();
+        return () => clearTimeout(timer as any);
+    }, []);
+
+    return null;
+};

@@ -1,10 +1,11 @@
-import React from 'react';
-import { Calendar, AlertCircle, CheckCircle2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Calendar, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { Habit } from '@/types';
 import { getCurrentDayIndex } from '@/utils/habitUtils';
 import { formatDateFull } from '@/utils/dateUtils';
 import { useAppStore } from '@/store/useAppStore';
 import { motion } from 'framer-motion';
+import Celebration from './Celebration';
 
 interface TodayStatusProps {
     habits: Habit[];
@@ -14,6 +15,7 @@ const TodayStatus: React.FC<TodayStatusProps> = ({ habits }) => {
     const { setView, setSelectedHabit } = useAppStore();
     const today = new Date();
     const currentDayIndex = getCurrentDayIndex();
+    const [showCelebration, setShowCelebration] = useState(false);
 
     const handleHabitClick = (habitId: number) => {
         setSelectedHabit(habitId);
@@ -39,6 +41,15 @@ const TodayStatus: React.FC<TodayStatusProps> = ({ habits }) => {
 
     const isWeak = completionPercentage < 60;
 
+    // Déclencher une célébration quand on atteint 100%
+    useEffect(() => {
+        if (totalHabitsToday > 0 && completionPercentage === 100) {
+            setShowCelebration(true);
+            const t = setTimeout(() => setShowCelebration(false), 1700);
+            return () => clearTimeout(t);
+        }
+    }, [completionPercentage, totalHabitsToday]);
+
     if (totalHabitsToday === 0) {
         return null; // Ne rien afficher si pas d'habitudes actives aujourd'hui
     }
@@ -52,6 +63,7 @@ const TodayStatus: React.FC<TodayStatusProps> = ({ habits }) => {
                 : 'bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200'
                 }`}
         >
+            <Celebration visible={showCelebration} message="Journée parfaite ! 🏆" onClose={() => setShowCelebration(false)} />
             <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                     <div className={`p-3 rounded-lg ${isWeak ? 'bg-red-100' : 'bg-green-100'}`}>
@@ -82,7 +94,7 @@ const TodayStatus: React.FC<TodayStatusProps> = ({ habits }) => {
                 >
                     <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0" />
                     <p className="text-red-800 font-semibold text-lg">
-                        Ta volonté de changer est faible
+                        Journée difficile. Essaie une micro‑action de 2 minutes.
                     </p>
                 </motion.div>
             )}
@@ -96,7 +108,7 @@ const TodayStatus: React.FC<TodayStatusProps> = ({ habits }) => {
                 >
                     <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
                     <p className="text-green-800 font-semibold text-lg">
-                        Félicitations ! Toutes tes habitudes sont complétées aujourd'hui ! 🎉
+                        Parfait ! Note 1 bienfait ressenti pour ancrer la motivation.
                     </p>
                 </motion.div>
             )}

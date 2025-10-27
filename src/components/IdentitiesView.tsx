@@ -6,7 +6,7 @@ import EditIdentityModal from './EditIdentityModal';
 import { Identity } from '@/types';
 
 const IdentitiesView: React.FC = () => {
-    const { identities, habits, addIdentity, updateIdentity, deleteIdentity } = useAppStore();
+    const { identities, habits, addIdentity, updateIdentity, deleteIdentity, gamification, createReward, claimReward } = useAppStore() as any;
     const [newIdentity, setNewIdentity] = useState({ name: '', description: '' });
     const [editingIdentity, setEditingIdentity] = useState<Identity | null>(null);
 
@@ -96,6 +96,19 @@ const IdentitiesView: React.FC = () => {
                         <div className="flex items-center gap-2 text-sm text-slate-500">
                             <CheckCircle2 className="w-4 h-4" />
                             <span>{calculateIdentityScore(identity.id, habits)}% d'intégration</span>
+                        </div>
+                        <div className="mt-3 pt-3 border-t">
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => createReward(`Rituel ${identity.name}`, 150)} className="px-3 py-1 rounded border text-xs">Ajouter récompense liée</button>
+                                {gamification.rewards.filter((r: any) => r.title.includes(identity.name)).map((r: any) => (
+                                    <button
+                                        key={r.id}
+                                        onClick={() => claimReward(r.id)}
+                                        className="ml-auto px-2 py-1 rounded bg-indigo-600 text-white text-xs disabled:opacity-50"
+                                        disabled={!!r.claimedAt || gamification.points < r.cost}
+                                    >{r.claimedAt ? 'Réclamée' : `Réclamer (${r.cost})`}</button>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 ))}

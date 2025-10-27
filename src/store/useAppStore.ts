@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { Identity, Habit, ViewType } from '@/types';
+import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, Challenge, UserPrefs } from '@/types';
 import SupabaseDatabaseClient from '@/database/supabase-client';
+import { computePointsForAction, calculateHabitStats } from '@/utils/habitUtils';
 
 interface AppState {
     // State
@@ -8,6 +9,9 @@ interface AppState {
     habits: Habit[];
     view: ViewType;
     selectedHabitId: number | null;
+    skipsByHabit: SkipsByHabit;
+    gamification: GamificationState;
+    userPrefs: UserPrefs;
 
     // Actions
     setView: (view: ViewType) => void;
@@ -19,6 +23,11 @@ interface AppState {
     deleteHabit: (id: number) => void;
     toggleHabitDay: (habitId: number, dayIndex: number) => void;
     updateHabit: (id: number, updates: Partial<Habit>) => void;
+    toggleSkipDay: (habitId: number, dayIndex: number) => void;
+    addPoints: (amount: number) => void;
+    createReward: (title: string, cost: number) => void;
+    claimReward: (rewardId: number) => void;
+    setNotifHour: (hour: number) => void;
 }
 
 export const useAppStore = create<AppState>()((set) => {
@@ -29,11 +38,18 @@ export const useAppStore = create<AppState>()((set) => {
         try {
             const identities = await db.getIdentities();
             const habits = await db.getHabits();
-            set({ identities, habits });
+            // Charger skips et gamification depuis localStorage
+            const storedSkips = localStorage.getItem('vibes-arc-skips');
+            const skipsByHabit: SkipsByHabit = storedSkips ? JSON.parse(storedSkips) : {};
+            const storedGam = localStorage.getItem('vibes-arc-gamification');
+            const gamification: GamificationState = storedGam ? JSON.parse(storedGam) : { points: 0, rewards: [], challenges: [] };
+            const storedPrefs = localStorage.getItem('vibes-arc-prefs');
+            const userPrefs: UserPrefs = storedPrefs ? JSON.parse(storedPrefs) : { notifHour: 20 };
+            set({ identities, habits, skipsByHabit, gamification, userPrefs });
         } catch (error) {
             console.error('Erreur lors du chargement des données:', error);
             // En cas d'erreur, initialiser avec des tableaux vides
-            set({ identities: [], habits: [] });
+            set({ identities: [], habits: [], skipsByHabit: {}, gamification: { points: 0, rewards: [], challenges: [] }, userPrefs: { notifHour: 20 } });
         }
     };
 
@@ -46,6 +62,9 @@ export const useAppStore = create<AppState>()((set) => {
         habits: [],
         view: 'dashboard',
         selectedHabitId: null,
+        skipsByHabit: {},
+        gamification: { points: 0, rewards: [], challenges: [] },
+        userPrefs: { notifHour: 20 },
 
         // Actions
         setView: (view) => set({ view }),
@@ -127,20 +146,54 @@ export const useAppStore = create<AppState>()((set) => {
             try {
                 const success = await db.toggleHabitDay(habitId, dayIndex);
                 if (success) {
-                    set((state) => ({
-                        habits: state.habits.map(h => {
+                    set((state) => {
+                        // Mettre à jour la progression
+                        const updatedHabits = state.habits.map(h => {
                             if (h.id === habitId) {
                                 const newProgress = [...h.progress];
+                                const wasChecked = newProgress[dayIndex];
                                 newProgress[dayIndex] = !newProgress[dayIndex];
                                 return { ...h, progress: newProgress };
                             }
                             return h;
-                        }),
-                    }));
+                        });
+
+                        // Accorder des points avancés si cochée
+                        const habit = updatedHabits.find(h => h.id === habitId)!;
+                        const justChecked = habit.progress[dayIndex] === true;
+                        let newGam = state.gamification;
+                        if (justChecked) {
+                            const stats = calculateHabitStats(habit, state.skipsByHabit[habitId] || []);
+                            const isFirstCheckOfDay = updatedHabits.every(h => h.progress[dayIndex] === false) ? true : false;
+                            const gain = computePointsForAction({
+                                isFirstCheckOfDay,
+                                currentStreak: stats.currentStreak,
+                                longestStreak: stats.longestStreak,
+                                habitType: habit.type,
+                            });
+                            newGam = { ...state.gamification, points: state.gamification.points + gain };
+                        }
+
+                        localStorage.setItem('vibes-arc-gamification', JSON.stringify(newGam));
+                        return { habits: updatedHabits, gamification: newGam };
+                    });
                 }
             } catch (error) {
                 console.error('Erreur lors de la mise à jour de la progression:', error);
             }
+        },
+
+        toggleSkipDay: (habitId, dayIndex) => {
+            set((state) => {
+                const current = state.skipsByHabit[habitId] || [];
+                const exists = current.includes(dayIndex);
+                const next = exists ? current.filter(d => d !== dayIndex) : [...current, dayIndex];
+                const skipsByHabit = { ...state.skipsByHabit, [habitId]: next };
+                localStorage.setItem('vibes-arc-skips', JSON.stringify(skipsByHabit));
+                // Sync to Supabase best-effort
+                try { db.toggleSkipDay(habitId, dayIndex); } catch { }
+                return { skipsByHabit };
+            });
         },
 
         updateHabit: async (id, updates) => {
@@ -156,6 +209,54 @@ export const useAppStore = create<AppState>()((set) => {
             } catch (error) {
                 console.error('Erreur lors de la mise à jour de l\'habitude:', error);
             }
+        },
+
+        toggleSkipDay: (habitId, dayIndex) => {
+            set((state) => {
+                const current = state.skipsByHabit[habitId] || [];
+                const exists = current.includes(dayIndex);
+                const next = exists ? current.filter(d => d !== dayIndex) : [...current, dayIndex];
+                const skipsByHabit = { ...state.skipsByHabit, [habitId]: next };
+                localStorage.setItem('vibes-arc-skips', JSON.stringify(skipsByHabit));
+                return { skipsByHabit };
+            });
+        },
+
+        addPoints: (amount) => {
+            set((state) => {
+                const gamification = { ...state.gamification, points: state.gamification.points + amount };
+                localStorage.setItem('vibes-arc-gamification', JSON.stringify(gamification));
+                return { gamification };
+            });
+        },
+
+        createReward: (title, cost) => {
+            set((state) => {
+                const newReward: Reward = { id: Date.now(), title, cost, createdAt: new Date().toISOString() };
+                const gamification = { ...state.gamification, rewards: [...state.gamification.rewards, newReward] };
+                localStorage.setItem('vibes-arc-gamification', JSON.stringify(gamification));
+                return { gamification };
+            });
+        },
+
+        claimReward: (rewardId) => {
+            set((state) => {
+                const reward = state.gamification.rewards.find(r => r.id === rewardId);
+                if (!reward) return {} as any;
+                if (state.gamification.points < reward.cost) return {} as any;
+                const updatedRewards = state.gamification.rewards.map(r => r.id === rewardId ? { ...r, claimedAt: new Date().toISOString() } : r);
+                const gamification = { ...state.gamification, points: state.gamification.points - reward.cost, rewards: updatedRewards };
+                localStorage.setItem('vibes-arc-gamification', JSON.stringify(gamification));
+                return { gamification };
+            });
+        },
+
+        setNotifHour: (hour) => {
+            set((state) => {
+                const userPrefs = { ...state.userPrefs, notifHour: Math.max(0, Math.min(23, Math.floor(hour))) };
+                localStorage.setItem('vibes-arc-prefs', JSON.stringify(userPrefs));
+                return { userPrefs };
+            });
         },
     };
 });

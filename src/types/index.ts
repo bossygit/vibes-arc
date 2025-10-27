@@ -33,8 +33,39 @@ export interface Streak {
 export interface AppState {
     identities: Identity[];
     habits: Habit[];
-    view: 'dashboard' | 'identities' | 'addHabit' | 'habitDetail';
+    view: 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards';
     selectedHabitId: number | null;
 }
 
-export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail';
+export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards';
+
+// Extensions motivation/gamification
+export interface Reward {
+    id: number;
+    title: string;
+    cost: number; // points requis
+    createdAt: string;
+    claimedAt?: string;
+}
+
+export interface Challenge {
+    id: number;
+    title: string;
+    targetDays: number; // objectif sur la semaine courante
+    progressDays: number; // rempli dynamiquement
+    weekStartISO: string; // ISO date du lundi de la semaine
+    completedAt?: string;
+}
+
+export interface GamificationState {
+    points: number;
+    rewards: Reward[];
+    challenges: Challenge[];
+}
+
+export type SkipsByHabit = Record<number, number[]>; // habitId -> liste d'index de jours sautés
+
+export interface UserPrefs {
+    notifHour: number; // 0..23
+}
+

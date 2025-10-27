@@ -1,6 +1,7 @@
 import React from 'react';
 import { Habit } from '@/types';
 import { getDateForDay, isToday, isFuture } from '@/utils/dateUtils';
+import { useAppStore } from '@/store/useAppStore';
 
 interface HabitCalendarProps {
     habit: Habit;
@@ -8,6 +9,8 @@ interface HabitCalendarProps {
 }
 
 const HabitCalendar: React.FC<HabitCalendarProps> = ({ habit, onToggleDay }) => {
+    const { skipsByHabit, toggleSkipDay } = useAppStore();
+    const skips = skipsByHabit[habit.id] || [];
     const months = [
         { name: 'Octobre 2025', startDay: 0, days: 31, emptyCells: 2 },
         { name: 'Novembre 2025', startDay: 31, days: 30, emptyCells: 5 },
@@ -51,6 +54,7 @@ const HabitCalendar: React.FC<HabitCalendarProps> = ({ habit, onToggleDay }) => 
                             const date = getDateForDay(dayIndex);
                             const isTodayDate = isToday(date);
                             const isFutureDate = isFuture(date);
+                            const isSkipped = skips.includes(dayIndex);
 
                             return (
                                 <button
@@ -58,7 +62,9 @@ const HabitCalendar: React.FC<HabitCalendarProps> = ({ habit, onToggleDay }) => 
                                     onClick={() => handleDayClick(dayIndex)}
                                     disabled={isFutureDate}
                                     className={`habit-day ${checked
-                                            ? 'habit-day-completed'
+                                        ? 'habit-day-completed'
+                                        : isSkipped
+                                            ? 'bg-slate-200 text-slate-400 line-through'
                                             : isFutureDate
                                                 ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
                                                 : 'habit-day-pending'
@@ -72,6 +78,9 @@ const HabitCalendar: React.FC<HabitCalendarProps> = ({ habit, onToggleDay }) => 
                     </div>
                 </div>
             ))}
+            <div className="mt-3 text-xs text-slate-500">
+                Astuce: clic pour cocher, Alt+clic pour "skip day".
+            </div>
         </div>
     );
 };

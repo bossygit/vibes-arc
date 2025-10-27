@@ -1,22 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
-import { Identity, Habit } from '@/types';
+import { Identity, Habit, Reward, Challenge, UserPrefs, SkipsByHabit } from '@/types';
 
 // Types pour Supabase
 interface SupabaseIdentity {
-  id: number;
-  name: string;
-  description?: string;
-  created_at: string;
-  user_id: string;
+    id: number;
+    name: string;
+    description?: string;
+    created_at: string;
+    user_id: string;
 }
 
 class SupabaseDatabaseClient {
     private static instance: SupabaseDatabaseClient;
     private supabase;
 
-  private constructor() {
-    const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-    const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+    private constructor() {
+        const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+        const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
 
         if (!supabaseUrl || !supabaseKey) {
             throw new Error('Variables d\'environnement Supabase manquantes');
@@ -343,29 +343,29 @@ class SupabaseDatabaseClient {
             return { identities: 0, habits: 0, totalProgress: 0 };
         }
 
-    // Récupérer les IDs des habitudes de l'utilisateur
-    const { data: userHabits } = await this.supabase
-      .from('habits')
-      .select('id')
-      .eq('user_id', user.id);
+        // Récupérer les IDs des habitudes de l'utilisateur
+        const { data: userHabits } = await this.supabase
+            .from('habits')
+            .select('id')
+            .eq('user_id', user.id);
 
-    const habitIds = userHabits?.map(h => h.id) || [];
+        const habitIds = userHabits?.map(h => h.id) || [];
 
-    const [identitiesResult, habitsResult, progressResult] = await Promise.all([
-      this.supabase
-        .from('identities')
-        .select('id', { count: 'exact' })
-        .eq('user_id', user.id),
-      this.supabase
-        .from('habits')
-        .select('id', { count: 'exact' })
-        .eq('user_id', user.id),
-      habitIds.length > 0 ? this.supabase
-        .from('habit_progress')
-        .select('id', { count: 'exact' })
-        .eq('completed', true)
-        .in('habit_id', habitIds) : { count: 0 },
-    ]);
+        const [identitiesResult, habitsResult, progressResult] = await Promise.all([
+            this.supabase
+                .from('identities')
+                .select('id', { count: 'exact' })
+                .eq('user_id', user.id),
+            this.supabase
+                .from('habits')
+                .select('id', { count: 'exact' })
+                .eq('user_id', user.id),
+            habitIds.length > 0 ? this.supabase
+                .from('habit_progress')
+                .select('id', { count: 'exact' })
+                .eq('completed', true)
+                .in('habit_id', habitIds) : { count: 0 },
+        ]);
 
         return {
             identities: identitiesResult.count || 0,
@@ -418,6 +418,195 @@ class SupabaseDatabaseClient {
             console.error('Erreur lors de l\'import:', error);
             return false;
         }
+    }
+
+    // ===== SKIPS =====
+    async getHabitSkips(): Promise<SkipsByHabit> {
+        const user = await this.getCurrentUser();
+        if (!user) return {};
+        const { data, error } = await this.supabase
+            .from('habit_skips')
+            .select('habit_id, day_index')
+            .eq('user_id', user.id);
+        if (error) throw error;
+        const map: SkipsByHabit = {};
+        data?.forEach((row: any) => {
+            if (!map[row.habit_id]) map[row.habit_id] = [];
+            map[row.habit_id].push(row.day_index);
+        });
+        return map;
+    }
+
+    async toggleSkipDay(habitId: number, dayIndex: number): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+        // Try to insert; on conflict delete
+        const { error } = await this.supabase
+            .from('habit_skips')
+            .upsert({ user_id: user.id, habit_id: habitId, day_index: dayIndex }, { onConflict: 'habit_id,day_index,user_id' });
+        if (!error) return true;
+        // fallback toggle via delete if already exists
+        await this.supabase
+            .from('habit_skips')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('habit_id', habitId)
+            .eq('day_index', dayIndex);
+        return true;
+    }
+
+    // ===== GAMIFICATION STATE =====
+    async getGamificationState(): Promise<{ points: number }> {
+        const user = await this.getCurrentUser();
+        if (!user) return { points: 0 };
+        const { data } = await this.supabase
+            .from('gamification_state')
+            .select('points')
+            .eq('user_id', user.id)
+            .single();
+        return { points: data?.points ?? 0 };
+    }
+
+    async addPoints(amount: number): Promise<number> {
+        const user = await this.getCurrentUser();
+        if (!user) return amount; // noop
+        // Upsert row and increment
+        const { data, error } = await this.supabase.rpc('increment_points', { p_user_id: user.id, p_amount: amount });
+        if (!error && typeof data === 'number') return data;
+        // Fallback: fetch then update
+        const { data: current } = await this.supabase
+            .from('gamification_state')
+            .select('points')
+            .eq('user_id', user.id)
+            .single();
+        const points = (current?.points ?? 0) + amount;
+        await this.supabase
+            .from('gamification_state')
+            .upsert({ user_id: user.id, points, updated_at: new Date().toISOString() });
+        return points;
+    }
+
+    // ===== REWARDS =====
+    async listRewards(): Promise<Reward[]> {
+        const user = await this.getCurrentUser();
+        if (!user) return [];
+        const { data, error } = await this.supabase
+            .from('rewards')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return (data || []).map((r: any) => ({ id: r.id, title: r.title, cost: r.cost, createdAt: r.created_at, claimedAt: r.claimed_at }));
+    }
+
+    async createReward(title: string, cost: number): Promise<Reward> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+        const { data, error } = await this.supabase
+            .from('rewards')
+            .insert({ user_id: user.id, title, cost })
+            .select('*')
+            .single();
+        if (error) throw error;
+        return { id: data.id, title: data.title, cost: data.cost, createdAt: data.created_at, claimedAt: data.claimed_at };
+    }
+
+    async claimReward(rewardId: number): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+        const { error } = await this.supabase
+            .from('rewards')
+            .update({ claimed_at: new Date().toISOString() })
+            .eq('id', rewardId)
+            .eq('user_id', user.id);
+        return !error;
+    }
+
+    // ===== CHALLENGES =====
+    async listChallenges(): Promise<Challenge[]> {
+        const user = await this.getCurrentUser();
+        if (!user) return [];
+        const { data } = await this.supabase
+            .from('challenges')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+        return (data || []).map((c: any) => ({
+            id: c.id,
+            title: c.title,
+            targetDays: c.target_days,
+            progressDays: 0,
+            weekStartISO: new Date(c.week_start).toISOString().slice(0, 10),
+            completedAt: c.completed_at || undefined,
+        }));
+    }
+
+    async upsertWeeklyChallenge(title: string, weekStartISO: string, targetDays: number): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+        const { error } = await this.supabase
+            .from('challenges')
+            .upsert({ user_id: user.id, title, week_start: weekStartISO, target_days: targetDays });
+        return !error;
+    }
+
+    async completeChallenge(id: number): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+        const { error } = await this.supabase
+            .from('challenges')
+            .update({ completed_at: new Date().toISOString() })
+            .eq('id', id)
+            .eq('user_id', user.id);
+        return !error;
+    }
+
+    // ===== USER PREFS / NOTIFS =====
+    async getUserPrefs(): Promise<UserPrefs> {
+        const user = await this.getCurrentUser();
+        if (!user) return { notifHour: 20 };
+        const { data } = await this.supabase
+            .from('user_prefs')
+            .select('notif_hour')
+            .eq('user_id', user.id)
+            .single();
+        return { notifHour: data?.notif_hour ?? 20 };
+    }
+
+    async setUserNotifHour(hour: number): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) return false;
+        const { error } = await this.supabase
+            .from('user_prefs')
+            .upsert({ user_id: user.id, notif_hour: hour, updated_at: new Date().toISOString() });
+        return !error;
+    }
+
+    async computeOptimalNotifHour(): Promise<number> {
+        const user = await this.getCurrentUser();
+        if (!user) return 20;
+        // Heuristique: récupérer habit_progress.completed_at des 30 derniers jours et prendre l'heure modale
+        const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const { data } = await this.supabase
+            .from('habit_progress')
+            .select('completed_at')
+            .gte('completed_at', since)
+            .not('completed_at', 'is', null)
+            .limit(5000);
+        const hours: number[] = [];
+        (data || []).forEach((r: any) => {
+            const d = new Date(r.completed_at);
+            if (!isNaN(d.getTime())) hours.push(d.getHours());
+        });
+        if (hours.length === 0) return 20;
+        const freq = new Array(24).fill(0);
+        hours.forEach(h => { freq[h]++; });
+        let best = 20;
+        let bestCount = -1;
+        for (let h = 0; h < 24; h++) {
+            if (freq[h] > bestCount) { bestCount = freq[h]; best = h; }
+        }
+        return best;
     }
 }
 

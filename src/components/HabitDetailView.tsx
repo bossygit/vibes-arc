@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ArrowLeft, TrendingUp, Target, Calendar, Trash2, Edit2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { calculateHabitStats } from '@/utils/habitUtils';
+import { calculateHabitStats, getCurrentDayIndex } from '@/utils/habitUtils';
 import HabitCalendar from './HabitCalendar';
 import EditHabitModal from './EditHabitModal';
 import { motion } from 'framer-motion';
+import Celebration from './Celebration';
 
 const HabitDetailView: React.FC = () => {
-    const { habits, identities, selectedHabitId, setView, toggleHabitDay, deleteHabit, updateHabit } = useAppStore();
+    const { habits, identities, selectedHabitId, setView, toggleHabitDay, deleteHabit, updateHabit, skipsByHabit, toggleSkipDay } = useAppStore();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [showCelebration, setShowCelebration] = useState(false);
 
     const habit = habits.find(h => h.id === selectedHabitId);
 
@@ -26,10 +28,49 @@ const HabitDetailView: React.FC = () => {
         );
     }
 
-    const stats = calculateHabitStats(habit);
+    const stats = calculateHabitStats(habit, skipsByHabit[habit.id] || []);
     const linkedIdentityObjects = habit.linkedIdentities
         .map(id => identities.find(i => i.id === id))
         .filter(Boolean);
+
+    const handleToggleDayWithCelebration = async (habitId: number, dayIndex: number) => {
+        // Célébrer uniquement si on coche (passage de false -> true)
+        const wasChecked = !!habit.progress[dayIndex];
+        await toggleHabitDay(habitId, dayIndex);
+        if (!wasChecked) {
+            setShowCelebration(true);
+        }
+    };
+
+    // Tendance hebdo (7 derniers jours vs 7 jours précédents)
+    const { last7Pct, prev7Pct, deltaPct } = useMemo(() => {
+        const todayIdx = getCurrentDayIndex();
+        const end = Math.min(todayIdx, habit.progress.length - 1);
+        const start = Math.max(0, end - 6);
+        const prevEnd = start - 1;
+        const prevStart = Math.max(0, prevEnd - 6);
+
+        const sumRange = (s: number, e: number) => {
+            if (e < s) return { sum: 0, count: 0 };
+            let sum = 0;
+            let count = 0;
+            for (let i = s; i <= e; i++) {
+                // Jour valide si dans la plage de l'habitude
+                if (i >= 0 && i < habit.progress.length) {
+                    sum += habit.progress[i] ? 1 : 0;
+                    count += 1;
+                }
+            }
+            return { sum, count };
+        };
+
+        const cur = sumRange(start, end);
+        const prev = sumRange(prevStart, prevEnd);
+        const last7Pct = cur.count > 0 ? Math.round((cur.sum / cur.count) * 100) : 0;
+        const prev7Pct = prev.count > 0 ? Math.round((prev.sum / prev.count) * 100) : 0;
+        const deltaPct = last7Pct - prev7Pct;
+        return { last7Pct, prev7Pct, deltaPct };
+    }, [habit.progress]);
 
     const handleDelete = async () => {
         if (window.confirm(`Êtes-vous sûr de vouloir supprimer l'habitude "${habit.name}" ?`)) {
@@ -77,8 +118,8 @@ const HabitDetailView: React.FC = () => {
                     <div>
                         <h1 className="text-3xl font-bold text-slate-900 mb-2">{habit.name}</h1>
                         <span className={`inline-flex px-4 py-2 rounded-full text-sm font-medium ${habit.type === 'start'
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-red-100 text-red-700'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
                             }`}>
                             {habit.type === 'start' ? '▲ Habitude à commencer' : '▼ Habitude à arrêter'}
                         </span>
@@ -222,7 +263,19 @@ const HabitDetailView: React.FC = () => {
                     <Calendar className="w-5 h-5 text-indigo-600" />
                     Calendrier de progression
                 </h2>
-                <HabitCalendar habit={habit} onToggleDay={toggleHabitDay} />
+                <HabitCalendar habit={habit} onToggleDay={handleToggleDayWithCelebration} />
+                <div className="mt-3 flex items-center gap-2 text-sm text-slate-600">
+                    <span>Gérer les jours sautés:</span>
+                    <button
+                        onClick={() => {
+                            const todayIdx = getCurrentDayIndex();
+                            if (todayIdx >= 0 && todayIdx < habit.progress.length) toggleSkipDay(habit.id, todayIdx);
+                        }}
+                        className="px-3 py-1 rounded border border-slate-300 hover:border-indigo-400"
+                    >
+                        Marquer aujourd'hui comme "skip"
+                    </button>
+                </div>
             </motion.div>
 
             {/* Edit Modal */}
@@ -233,6 +286,40 @@ const HabitDetailView: React.FC = () => {
                 onClose={() => setIsEditModalOpen(false)}
                 onSave={(updates) => updateHabit(habit.id, updates)}
             />
+
+            {/* Celebration overlay */}
+            <Celebration
+                visible={showCelebration}
+                onClose={() => setShowCelebration(false)}
+                message="Bien joué ! Jour validé ✨"
+            />
+
+            {/* Weekly trend */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.75 }}
+                className="card"
+            >
+                <h2 className="text-lg font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-indigo-600" />
+                    Tendance hebdo
+                </h2>
+                <div className="flex items-center gap-4">
+                    <div>
+                        <div className="text-sm text-slate-600">7 derniers jours</div>
+                        <div className="text-2xl font-bold text-indigo-600">{last7Pct}%</div>
+                    </div>
+                    <div className="h-10 w-px bg-slate-200" />
+                    <div>
+                        <div className="text-sm text-slate-600">7 jours précédents</div>
+                        <div className="text-xl font-semibold text-slate-700">{prev7Pct}%</div>
+                    </div>
+                    <div className={`ml-auto px-3 py-1 rounded-full text-sm font-semibold ${deltaPct >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {deltaPct >= 0 ? '+' : ''}{deltaPct}%
+                    </div>
+                </div>
+            </motion.div>
         </div>
     );
 };
