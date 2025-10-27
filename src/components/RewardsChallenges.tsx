@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Trophy, Gift, Bell, Target, Star, Filter } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { detoxChallenges, getChallengesByCategory, getChallengesByDifficulty } from '@/data/detoxChallenges';
+import { detoxChallenges } from '@/data/detoxChallenges';
 
 const RewardsChallenges: React.FC = () => {
     const { gamification, addPoints, createReward, claimReward, userPrefs, setNotifHour } = useAppStore() as any;

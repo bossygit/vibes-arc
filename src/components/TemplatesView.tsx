@@ -1,17 +1,16 @@
 import React, { useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import { detoxTemplates, getTemplatesByCategory } from '@/data/detoxTemplates';
+import { detoxTemplates } from '@/data/detoxTemplates';
 import { HabitTemplate } from '@/types';
-import {
-    Smartphone,
-    Coffee,
-    Activity,
-    Heart,
-    Clock,
-    Filter,
-    Plus,
-    Info,
-    Star
+import { 
+  Smartphone, 
+  Coffee, 
+  Activity, 
+  Heart, 
+  Clock, 
+  Filter,
+  Plus,
+  Info
 } from 'lucide-react';
 
 const TemplatesView: React.FC = () => {
