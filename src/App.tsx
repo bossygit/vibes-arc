@@ -10,6 +10,7 @@ import SupabaseDatabaseClient from '@/database/supabase-client';
 
 import RewardsChallenges from '@/components/RewardsChallenges';
 import TemplatesView from '@/components/TemplatesView';
+import MagicGratitudeChallenge from '@/components/MagicGratitudeChallenge';
 
 function App() {
     const { view } = useAppStore();
@@ -51,6 +52,8 @@ function App() {
                 return <RewardsChallenges />;
             case 'templates':
                 return <TemplatesView />;
+            case 'magicGratitude':
+                return <MagicGratitudeChallenge />;
             default:
                 return <Dashboard />;
         }

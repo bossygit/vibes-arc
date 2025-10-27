@@ -349,6 +349,41 @@ export const identityTemplates: IdentityTemplate[] = [
     color: 'gold',
     icon: '💰',
     difficulty: 'intermediate'
+  },
+
+  // RHONDA BYRNE
+  {
+    id: 'rhonda-byrne-gratitude',
+    name: 'Maître de la Gratitude',
+    author: 'Rhonda Byrne',
+    book: 'The Magic',
+    description: 'Cultiver la gratitude comme force transformatrice de la vie',
+    coreBeliefs: [
+      'La gratitude est la clé de la transformation',
+      'Remercier attire plus de bénédictions',
+      'La gratitude élève votre vibration',
+      'Chaque jour est un cadeau'
+    ],
+    dailyPractices: [
+      'Exercice de gratitude quotidien',
+      'Journal de gratitude',
+      'Remerciements sincères',
+      'Visualisation de reconnaissance'
+    ],
+    habits: [
+      'Pratique de gratitude quotidienne',
+      'Journaling de gratitude',
+      'Remerciements actifs',
+      'Visualisation de reconnaissance'
+    ],
+    quotes: [
+      'La gratitude est la clé de la transformation',
+      'Remercier attire plus de bénédictions',
+      'La gratitude élève votre vibration'
+    ],
+    color: 'purple',
+    icon: '✨',
+    difficulty: 'beginner'
   }
 ];
 

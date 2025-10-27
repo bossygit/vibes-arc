@@ -339,6 +339,34 @@ export const personalDevelopmentTemplates: PersonalDevelopmentTemplate[] = [
       'Augmente la confiance financière',
       'Crée des opportunités'
     ]
+  },
+
+  // RHONDA BYRNE - THE MAGIC
+  {
+    id: 'rhonda-magic-gratitude',
+    name: 'Magic Gratitude 28 jours',
+    author: 'Rhonda Byrne',
+    book: 'The Magic',
+    concept: 'Gratitude Transformative',
+    philosophy: 'La gratitude est la clé pour transformer votre vie et attirer l\'abondance',
+    type: 'start',
+    category: 'connection',
+    description: 'Défi de gratitude de 28 jours basé sur "The Magic"',
+    suggestedDuration: [28],
+    advice: [
+      'Pratiquez un exercice de gratitude spécifique chaque jour',
+      'Tenez un journal de gratitude quotidien',
+      'Ressentez vraiment la gratitude, pas seulement les mots',
+      'Remerciez pour les petites choses comme les grandes'
+    ],
+    difficulty: 'medium',
+    icon: '✨',
+    benefits: [
+      'Transforme votre perspective sur la vie',
+      'Attire plus d\'abondance',
+      'Améliore l\'humeur et le bien-être',
+      'Renforce la loi d\'attraction'
+    ]
   }
 ];
 

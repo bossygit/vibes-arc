@@ -50,6 +50,7 @@ const TemplatesView: React.FC = () => {
         { id: 'Dale Carnegie', name: 'Dale Carnegie' },
         { id: 'Eckhart Tolle', name: 'Eckhart Tolle' },
         { id: 'Catherine Ponder', name: 'Catherine Ponder' },
+        { id: 'Rhonda Byrne', name: 'Rhonda Byrne' },
     ];
 
     const difficulties = [
