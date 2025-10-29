@@ -72,16 +72,13 @@ export const useAppStore = create<AppState>()((set) => {
 
         addIdentity: async (identityData) => {
             try {
-                console.log('Store: Tentative de création d\'identité:', identityData);
                 const newIdentity = await db.createIdentity(identityData.name, identityData.description, identityData.color);
-                console.log('Store: Identité créée avec succès:', newIdentity);
                 set((state) => ({
                     identities: [...state.identities, newIdentity],
                 }));
-                console.log('Store: Identité ajoutée au state');
             } catch (error) {
-                console.error('Store: Erreur lors de la création de l\'identité:', error);
-                throw error; // Re-throw pour que le composant puisse gérer l'erreur
+                console.error('Erreur lors de la création de l\'identité:', error);
+                throw error;
             }
         },
 

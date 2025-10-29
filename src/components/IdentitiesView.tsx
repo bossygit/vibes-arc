@@ -22,9 +22,7 @@ const IdentitiesView: React.FC = () => {
         setIsLoading(true);
 
         try {
-            console.log('Tentative d\'ajout d\'identité:', newIdentity);
             await addIdentity(newIdentity);
-            console.log('Identité ajoutée avec succès');
             setNewIdentity({ name: '', description: '', color: 'blue' });
         } catch (err) {
             console.error('Erreur lors de l\'ajout:', err);
