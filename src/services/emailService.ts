@@ -1,4 +1,6 @@
 import { WeeklyReport } from '@/utils/weeklyReportUtils';
+import emailjs from '@emailjs/browser';
+import { EMAILJS_CONFIG } from '@/config/emailjs';
 
 export interface EmailTemplate {
     subject: string;
@@ -183,20 +185,40 @@ Continuez votre parcours de développement personnel avec Vibes Arc !
     return { subject, html, text };
 }
 
-// Fonction pour envoyer l'email (à implémenter avec un service d'email)
+// Fonction pour envoyer l'email avec EmailJS
 export async function sendWeeklyEmail(report: WeeklyReport, userEmail: string): Promise<boolean> {
     try {
-        const template = generateWeeklyEmailTemplate(report);
-        
-        // TODO: Intégrer avec un service d'email comme SendGrid, Resend, ou EmailJS
-        console.log('Email à envoyer:', {
-            to: userEmail,
-            subject: template.subject,
-            html: template.html,
-            text: template.text
-        });
-        
-        // Pour l'instant, on simule l'envoi
+        // Initialiser EmailJS
+        emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
+
+        // Préparer les données pour le template
+        const templateParams = {
+            to_email: userEmail,
+            week_start: report.weekStart.toLocaleDateString('fr-FR'),
+            week_end: report.weekEnd.toLocaleDateString('fr-FR'),
+            completion_rate: report.habits.completionRate.toFixed(0),
+            habits_completed: report.habits.completed,
+            habits_total: report.habits.total,
+            new_streaks: report.habits.newStreaks,
+            total_points: report.gamification.currentPoints,
+            top_habits: report.habits.topPerforming.map(h => h.name),
+            struggling_habits: report.habits.struggling.map(h => h.name),
+            active_identities: report.identities.active,
+            total_identities: report.identities.total,
+            insights: report.insights,
+            next_week_goals: report.nextWeekGoals
+        };
+
+        console.log('Envoi de l\'email avec EmailJS:', templateParams);
+
+        // Envoyer l'email
+        const result = await emailjs.send(
+            EMAILJS_CONFIG.SERVICE_ID,
+            EMAILJS_CONFIG.TEMPLATE_ID,
+            templateParams
+        );
+
+        console.log('Email envoyé avec succès:', result);
         return true;
     } catch (error) {
         console.error('Erreur lors de l\'envoi de l\'email:', error);

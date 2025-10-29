@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import { Mail, Clock, Calendar, CheckCircle } from 'lucide-react';
+import { Mail, Clock, Calendar, CheckCircle, Send } from 'lucide-react';
 import WeeklyReportPreview from './WeeklyReportPreview';
+import { sendWeeklyEmail } from '@/services/emailService';
+import { generateWeeklyReport } from '@/utils/weeklyReportUtils';
 
 const WeeklyEmailSettings: React.FC = () => {
-    const { userPrefs, setWeeklyEmailEnabled, setWeeklyEmailDay, setWeeklyEmailHour } = useAppStore();
+    const { userPrefs, setWeeklyEmailEnabled, setWeeklyEmailDay, setWeeklyEmailHour, identities, habits, skipsByHabit, gamification } = useAppStore();
+    const [isSending, setIsSending] = useState(false);
+    const [sendStatus, setSendStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
     const days = [
         { value: 0, label: 'Dimanche' },
@@ -20,6 +24,33 @@ const WeeklyEmailSettings: React.FC = () => {
         value: i,
         label: `${i.toString().padStart(2, '0')}:00`
     }));
+
+    const handleSendTestEmail = async () => {
+        setIsSending(true);
+        setSendStatus('idle');
+        
+        try {
+            // Générer le rapport hebdomadaire
+            const report = generateWeeklyReport(identities, habits, skipsByHabit, gamification);
+            
+            // Récupérer l'email de l'utilisateur (simulation - en réalité depuis l'auth)
+            const userEmail = 'test@example.com'; // TODO: Récupérer depuis l'auth
+            
+            // Envoyer l'email
+            const success = await sendWeeklyEmail(report, userEmail);
+            
+            if (success) {
+                setSendStatus('success');
+            } else {
+                setSendStatus('error');
+            }
+        } catch (error) {
+            console.error('Erreur lors de l\'envoi du test:', error);
+            setSendStatus('error');
+        } finally {
+            setIsSending(false);
+        }
+    };
 
     return (
         <div className="card bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
@@ -102,6 +133,46 @@ const WeeklyEmailSettings: React.FC = () => {
                                         <li>• Objectifs pour la semaine suivante</li>
                                     </ul>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* Bouton de test d'envoi */}
+                        {userPrefs.weeklyEmailEnabled && (
+                            <div className="mt-6 p-4 bg-white rounded-lg border border-blue-200">
+                                <h4 className="font-medium text-slate-800 mb-3">Test d'envoi</h4>
+                                <p className="text-sm text-slate-600 mb-4">
+                                    Testez l'envoi d'un email de résumé avec vos données actuelles.
+                                </p>
+                                
+                                <button
+                                    onClick={handleSendTestEmail}
+                                    disabled={isSending}
+                                    className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isSending ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            Envoi en cours...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Send className="w-4 h-4" />
+                                            Envoyer un email de test
+                                        </>
+                                    )}
+                                </button>
+
+                                {sendStatus === 'success' && (
+                                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                        <p className="text-green-700 text-sm">✅ Email envoyé avec succès !</p>
+                                    </div>
+                                )}
+
+                                {sendStatus === 'error' && (
+                                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                        <p className="text-red-700 text-sm">❌ Erreur lors de l'envoi. Vérifiez la console pour plus de détails.</p>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
