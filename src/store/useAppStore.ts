@@ -33,7 +33,7 @@ interface AppState {
     setWeeklyEmailHour: (hour: number) => void;
 }
 
-export const useAppStore = create<AppState>((set) => {
+export const useAppStore = create<AppState>((set, get) => {
     const db = SupabaseDatabaseClient.getInstance();
 
     // Charger les données initiales
