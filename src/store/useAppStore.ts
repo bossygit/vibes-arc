@@ -72,7 +72,7 @@ export const useAppStore = create<AppState>()((set) => {
 
         addIdentity: async (identityData) => {
             try {
-                const newIdentity = await db.createIdentity(identityData.name, identityData.description);
+                const newIdentity = await db.createIdentity(identityData.name, identityData.description, identityData.color);
                 set((state) => ({
                     identities: [...state.identities, newIdentity],
                 }));

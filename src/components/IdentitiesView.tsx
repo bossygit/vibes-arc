@@ -59,6 +59,23 @@ const IdentitiesView: React.FC = () => {
                         className="input-field"
                         rows={3}
                     />
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Couleur</label>
+                        <div className="flex gap-2">
+                            {['blue', 'green', 'purple', 'red', 'yellow', 'pink', 'indigo', 'teal'].map(color => (
+                                <button
+                                    key={color}
+                                    type="button"
+                                    onClick={() => setNewIdentity({ ...newIdentity, color })}
+                                    className={`w-8 h-8 rounded-full border-2 ${
+                                        newIdentity.color === color 
+                                            ? 'border-slate-800' 
+                                            : 'border-slate-300'
+                                    } bg-${color}-500 hover:opacity-80 transition`}
+                                />
+                            ))}
+                        </div>
+                    </div>
                     <button
                         onClick={handleAddIdentity}
                         className="btn-primary w-full flex items-center justify-center gap-2"
@@ -74,7 +91,10 @@ const IdentitiesView: React.FC = () => {
                 {identities.map((identity) => (
                     <div key={identity.id} className="card">
                         <div className="flex items-start justify-between mb-2">
-                            <h3 className="font-semibold text-slate-800 flex-1">{identity.name}</h3>
+                            <div className="flex items-center gap-3 flex-1">
+                                <div className={`w-4 h-4 rounded-full bg-${identity.color}-500 flex-shrink-0`}></div>
+                                <h3 className="font-semibold text-slate-800">{identity.name}</h3>
+                            </div>
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => setEditingIdentity(identity)}
