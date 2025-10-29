@@ -191,22 +191,22 @@ export async function sendWeeklyEmail(report: WeeklyReport, userEmail: string): 
         // Initialiser EmailJS
         emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
 
-        // Préparer les données pour le template
+        // Préparer les données pour le template (format compatible EmailJS)
         const templateParams = {
             to_email: userEmail,
             week_start: report.weekStart.toLocaleDateString('fr-FR'),
             week_end: report.weekEnd.toLocaleDateString('fr-FR'),
             completion_rate: report.habits.completionRate.toFixed(0),
-            habits_completed: report.habits.completed,
-            habits_total: report.habits.total,
-            new_streaks: report.habits.newStreaks,
-            total_points: report.gamification.currentPoints,
-            top_habits: report.habits.topPerforming.map(h => h.name),
-            struggling_habits: report.habits.struggling.map(h => h.name),
-            active_identities: report.identities.active,
-            total_identities: report.identities.total,
-            insights: report.insights,
-            next_week_goals: report.nextWeekGoals
+            habits_completed: report.habits.completed.toString(),
+            habits_total: report.habits.total.toString(),
+            new_streaks: report.habits.newStreaks.toString(),
+            total_points: report.gamification.currentPoints.toString(),
+            top_habits: report.habits.topPerforming.map(h => h.name).join(', '),
+            struggling_habits: report.habits.struggling.map(h => h.name).join(', '),
+            active_identities: report.identities.active.toString(),
+            total_identities: report.identities.total.toString(),
+            insights: report.insights.join(' | '),
+            next_week_goals: report.nextWeekGoals.join(' | ')
         };
 
         console.log('Envoi de l\'email avec EmailJS:', templateParams);
