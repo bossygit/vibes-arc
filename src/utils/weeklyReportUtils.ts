@@ -49,20 +49,20 @@ export function generateWeeklyReport(
     });
 
     const totalHabits = habits.length;
-    const completedHabits = habitStats.filter(h => h.stats.completionRate > 0).length;
+    const completedHabits = habitStats.filter(h => h.stats.percentage > 0).length;
     const completionRate = totalHabits > 0 ? (completedHabits / totalHabits) * 100 : 0;
 
     // Top habitudes performantes (completion rate > 80%)
     const topPerforming = habitStats
-        .filter(h => h.stats.completionRate >= 80)
-        .sort((a, b) => b.stats.completionRate - a.stats.completionRate)
+        .filter(h => h.stats.percentage >= 80)
+        .sort((a, b) => b.stats.percentage - a.stats.percentage)
         .slice(0, 3)
         .map(h => h.habit);
 
     // Habitudes en difficulté (completion rate < 30%)
     const struggling = habitStats
-        .filter(h => h.stats.completionRate < 30)
-        .sort((a, b) => a.stats.completionRate - b.stats.completionRate)
+        .filter(h => h.stats.percentage < 30)
+        .sort((a, b) => a.stats.percentage - b.stats.percentage)
         .slice(0, 3)
         .map(h => h.habit);
 
@@ -72,12 +72,12 @@ export function generateWeeklyReport(
 
     // Statistiques des identités
     const identityProgress = identities.map(identity => {
-        const identityHabits = habits.filter(h => h.identityId === identity.id);
+        const identityHabits = habits.filter(h => h.linkedIdentities.includes(identity.id));
         const identityStats = identityHabits.map(habit => 
             calculateHabitStats(habit, skipsByHabit[habit.id] || [])
         );
         const avgCompletionRate = identityStats.length > 0 
-            ? identityStats.reduce((sum, stats) => sum + stats.completionRate, 0) / identityStats.length
+            ? identityStats.reduce((sum, stats) => sum + stats.percentage, 0) / identityStats.length
             : 0;
 
         return {

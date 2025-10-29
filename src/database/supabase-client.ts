@@ -568,13 +568,23 @@ class SupabaseDatabaseClient {
     // ===== USER PREFS / NOTIFS =====
     async getUserPrefs(): Promise<UserPrefs> {
         const user = await this.getCurrentUser();
-        if (!user) return { notifHour: 20 };
+        if (!user) return { 
+            notifHour: 20, 
+            weeklyEmailEnabled: false, 
+            weeklyEmailDay: 6, 
+            weeklyEmailHour: 9 
+        };
         const { data } = await this.supabase
             .from('user_prefs')
-            .select('notif_hour')
+            .select('notif_hour, weekly_email_enabled, weekly_email_day, weekly_email_hour')
             .eq('user_id', user.id)
             .single();
-        return { notifHour: data?.notif_hour ?? 20 };
+        return { 
+            notifHour: data?.notif_hour ?? 20,
+            weeklyEmailEnabled: data?.weekly_email_enabled ?? false,
+            weeklyEmailDay: data?.weekly_email_day ?? 6,
+            weeklyEmailHour: data?.weekly_email_hour ?? 9
+        };
     }
 
     async setUserNotifHour(hour: number): Promise<boolean> {

@@ -6,7 +6,7 @@ export interface EmailTemplate {
     text: string;
 }
 
-export function generateWeeklyEmailTemplate(report: WeeklyReport, userEmail: string): EmailTemplate {
+export function generateWeeklyEmailTemplate(report: WeeklyReport): EmailTemplate {
     const subject = `📊 Résumé hebdomadaire Vibes Arc - Semaine du ${report.weekStart.toLocaleDateString('fr-FR')}`;
     
     const html = `
@@ -186,7 +186,7 @@ Continuez votre parcours de développement personnel avec Vibes Arc !
 // Fonction pour envoyer l'email (à implémenter avec un service d'email)
 export async function sendWeeklyEmail(report: WeeklyReport, userEmail: string): Promise<boolean> {
     try {
-        const template = generateWeeklyEmailTemplate(report, userEmail);
+        const template = generateWeeklyEmailTemplate(report);
         
         // TODO: Intégrer avec un service d'email comme SendGrid, Resend, ou EmailJS
         console.log('Email à envoyer:', {
