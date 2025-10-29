@@ -79,7 +79,6 @@ class SupabaseDatabaseClient {
             .insert({
                 name,
                 description,
-                color,
                 user_id: user.id,
             })
             .select()
@@ -96,7 +95,7 @@ class SupabaseDatabaseClient {
             id: data.id,
             name: data.name,
             description: data.description,
-            color: data.color,
+            color: color, // Utiliser la couleur passée en paramètre
             createdAt: data.created_at,
         };
     }
