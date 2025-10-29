@@ -9,11 +9,28 @@ const IdentitiesView: React.FC = () => {
     const { identities, habits, addIdentity, updateIdentity, deleteIdentity, gamification, createReward, claimReward } = useAppStore();
     const [newIdentity, setNewIdentity] = useState({ name: '', description: '', color: 'blue' });
     const [editingIdentity, setEditingIdentity] = useState<Identity | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
 
-    const handleAddIdentity = () => {
-        if (newIdentity.name.trim()) {
-            addIdentity(newIdentity);
+    const handleAddIdentity = async () => {
+        if (!newIdentity.name.trim()) {
+            setError('Le nom de l\'identité est requis');
+            return;
+        }
+
+        setError(null);
+        setIsLoading(true);
+
+        try {
+            console.log('Tentative d\'ajout d\'identité:', newIdentity);
+            await addIdentity(newIdentity);
+            console.log('Identité ajoutée avec succès');
             setNewIdentity({ name: '', description: '', color: 'blue' });
+        } catch (err) {
+            console.error('Erreur lors de l\'ajout:', err);
+            setError(`Erreur lors de l'ajout: ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -44,6 +61,13 @@ const IdentitiesView: React.FC = () => {
             {/* Add Identity Form */}
             <div className="card">
                 <h3 className="font-semibold text-slate-800 mb-4">Ajouter une identité</h3>
+                
+                {error && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-red-700 text-sm">{error}</p>
+                    </div>
+                )}
+                
                 <div className="space-y-4">
                     <input
                         type="text"
@@ -67,21 +91,30 @@ const IdentitiesView: React.FC = () => {
                                     key={color}
                                     type="button"
                                     onClick={() => setNewIdentity({ ...newIdentity, color })}
-                                    className={`w-8 h-8 rounded-full border-2 ${
-                                        newIdentity.color === color 
-                                            ? 'border-slate-800' 
+                                    className={`w-8 h-8 rounded-full border-2 ${newIdentity.color === color
+                                            ? 'border-slate-800'
                                             : 'border-slate-300'
-                                    } bg-${color}-500 hover:opacity-80 transition`}
+                                        } bg-${color}-500 hover:opacity-80 transition`}
                                 />
                             ))}
                         </div>
                     </div>
                     <button
                         onClick={handleAddIdentity}
-                        className="btn-primary w-full flex items-center justify-center gap-2"
+                        disabled={isLoading}
+                        className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <Plus className="w-5 h-5" />
-                        Ajouter l'identité
+                        {isLoading ? (
+                            <>
+                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                Ajout en cours...
+                            </>
+                        ) : (
+                            <>
+                                <Plus className="w-5 h-5" />
+                                Ajouter l'identité
+                            </>
+                        )}
                     </button>
                 </div>
             </div>

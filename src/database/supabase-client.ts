@@ -64,8 +64,15 @@ class SupabaseDatabaseClient {
     // ===== IDENTITIES =====
 
     async createIdentity(name: string, description?: string, color: string = 'blue'): Promise<Identity> {
+        console.log('Supabase: createIdentity appelé avec:', { name, description, color });
+        
         const user = await this.getCurrentUser();
-        if (!user) throw new Error('Utilisateur non authentifié');
+        if (!user) {
+            console.error('Supabase: Utilisateur non authentifié');
+            throw new Error('Utilisateur non authentifié');
+        }
+
+        console.log('Supabase: Utilisateur authentifié:', user.id);
 
         const { data, error } = await this.supabase
             .from('identities')
@@ -78,7 +85,12 @@ class SupabaseDatabaseClient {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase: Erreur lors de l\'insertion:', error);
+            throw error;
+        }
+
+        console.log('Supabase: Identité créée avec succès:', data);
 
         return {
             id: data.id,
