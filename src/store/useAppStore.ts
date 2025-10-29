@@ -33,7 +33,7 @@ interface AppState {
     setWeeklyEmailHour: (hour: number) => void;
 }
 
-export const useAppStore = create<AppState>((set, get) => {
+export const useAppStore = create<AppState>((set) => {
     const db = SupabaseDatabaseClient.getInstance();
 
     // Charger les données initiales
@@ -83,7 +83,7 @@ export const useAppStore = create<AppState>((set, get) => {
         selectedHabitId: null,
         skipsByHabit: {},
         gamification: { points: 0, rewards: [], challenges: [] },
-        userPrefs: { notifHour: 20 },
+        userPrefs: { notifHour: 20, weeklyEmailEnabled: false, weeklyEmailDay: 6, weeklyEmailHour: 9 },
 
         // Actions
         setView: (view) => set({ view }),
