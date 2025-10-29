@@ -28,6 +28,9 @@ interface AppState {
     createReward: (title: string, cost: number) => void;
     claimReward: (rewardId: number) => void;
     setNotifHour: (hour: number) => void;
+    setWeeklyEmailEnabled: (enabled: boolean) => void;
+    setWeeklyEmailDay: (day: number) => void;
+    setWeeklyEmailHour: (hour: number) => void;
 }
 
 export const useAppStore = create<AppState>()((set) => {
@@ -44,12 +47,28 @@ export const useAppStore = create<AppState>()((set) => {
             const storedGam = localStorage.getItem('vibes-arc-gamification');
             const gamification: GamificationState = storedGam ? JSON.parse(storedGam) : { points: 0, rewards: [], challenges: [] };
             const storedPrefs = localStorage.getItem('vibes-arc-prefs');
-            const userPrefs: UserPrefs = storedPrefs ? JSON.parse(storedPrefs) : { notifHour: 20 };
+            const userPrefs: UserPrefs = storedPrefs ? JSON.parse(storedPrefs) : { 
+                notifHour: 20, 
+                weeklyEmailEnabled: false, 
+                weeklyEmailDay: 6, // samedi par défaut
+                weeklyEmailHour: 9 // 9h par défaut
+            };
             set({ identities, habits, skipsByHabit, gamification, userPrefs });
         } catch (error) {
             console.error('Erreur lors du chargement des données:', error);
             // En cas d'erreur, initialiser avec des tableaux vides
-            set({ identities: [], habits: [], skipsByHabit: {}, gamification: { points: 0, rewards: [], challenges: [] }, userPrefs: { notifHour: 20 } });
+            set({ 
+                identities: [], 
+                habits: [], 
+                skipsByHabit: {}, 
+                gamification: { points: 0, rewards: [], challenges: [] }, 
+                userPrefs: { 
+                    notifHour: 20, 
+                    weeklyEmailEnabled: false, 
+                    weeklyEmailDay: 6, 
+                    weeklyEmailHour: 9 
+                } 
+            });
         }
     };
 
@@ -246,6 +265,30 @@ export const useAppStore = create<AppState>()((set) => {
         setNotifHour: (hour) => {
             set((state) => {
                 const userPrefs = { ...state.userPrefs, notifHour: Math.max(0, Math.min(23, Math.floor(hour))) };
+                localStorage.setItem('vibes-arc-prefs', JSON.stringify(userPrefs));
+                return { userPrefs };
+            });
+        },
+
+        setWeeklyEmailEnabled: (enabled) => {
+            set((state) => {
+                const userPrefs = { ...state.userPrefs, weeklyEmailEnabled: enabled };
+                localStorage.setItem('vibes-arc-prefs', JSON.stringify(userPrefs));
+                return { userPrefs };
+            });
+        },
+
+        setWeeklyEmailDay: (day) => {
+            set((state) => {
+                const userPrefs = { ...state.userPrefs, weeklyEmailDay: Math.max(0, Math.min(6, Math.floor(day))) };
+                localStorage.setItem('vibes-arc-prefs', JSON.stringify(userPrefs));
+                return { userPrefs };
+            });
+        },
+
+        setWeeklyEmailHour: (hour) => {
+            set((state) => {
+                const userPrefs = { ...state.userPrefs, weeklyEmailHour: Math.max(0, Math.min(23, Math.floor(hour))) };
                 localStorage.setItem('vibes-arc-prefs', JSON.stringify(userPrefs));
                 return { userPrefs };
             });

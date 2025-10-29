@@ -68,6 +68,9 @@ export type SkipsByHabit = Record<number, number[]>; // habitId -> liste d'index
 
 export interface UserPrefs {
     notifHour: number; // 0..23
+    weeklyEmailEnabled: boolean;
+    weeklyEmailDay: number; // 0 = dimanche, 1 = lundi, ..., 6 = samedi
+    weeklyEmailHour: number; // heure d'envoi (0-23)
 }
 
 export interface HabitTemplate {
