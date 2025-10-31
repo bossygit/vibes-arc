@@ -3,18 +3,17 @@ export interface FocusWheelThought {
   id: string;
   text: string;
   position: number; // 1-12
-  feelingScore: number; // 1-5 (ressenti)
+  isAligned: boolean; // true = je suis aligné avec cette pensée
   createdAt: string;
 }
 
 export interface FocusWheel {
   id: string;
-  unwantedFeeling: string; // Ce que je ne veux pas
-  desiredFeeling: string; // Ce que je veux
-  centralThought: string; // Pensée centrale
-  thoughts: FocusWheelThought[]; // 12 pensées autour
-  initialScore: number; // 0-10
-  finalScore: number; // 0-10
+  centralThought: string; // Pensée centrale (NON alignée - qu'on veut atteindre)
+  currentFeeling: string; // Comment je me sens maintenant (optionnel pour contexte)
+  thoughts: FocusWheelThought[]; // 12 pensées alignées qui font le pont
+  initialScore: number; // 0-10 - alignement initial avec la pensée centrale
+  finalScore: number; // 0-10 - alignement final
   isCompleted: boolean;
   completedAt?: string;
   createdAt: string;
@@ -239,11 +238,11 @@ export const getSuggestionsForCategory = (
 
 // Obtenir des suggestions personnalisées
 export const getPersonalizedSuggestions = (
-  unwantedFeeling: string,
-  desiredFeeling: string,
+  centralThought: string,
+  currentFeeling: string,
   existingThoughts: string[] = []
 ): string[] => {
-  const category = detectCategory(unwantedFeeling + ' ' + desiredFeeling);
+  const category = detectCategory(centralThought + ' ' + currentFeeling);
   let suggestions = getSuggestionsForCategory(category);
   
   // Ajouter des suggestions universelles
@@ -268,15 +267,14 @@ const shuffleArray = <T>(array: T[]): T[] => {
 
 // Initialiser un nouveau wheel
 export const initializeFocusWheel = (
-  unwantedFeeling: string,
-  desiredFeeling: string,
+  centralThought: string,
+  currentFeeling: string,
   initialScore: number
 ): FocusWheel => {
   return {
     id: `wheel-${Date.now()}`,
-    unwantedFeeling,
-    desiredFeeling,
-    centralThought: desiredFeeling, // Par défaut, la pensée centrale est le désir
+    centralThought, // La pensée NON alignée qu'on veut atteindre
+    currentFeeling,
     thoughts: [],
     initialScore,
     finalScore: initialScore,
@@ -289,7 +287,7 @@ export const initializeFocusWheel = (
 export const addThoughtToWheel = (
   wheel: FocusWheel,
   text: string,
-  feelingScore: number
+  isAligned: boolean = true
 ): FocusWheel => {
   const position = wheel.thoughts.length + 1;
   
@@ -297,7 +295,7 @@ export const addThoughtToWheel = (
     id: `thought-${Date.now()}-${position}`,
     text,
     position,
-    feelingScore,
+    isAligned, // Par défaut true car on ne peut ajouter que des pensées alignées
     createdAt: new Date().toISOString(),
   };
   
@@ -364,7 +362,7 @@ export const calculateStats = (wheels: FocusWheel[]): FocusWheelStats => {
   // Déterminer la catégorie la plus utilisée
   const categoryCounts: Record<string, number> = {};
   wheels.forEach((wheel) => {
-    const category = detectCategory(wheel.unwantedFeeling + ' ' + wheel.desiredFeeling);
+    const category = detectCategory(wheel.centralThought + ' ' + wheel.currentFeeling);
     if (category) {
       categoryCounts[category] = (categoryCounts[category] || 0) + 1;
     }

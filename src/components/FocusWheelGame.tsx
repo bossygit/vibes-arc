@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Circle,
   Sparkles,
-  Heart,
   ArrowRight,
   Plus,
   Trash2,
@@ -14,6 +13,7 @@ import {
   X,
   Lightbulb,
   Save,
+  Target,
 } from 'lucide-react';
 import {
   FocusWheelState,
@@ -108,14 +108,14 @@ const StartScreen: React.FC<{
         <div className="text-6xl mb-4">🎯</div>
         <h2 className="text-4xl font-bold text-slate-800 mb-3">The Focus Wheel</h2>
         <p className="text-lg text-slate-600 mb-6">
-          Transformez vos émotions négatives en vibrations alignées
+          Le pont vibratoire vers vos désirs - Méthode Abraham Hicks
         </p>
       </div>
 
       <div className="card bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
         <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
           <Sparkles className="w-6 h-6 text-purple-600" />
-          Comment ça marche ?
+          Le vrai concept du Focus Wheel
         </h3>
         <div className="space-y-3 text-slate-700">
           <div className="flex items-start gap-3">
@@ -123,9 +123,9 @@ const StartScreen: React.FC<{
               1
             </div>
             <div>
-              <strong>Identifiez votre émotion</strong>
+              <strong>Choisissez une pensée NON alignée</strong>
               <p className="text-sm text-slate-600">
-                Exprimez ce que vous ressentez maintenant et ce que vous voulez ressentir
+                Une pensée que vous VOULEZ croire mais qui ne vous semble pas vraie maintenant
               </p>
             </div>
           </div>
@@ -134,9 +134,9 @@ const StartScreen: React.FC<{
               2
             </div>
             <div>
-              <strong>Créez votre roue</strong>
+              <strong>Trouvez 12 pensées alignées</strong>
               <p className="text-sm text-slate-600">
-                Sélectionnez 12 pensées qui vous font vous sentir progressivement mieux
+                Des pensées qui vous semblent vraies et qui font le pont vers votre pensée cible
               </p>
             </div>
           </div>
@@ -145,9 +145,9 @@ const StartScreen: React.FC<{
               3
             </div>
             <div>
-              <strong>Intégrez l'alignement</strong>
+              <strong>Le cercle s'illumine</strong>
               <p className="text-sm text-slate-600">
-                Ressentez votre nouvelle vibration et célébrez votre progrès
+                Chaque pensée alignée allume un segment du cercle jusqu'à compléter les 12
               </p>
             </div>
           </div>
@@ -219,19 +219,19 @@ const StartScreen: React.FC<{
 const IdentifyScreen: React.FC<{
   setState: React.Dispatch<React.SetStateAction<FocusWheelState>>;
 }> = ({ setState }) => {
-  const [unwantedFeeling, setUnwantedFeeling] = useState('');
-  const [desiredFeeling, setDesiredFeeling] = useState('');
-  const [initialScore, setInitialScore] = useState(5);
+  const [centralThought, setCentralThought] = useState('');
+  const [currentFeeling, setCurrentFeeling] = useState('');
+  const [initialScore, setInitialScore] = useState(2);
 
   const handleContinue = () => {
-    if (!unwantedFeeling.trim() || !desiredFeeling.trim()) {
-      alert('Veuillez remplir les deux champs');
+    if (!centralThought.trim()) {
+      alert('Veuillez entrer votre pensée cible');
       return;
     }
 
     const newWheel = initializeFocusWheel(
-      unwantedFeeling.trim(),
-      desiredFeeling.trim(),
+      centralThought.trim(),
+      currentFeeling.trim() || 'En cours d\'exploration',
       initialScore
     );
 
@@ -243,43 +243,44 @@ const IdentifyScreen: React.FC<{
     }));
   };
 
-  const category = detectCategory(unwantedFeeling + ' ' + desiredFeeling);
+  const category = detectCategory(centralThought + ' ' + currentFeeling);
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-slate-800 mb-2">Identification</h2>
-        <p className="text-slate-600">Clarifiez votre intention vibratoire</p>
+        <h2 className="text-3xl font-bold text-slate-800 mb-2">Votre pensée cible</h2>
+        <p className="text-slate-600">Quelle pensée voulez-vous atteindre ?</p>
       </div>
 
       <div className="card">
         <div className="space-y-6">
           <div>
             <label className="block text-lg font-semibold text-slate-800 mb-3">
-              Qu'est-ce que vous ressentez <span className="text-red-500">maintenant</span> ?
+              <Target className="w-5 h-5 inline mr-2 text-purple-600" />
+              Pensée que vous <span className="text-purple-600">VOULEZ croire</span> (mais qui ne semble pas vraie maintenant)
             </label>
             <textarea
-              value={unwantedFeeling}
-              onChange={(e) => setUnwantedFeeling(e.target.value)}
-              placeholder="Ex: Je me sens bloqué dans mon projet, stressé financièrement..."
+              value={centralThought}
+              onChange={(e) => setCentralThought(e.target.value)}
+              placeholder="Ex: Je suis abondant • Je suis aimé • Je suis capable • Je suis en sécurité financière..."
               className="input-field"
               rows={3}
             />
             <p className="text-xs text-slate-500 mt-2">
-              Soyez honnête et authentique. Cette émotion est valide.
+              💡 Cette pensée ira au centre de votre roue. Choisissez quelque chose que vous désirez croire.
             </p>
           </div>
 
           <div>
             <label className="block text-lg font-semibold text-slate-800 mb-3">
-              Quel <span className="text-green-500">état émotionnel</span> voulez-vous ressentir ?
+              Comment vous sentez-vous <span className="text-slate-600">maintenant</span> ? (optionnel)
             </label>
             <textarea
-              value={desiredFeeling}
-              onChange={(e) => setDesiredFeeling(e.target.value)}
-              placeholder="Ex: Je veux me sentir confiant, inspiré, en paix..."
+              value={currentFeeling}
+              onChange={(e) => setCurrentFeeling(e.target.value)}
+              placeholder="Ex: Je me sens bloqué, stressé, inquiet..."
               className="input-field"
-              rows={3}
+              rows={2}
             />
             {category && (
               <p className="text-xs text-purple-600 mt-2 flex items-center gap-2">
@@ -291,7 +292,7 @@ const IdentifyScreen: React.FC<{
 
           <div>
             <label className="block text-lg font-semibold text-slate-800 mb-3">
-              Sur une échelle de 0 à 10, comment vous sentez-vous maintenant ?
+              À quel point êtes-vous aligné avec cette pensée maintenant ?
             </label>
             <div className="space-y-2">
               <input
@@ -303,11 +304,14 @@ const IdentifyScreen: React.FC<{
                 className="w-full"
               />
               <div className="flex justify-between text-sm text-slate-600">
-                <span>0 - Très mal</span>
+                <span>0 - Pas du tout</span>
                 <span className="font-bold text-2xl text-purple-600">{initialScore}</span>
-                <span>10 - Excellent</span>
+                <span>10 - Totalement</span>
               </div>
             </div>
+            <p className="text-xs text-slate-500 mt-2">
+              Plus le score est bas, plus vous aurez besoin de pensées-pont pour y arriver
+            </p>
           </div>
         </div>
 
@@ -320,7 +324,7 @@ const IdentifyScreen: React.FC<{
           </button>
           <button
             onClick={handleContinue}
-            disabled={!unwantedFeeling.trim() || !desiredFeeling.trim()}
+            disabled={!centralThought.trim()}
             className="btn-primary flex-1 disabled:opacity-50"
           >
             Créer ma roue
@@ -332,15 +336,115 @@ const IdentifyScreen: React.FC<{
   );
 };
 
+// Composant Cercle avec segments
+const WheelCircle: React.FC<{
+  centralThought: string;
+  thoughtsCount: number;
+  maxThoughts: number;
+}> = ({ centralThought, thoughtsCount, maxThoughts }) => {
+  const segmentAngle = 360 / maxThoughts;
+  
+  return (
+    <div className="relative w-80 h-80 mx-auto">
+      {/* Cercle central */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="w-48 h-48 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 border-4 border-purple-300 flex items-center justify-center p-6 shadow-lg z-10">
+          <p className="text-center font-semibold text-purple-800 text-sm">
+            {centralThought}
+          </p>
+        </div>
+      </div>
+
+      {/* Segments du cercle */}
+      <svg className="w-full h-full absolute inset-0 -rotate-90" viewBox="0 0 100 100">
+        {Array.from({ length: maxThoughts }).map((_, index) => {
+          const isActive = index < thoughtsCount;
+          const startAngle = (index * segmentAngle * Math.PI) / 180;
+          const endAngle = ((index + 1) * segmentAngle * Math.PI) / 180;
+          
+          const radius = 45;
+          const innerRadius = 26;
+          
+          const x1 = 50 + radius * Math.cos(startAngle);
+          const y1 = 50 + radius * Math.sin(startAngle);
+          const x2 = 50 + radius * Math.cos(endAngle);
+          const y2 = 50 + radius * Math.sin(endAngle);
+          
+          const x3 = 50 + innerRadius * Math.cos(endAngle);
+          const y3 = 50 + innerRadius * Math.sin(endAngle);
+          const x4 = 50 + innerRadius * Math.cos(startAngle);
+          const y4 = 50 + innerRadius * Math.sin(startAngle);
+          
+          const largeArc = segmentAngle > 180 ? 1 : 0;
+          
+          const path = `
+            M ${x1} ${y1}
+            A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}
+            L ${x3} ${y3}
+            A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${x4} ${y4}
+            Z
+          `;
+          
+          return (
+            <path
+              key={index}
+              d={path}
+              fill={isActive ? '#a855f7' : '#e9d5ff'}
+              stroke="#9333ea"
+              strokeWidth="0.5"
+              className={isActive ? 'animate-pulse' : ''}
+              style={{
+                transition: 'fill 0.5s ease',
+              }}
+            />
+          );
+        })}
+      </svg>
+
+      {/* Numéros sur les segments */}
+      {Array.from({ length: maxThoughts }).map((_, index) => {
+        const angle = ((index + 0.5) * segmentAngle - 90) * (Math.PI / 180);
+        const radius = 37;
+        const x = 50 + radius * Math.cos(angle);
+        const y = 50 + radius * Math.sin(angle);
+        const isActive = index < thoughtsCount;
+        
+        return (
+          <div
+            key={index}
+            className="absolute"
+            style={{
+              left: `${x}%`,
+              top: `${y}%`,
+              transform: 'translate(-50%, -50%)',
+            }}
+          >
+            <div
+              className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                isActive
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-purple-200 text-purple-400'
+              }`}
+            >
+              {index + 1}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 // Écran de la roue
 const WheelScreen: React.FC<{
   state: FocusWheelState;
   setState: React.Dispatch<React.SetStateAction<FocusWheelState>>;
 }> = ({ state, setState }) => {
   const [thoughtText, setThoughtText] = useState('');
-  const [feelingScore, setFeelingScore] = useState(3);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [isValidatingThought, setIsValidatingThought] = useState(false);
+  const [pendingThought, setPendingThought] = useState('');
 
   const wheel = state.currentWheel!;
   const progress = (wheel.thoughts.length / MAX_THOUGHTS) * 100;
@@ -350,25 +454,32 @@ const WheelScreen: React.FC<{
     if (wheel) {
       const existingTexts = wheel.thoughts.map((t) => t.text);
       const newSuggestions = getPersonalizedSuggestions(
-        wheel.unwantedFeeling,
-        wheel.desiredFeeling,
+        wheel.centralThought,
+        wheel.currentFeeling,
         existingTexts
       );
       setSuggestions(newSuggestions);
     }
   }, [wheel]);
 
-  const addThought = (text: string) => {
-    if (!text.trim() || wheel.thoughts.length >= MAX_THOUGHTS) return;
-
-    const updatedWheel = addThoughtToWheel(wheel, text.trim(), feelingScore);
-    setState((prev) => ({
-      ...prev,
-      currentWheel: updatedWheel,
-    }));
-
+  const validateAndAddThought = (text: string, isAligned: boolean) => {
+    if (isAligned && wheel.thoughts.length < MAX_THOUGHTS) {
+      const updatedWheel = addThoughtToWheel(wheel, text, true);
+      setState((prev) => ({
+        ...prev,
+        currentWheel: updatedWheel,
+      }));
+    }
+    
+    setIsValidatingThought(false);
+    setPendingThought('');
     setThoughtText('');
-    setFeelingScore(3);
+  };
+
+  const promptForThought = (text: string) => {
+    if (!text.trim()) return;
+    setPendingThought(text.trim());
+    setIsValidatingThought(true);
   };
 
   const removeThought = (thoughtId: string) => {
@@ -387,17 +498,48 @@ const WheelScreen: React.FC<{
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-slate-800 mb-2">Votre Focus Wheel</h2>
-        <p className="text-slate-600">{wheel.desiredFeeling}</p>
+        <h2 className="text-3xl font-bold text-slate-800 mb-2">Construisez votre pont vibratoire</h2>
+        <p className="text-slate-600">Pensée cible : "{wheel.centralThought}"</p>
       </div>
+
+      {/* Modale de validation */}
+      {isValidatingThought && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="card max-w-md bg-white">
+            <h3 className="text-xl font-bold text-slate-800 mb-4">
+              Êtes-vous aligné avec cette pensée ?
+            </h3>
+            <p className="text-slate-700 mb-2 italic">"{pendingThought}"</p>
+            <p className="text-sm text-slate-600 mb-6">
+              Cette pensée vous semble-t-elle <strong>vraie</strong> maintenant ?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => validateAndAddThought(pendingThought, false)}
+                className="btn-secondary flex-1"
+              >
+                <X className="w-5 h-5 inline mr-2" />
+                Non, je ne suis pas aligné
+              </button>
+              <button
+                onClick={() => validateAndAddThought(pendingThought, true)}
+                className="btn-primary flex-1"
+              >
+                <CheckCircle2 className="w-5 h-5 inline mr-2" />
+                Oui, je suis aligné !
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Barre de progression */}
       <div className="card">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-slate-700">
-            {wheel.thoughts.length} / {MAX_THOUGHTS} pensées
+            {wheel.thoughts.length} / {MAX_THOUGHTS} pensées-pont alignées
           </span>
           <span className="text-sm font-medium text-purple-600">{progress.toFixed(0)}%</span>
         </div>
@@ -410,46 +552,42 @@ const WheelScreen: React.FC<{
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Roue visuelle */}
+        {/* Cercle visuel avec segments */}
         <div className="card">
-          <h3 className="text-xl font-bold text-slate-800 mb-4">Vos pensées</h3>
+          <h3 className="text-xl font-bold text-slate-800 mb-6 text-center">
+            Votre Focus Wheel
+          </h3>
           
-          {/* Cercle central */}
-          <div className="relative">
-            <div className="w-48 h-48 mx-auto rounded-full bg-gradient-to-br from-purple-100 to-pink-100 border-4 border-purple-300 flex items-center justify-center p-6 shadow-lg">
-              <p className="text-center font-semibold text-purple-800 text-sm">
-                {wheel.desiredFeeling}
-              </p>
-            </div>
+          <WheelCircle
+            centralThought={wheel.centralThought}
+            thoughtsCount={wheel.thoughts.length}
+            maxThoughts={MAX_THOUGHTS}
+          />
 
-            {/* Pensées autour (affichage simplifié) */}
-            {wheel.thoughts.length > 0 && (
-              <div className="mt-6 space-y-2">
-                {wheel.thoughts.map((thought, index) => (
-                  <div
-                    key={thought.id}
-                    className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg border border-purple-200"
-                  >
-                    <div className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
-                      {index + 1}
-                    </div>
-                    <p className="text-sm text-slate-700 flex-1">{thought.text}</p>
-                    <div className="flex items-center gap-1 text-xs text-slate-500">
-                      {Array.from({ length: thought.feelingScore }).map((_, i) => (
-                        <Heart key={i} className="w-3 h-3 fill-pink-500 text-pink-500" />
-                      ))}
-                    </div>
-                    <button
-                      onClick={() => removeThought(thought.id)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+          {/* Liste des pensées */}
+          {wheel.thoughts.length > 0 && (
+            <div className="mt-6 space-y-2">
+              <h4 className="font-semibold text-slate-700 text-sm">Vos pensées-pont :</h4>
+              {wheel.thoughts.map((thought, index) => (
+                <div
+                  key={thought.id}
+                  className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg border border-purple-200"
+                >
+                  <div className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    {index + 1}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  <p className="text-sm text-slate-700 flex-1">{thought.text}</p>
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  <button
+                    onClick={() => removeThought(thought.id)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
           {isComplete && (
             <button onClick={goToIntegration} className="btn-primary w-full mt-6">
@@ -467,7 +605,7 @@ const WheelScreen: React.FC<{
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                   <Lightbulb className="w-5 h-5 text-yellow-600" />
-                  Suggestions
+                  Pensées-pont suggérées
                 </h3>
                 <button
                   onClick={() => setShowSuggestions(false)}
@@ -476,11 +614,14 @@ const WheelScreen: React.FC<{
                   <X className="w-5 h-5" />
                 </button>
               </div>
+              <p className="text-xs text-slate-600 mb-3">
+                Choisissez des pensées qui vous semblent <strong>vraies</strong> maintenant
+              </p>
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {suggestions.slice(0, 10).map((suggestion, index) => (
                   <button
                     key={index}
-                    onClick={() => setThoughtText(suggestion)}
+                    onClick={() => promptForThought(suggestion)}
                     className="w-full text-left p-3 bg-white rounded-lg border border-slate-200 hover:border-purple-300 hover:bg-purple-50 transition text-sm"
                   >
                     {suggestion}
@@ -491,8 +632,8 @@ const WheelScreen: React.FC<{
                 onClick={() => {
                   const existingTexts = wheel.thoughts.map((t) => t.text);
                   const newSuggestions = getPersonalizedSuggestions(
-                    wheel.unwantedFeeling,
-                    wheel.desiredFeeling,
+                    wheel.centralThought,
+                    wheel.currentFeeling,
                     existingTexts
                   );
                   setSuggestions(newSuggestions);
@@ -509,56 +650,29 @@ const WheelScreen: React.FC<{
           {!isComplete && (
             <div className="card">
               <h3 className="text-lg font-bold text-slate-800 mb-4">
-                Créer ma propre pensée
+                Ma propre pensée-pont
               </h3>
               <div className="space-y-4">
                 <div>
                   <textarea
                     value={thoughtText}
                     onChange={(e) => setThoughtText(e.target.value)}
-                    placeholder="Écrivez une pensée qui vous fait vous sentir mieux..."
+                    placeholder="Écrivez une pensée qui vous semble vraie et qui fait le pont..."
                     className="input-field"
                     rows={3}
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Cette pensée me fait sentir :
-                  </label>
-                  <div className="flex items-center gap-2">
-                    {[1, 2, 3, 4, 5].map((score) => (
-                      <button
-                        key={score}
-                        onClick={() => setFeelingScore(score)}
-                        className={`p-2 rounded-lg border-2 transition ${
-                          feelingScore >= score
-                            ? 'border-pink-500 bg-pink-50'
-                            : 'border-slate-200'
-                        }`}
-                      >
-                        <Heart
-                          className={`w-6 h-6 ${
-                            feelingScore >= score
-                              ? 'fill-pink-500 text-pink-500'
-                              : 'text-slate-300'
-                          }`}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    1 = un peu mieux, 5 = beaucoup mieux
+                  <p className="text-xs text-slate-500 mt-2">
+                    💡 La pensée doit vous sembler vraie MAINTENANT et se rapprocher de votre pensée cible
                   </p>
                 </div>
 
                 <button
-                  onClick={() => addThought(thoughtText)}
+                  onClick={() => promptForThought(thoughtText)}
                   disabled={!thoughtText.trim() || wheel.thoughts.length >= MAX_THOUGHTS}
                   className="btn-primary w-full disabled:opacity-50"
                 >
                   <Plus className="w-5 h-5 inline mr-2" />
-                  Ajouter cette pensée
+                  Valider cette pensée
                 </button>
               </div>
 
@@ -591,7 +705,7 @@ const IntegrationScreen: React.FC<{
   state: FocusWheelState;
   setState: React.Dispatch<React.SetStateAction<FocusWheelState>>;
 }> = ({ state, setState }) => {
-  const [finalScore, setFinalScore] = useState(state.currentWheel?.initialScore || 5);
+  const [finalScore, setFinalScore] = useState(state.currentWheel?.initialScore || 2);
   const [showCelebration, setShowCelebration] = useState(false);
 
   const wheel = state.currentWheel!;
@@ -622,7 +736,7 @@ const IntegrationScreen: React.FC<{
             <div className="text-6xl mb-4">🎉</div>
             <h2 className="text-3xl font-bold text-purple-800 mb-2">Bravo !</h2>
             <p className="text-purple-700">
-              Vous avez complété un Focus Wheel avec succès !
+              Vous avez construit votre pont vibratoire !
             </p>
           </div>
         </div>
@@ -630,17 +744,17 @@ const IntegrationScreen: React.FC<{
 
       <div className="text-center">
         <div className="text-6xl mb-4">✨</div>
-        <h2 className="text-3xl font-bold text-slate-800 mb-2">Intégration</h2>
-        <p className="text-slate-600">Ressentez votre nouvelle vibration</p>
+        <h2 className="text-3xl font-bold text-slate-800 mb-2">Intégration & Alignement</h2>
+        <p className="text-slate-600">Ressentez votre nouveau niveau vibratoire</p>
       </div>
 
       <div className="card bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-300">
         <div className="text-center mb-6">
-          <div className="w-64 h-64 mx-auto rounded-full bg-gradient-to-br from-purple-200 to-pink-200 border-4 border-purple-400 flex items-center justify-center p-8 shadow-2xl animate-pulse">
-            <p className="text-center font-bold text-purple-900 text-xl">
-              {wheel.desiredFeeling}
-            </p>
-          </div>
+          <WheelCircle
+            centralThought={wheel.centralThought}
+            thoughtsCount={MAX_THOUGHTS}
+            maxThoughts={MAX_THOUGHTS}
+          />
         </div>
 
         <div className="space-y-4 text-center">
@@ -648,21 +762,21 @@ const IntegrationScreen: React.FC<{
             Prenez un moment pour respirer profondément
           </p>
           <p className="text-slate-700">
-            Lisez à haute voix ou dans votre tête :
+            Relisez votre pensée centrale et ressentez la connexion :
           </p>
           <div className="p-4 bg-white rounded-lg border-2 border-purple-200">
             <p className="text-xl font-semibold text-purple-800 italic">
-              "{wheel.desiredFeeling}"
+              "{wheel.centralThought}"
             </p>
           </div>
           <p className="text-sm text-slate-600">
-            Ressentez cette vibration dans tout votre corps
+            Grâce à vos 12 pensées-pont, vous êtes maintenant plus proche de cette vibration
           </p>
         </div>
       </div>
 
       <div className="card">
-        <h3 className="text-xl font-bold text-slate-800 mb-4">Vos 12 pensées transitionnelles</h3>
+        <h3 className="text-xl font-bold text-slate-800 mb-4">Vos 12 pensées-pont alignées</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {wheel.thoughts.map((thought, index) => (
             <div
@@ -682,16 +796,16 @@ const IntegrationScreen: React.FC<{
 
       <div className="card">
         <h3 className="text-xl font-bold text-slate-800 mb-4">
-          Comment vous sentez-vous maintenant ?
+          À quel point êtes-vous aligné avec votre pensée cible maintenant ?
         </h3>
         <div className="space-y-4">
           <div>
             <div className="flex justify-between mb-2">
-              <span className="text-sm text-slate-600">Score initial</span>
+              <span className="text-sm text-slate-600">Alignement initial</span>
               <span className="font-bold text-slate-800">{wheel.initialScore}</span>
             </div>
             <div className="flex justify-between mb-2">
-              <span className="text-sm text-slate-600">Score actuel</span>
+              <span className="text-sm text-slate-600">Alignement actuel</span>
               <span className="font-bold text-purple-600 text-2xl">{finalScore}</span>
             </div>
             {improvement > 0 && (
@@ -711,8 +825,8 @@ const IntegrationScreen: React.FC<{
             className="w-full"
           />
           <div className="flex justify-between text-sm text-slate-600">
-            <span>0 - Très mal</span>
-            <span>10 - Excellent</span>
+            <span>0 - Pas du tout aligné</span>
+            <span>10 - Totalement aligné</span>
           </div>
         </div>
 
@@ -760,7 +874,7 @@ const JournalScreen: React.FC<{
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-slate-800">{wheel.desiredFeeling}</h3>
+                  <h3 className="text-xl font-bold text-slate-800">{wheel.centralThought}</h3>
                   <p className="text-sm text-slate-600 mt-1">
                     {new Date(wheel.createdAt).toLocaleDateString('fr-FR', {
                       weekday: 'long',
@@ -778,20 +892,22 @@ const JournalScreen: React.FC<{
                     <span>+{wheel.finalScore - wheel.initialScore}</span>
                   </div>
                   <div className="text-sm text-slate-600">
-                    {wheel.initialScore} → {wheel.finalScore}
+                    Alignement : {wheel.initialScore} → {wheel.finalScore}
                   </div>
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 mb-3">
-                <p className="text-sm text-slate-700">
-                  <span className="font-semibold">Ce que je ressentais :</span> {wheel.unwantedFeeling}
-                </p>
-              </div>
+              {wheel.currentFeeling && (
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 mb-3">
+                  <p className="text-sm text-slate-700">
+                    <span className="font-semibold">Contexte :</span> {wheel.currentFeeling}
+                  </p>
+                </div>
+              )}
 
               <details className="text-sm">
                 <summary className="cursor-pointer font-medium text-purple-600 hover:text-purple-700">
-                  Voir les {wheel.thoughts.length} pensées
+                  Voir les {wheel.thoughts.length} pensées-pont
                 </summary>
                 <div className="mt-3 space-y-2">
                   {wheel.thoughts.map((thought, index) => (
@@ -800,6 +916,7 @@ const JournalScreen: React.FC<{
                         {index + 1}
                       </div>
                       <p className="text-sm text-slate-700">{thought.text}</p>
+                      {thought.isAligned && <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />}
                     </div>
                   ))}
                 </div>
@@ -813,4 +930,3 @@ const JournalScreen: React.FC<{
 };
 
 export default FocusWheelGame;
-
