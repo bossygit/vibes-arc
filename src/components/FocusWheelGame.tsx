@@ -16,7 +16,6 @@ import {
   Save,
 } from 'lucide-react';
 import {
-  FocusWheel,
   FocusWheelState,
   initializeFocusWheel,
   addThoughtToWheel,
@@ -72,9 +71,9 @@ const FocusWheelGame: React.FC = () => {
   // Rendu en fonction de la phase
   switch (state.phase) {
     case 'start':
-      return <StartScreen onStart={startNewWheel} state={state} />;
+      return <StartScreen onStart={startNewWheel} state={state} setState={setState} />;
     case 'identify':
-      return <IdentifyScreen state={state} setState={setState} />;
+      return <IdentifyScreen setState={setState} />;
     case 'wheel':
       return <WheelScreen state={state} setState={setState} />;
     case 'integration':
@@ -82,15 +81,24 @@ const FocusWheelGame: React.FC = () => {
     case 'journal':
       return <JournalScreen state={state} onBack={resetToStart} />;
     default:
-      return <StartScreen onStart={startNewWheel} state={state} />;
+      return <StartScreen onStart={startNewWheel} state={state} setState={setState} />;
   }
 };
+
+// Composant bouton journal
+const JournalButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+  <button onClick={onClick} className="btn-secondary flex items-center gap-2">
+    <BookOpen className="w-5 h-5" />
+    Journal
+  </button>
+);
 
 // Écran de démarrage
 const StartScreen: React.FC<{
   onStart: () => void;
   state: FocusWheelState;
-}> = ({ onStart, state }) => {
+  setState: React.Dispatch<React.SetStateAction<FocusWheelState>>;
+}> = ({ onStart, state, setState }) => {
   const stats = calculateStats(state.completedWheels);
   const badges = getBadges(state.completedWheels);
 
@@ -200,15 +208,7 @@ const StartScreen: React.FC<{
           Créer un nouveau Focus Wheel
         </button>
         {state.completedWheels.length > 0 && (
-          <button
-            onClick={() =>
-              setState((prev: FocusWheelState) => ({ ...prev, phase: 'journal' }))
-            }
-            className="btn-secondary flex items-center gap-2"
-          >
-            <BookOpen className="w-5 h-5" />
-            Journal
-          </button>
+          <JournalButton onClick={() => setState((prev) => ({ ...prev, phase: 'journal' }))} />
         )}
       </div>
     </div>
@@ -217,9 +217,8 @@ const StartScreen: React.FC<{
 
 // Écran d'identification
 const IdentifyScreen: React.FC<{
-  state: FocusWheelState;
   setState: React.Dispatch<React.SetStateAction<FocusWheelState>>;
-}> = ({ state, setState }) => {
+}> = ({ setState }) => {
   const [unwantedFeeling, setUnwantedFeeling] = useState('');
   const [desiredFeeling, setDesiredFeeling] = useState('');
   const [initialScore, setInitialScore] = useState(5);
