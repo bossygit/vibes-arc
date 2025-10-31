@@ -12,6 +12,8 @@ const Header: React.FC = () => {
         { key: 'addHabit', label: 'Ajouter Habitude' },
         { key: 'templates', label: 'Templates' },
         { key: 'rewards', label: 'Récompenses' },
+        { key: 'magicGratitude', label: 'Gratitude' },
+        { key: 'moneyMindset', label: 'Abondance' },
     ] as const;
 
     const [open, setOpen] = useState(false);
