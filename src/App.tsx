@@ -12,6 +12,7 @@ import RewardsChallenges from '@/components/RewardsChallenges';
 import TemplatesView from '@/components/TemplatesView';
 import MagicGratitudeChallenge from '@/components/MagicGratitudeChallenge';
 import MoneyMindsetGame from '@/components/MoneyMindsetGame';
+import FocusWheelGame from '@/components/FocusWheelGame';
 
 function App() {
     const { view } = useAppStore();
@@ -57,6 +58,8 @@ function App() {
                 return <MagicGratitudeChallenge />;
             case 'moneyMindset':
                 return <MoneyMindsetGame />;
+            case 'focusWheel':
+                return <FocusWheelGame />;
             default:
                 return <Dashboard />;
         }
