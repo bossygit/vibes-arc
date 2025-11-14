@@ -54,10 +54,17 @@ export const useAppStore = create<AppState>((set) => {
     const persistUserPrefs = (updater: (prev: UserPrefs) => UserPrefs) => {
         set((state) => {
             const nextPrefs = updater(state.userPrefs);
+            console.log('💾 Sauvegarde des préférences:', nextPrefs);
             localStorage.setItem('vibes-arc-prefs', JSON.stringify(nextPrefs));
-            db.saveUserPrefs(nextPrefs).catch((error) => {
-                console.error('Erreur lors de la sauvegarde des préférences:', error);
-            });
+            db.saveUserPrefs(nextPrefs)
+                .then((success) => {
+                    if (success) {
+                        console.log('✅ Préférences sauvegardées dans Supabase');
+                    }
+                })
+                .catch((error) => {
+                    console.error('❌ Erreur lors de la sauvegarde des préférences:', error);
+                });
             return { userPrefs: nextPrefs };
         });
     };
@@ -72,16 +79,22 @@ export const useAppStore = create<AppState>((set) => {
             const skipsByHabit: SkipsByHabit = storedSkips ? JSON.parse(storedSkips) : {};
             const storedGam = localStorage.getItem('vibes-arc-gamification');
             const gamification: GamificationState = storedGam ? JSON.parse(storedGam) : { points: 0, rewards: [], challenges: [] };
-            const storedPrefs = localStorage.getItem('vibes-arc-prefs');
-            const localPrefs: UserPrefs = storedPrefs ? { ...defaultUserPrefs, ...JSON.parse(storedPrefs) } : { ...defaultUserPrefs };
-            let serverPrefs: UserPrefs = { ...defaultUserPrefs };
+            // Charger les préférences : priorité au serveur, fallback sur localStorage
+            let userPrefs: UserPrefs = { ...defaultUserPrefs };
             try {
-                serverPrefs = await db.getUserPrefs();
+                const serverPrefs = await db.getUserPrefs();
+                console.log('📥 Préférences chargées depuis Supabase:', serverPrefs);
+                userPrefs = { ...defaultUserPrefs, ...serverPrefs };
+                // Sauvegarder dans localStorage pour la prochaine fois
+                localStorage.setItem('vibes-arc-prefs', JSON.stringify(userPrefs));
             } catch (error) {
-                console.warn('Préférences serveur indisponibles, utilisation du localStorage:', error);
+                console.warn('⚠️ Préférences serveur indisponibles, utilisation du localStorage:', error);
+                // Fallback sur localStorage si le serveur est inaccessible
+                const storedPrefs = localStorage.getItem('vibes-arc-prefs');
+                if (storedPrefs) {
+                    userPrefs = { ...defaultUserPrefs, ...JSON.parse(storedPrefs) };
+                }
             }
-            const userPrefs = { ...defaultUserPrefs, ...localPrefs, ...serverPrefs };
-            localStorage.setItem('vibes-arc-prefs', JSON.stringify(userPrefs));
             set({ identities, habits, skipsByHabit, gamification, userPrefs });
         } catch (error) {
             console.error('Erreur lors du chargement des données:', error);

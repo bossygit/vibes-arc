@@ -579,11 +579,15 @@ class SupabaseDatabaseClient {
                 weeklyEmailHour: 9 
             };
         }
-        const { data } = await this.supabase
+        const { data, error } = await this.supabase
             .from('user_prefs')
             .select('notif_enabled, notif_hour, notif_timezone, notif_channel, telegram_chat_id, telegram_username, whatsapp_number, weekly_email_enabled, weekly_email_day, weekly_email_hour, last_notif_sent_at')
             .eq('user_id', user.id)
-            .single();
+            .maybeSingle();
+        
+        if (error) {
+            console.warn('Erreur lors du chargement des préférences:', error);
+        }
         return { 
             notifEnabled: data?.notif_enabled ?? false,
             notifHour: data?.notif_hour ?? 20,
