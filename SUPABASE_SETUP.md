@@ -72,6 +72,27 @@ Si vous avez des données dans localStorage, vous pouvez les exporter/importer :
 1. Dans l'ancienne version, exportez vos données
 2. Dans la nouvelle version avec Supabase, importez vos données
 
+## 9. Activer les notifications Telegram / WhatsApp
+
+1. **Installer le CLI Supabase** (si nécessaire)
+   ```bash
+   npm install -g supabase
+   ```
+2. **Déployer la fonction Edge**
+   ```bash
+   supabase functions deploy send-notifications
+   ```
+3. **Définir les secrets nécessaires**
+   ```bash
+   supabase secrets set TELEGRAM_BOT_TOKEN="xxxx"
+   supabase secrets set NOTIFICATIONS_APP_URL="https://votre-domaine"
+   # WhatsApp (optionnel)
+   supabase secrets set TWILIO_ACCOUNT_SID="ACxxxx"
+   supabase secrets set TWILIO_AUTH_TOKEN="xxxx"
+   supabase secrets set TWILIO_WHATSAPP_FROM="+1415xxxx"
+   ```
+4. **Relancer l'app** puis configurer les canaux depuis `Paramètres > Notifications`.
+
 ## Sécurité
 
 - Les données sont protégées par Row Level Security (RLS)

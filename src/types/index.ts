@@ -66,11 +66,20 @@ export interface GamificationState {
 
 export type SkipsByHabit = Record<number, number[]>; // habitId -> liste d'index de jours sautés
 
+export type NotificationChannel = 'none' | 'telegram' | 'whatsapp';
+
 export interface UserPrefs {
+    notifEnabled: boolean;
     notifHour: number; // 0..23
+    notifTimezone: string;
+    notifChannel: NotificationChannel;
+    telegramChatId?: string;
+    telegramUsername?: string;
+    whatsappNumber?: string;
     weeklyEmailEnabled: boolean;
     weeklyEmailDay: number; // 0 = dimanche, 1 = lundi, ..., 6 = samedi
     weeklyEmailHour: number; // heure d'envoi (0-23)
+    lastNotifSentAt?: string;
 }
 
 export interface HabitTemplate {

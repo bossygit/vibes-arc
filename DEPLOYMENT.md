@@ -51,8 +51,17 @@ vercel --prod
 
 ## ⚙️ Configuration Vercel
 
-### **Variables d'Environnement**
-Aucune variable d'environnement n'est requise pour cette application.
+### **Variables d'Environnement (Vercel)**
+Configurez ces variables dans le projet Vercel :
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+### **Secrets Supabase Edge (Notifications)**
+Après avoir déployé la fonction `send-notifications`, ajoutez les secrets nécessaires via `supabase secrets set` :
+
+- `TELEGRAM_BOT_TOKEN` (obligatoire pour Telegram)
+- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM` (si vous utilisez WhatsApp)
+- `NOTIFICATIONS_APP_URL` (optionnel, URL publique de l'app pour les liens contenus dans les messages)
 
 ### **Configuration Automatique**
 Le fichier `vercel.json` configure automatiquement :

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs } from '@/types';
+import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs, NotificationChannel } from '@/types';
 import SupabaseDatabaseClient from '@/database/supabase-client';
 import { computePointsForAction, calculateHabitStats } from '@/utils/habitUtils';
 
@@ -27,7 +27,13 @@ interface AppState {
     addPoints: (amount: number) => void;
     createReward: (title: string, cost: number) => void;
     claimReward: (rewardId: number) => void;
+    refreshUserPrefs: () => Promise<void>;
+    setNotifEnabled: (enabled: boolean) => void;
     setNotifHour: (hour: number) => void;
+    setNotifTimezone: (timezone: string) => void;
+    setNotifChannel: (channel: NotificationChannel) => void;
+    setTelegramContact: (chatId: string, username?: string) => void;
+    setWhatsappNumber: (phone: string) => void;
     setWeeklyEmailEnabled: (enabled: boolean) => void;
     setWeeklyEmailDay: (day: number) => void;
     setWeeklyEmailHour: (hour: number) => void;
@@ -35,6 +41,26 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set) => {
     const db = SupabaseDatabaseClient.getInstance();
+    const defaultUserPrefs: UserPrefs = {
+        notifEnabled: false,
+        notifHour: 20,
+        notifTimezone: 'Europe/Paris',
+        notifChannel: 'none',
+        weeklyEmailEnabled: false,
+        weeklyEmailDay: 6,
+        weeklyEmailHour: 9,
+    };
+
+    const persistUserPrefs = (updater: (prev: UserPrefs) => UserPrefs) => {
+        set((state) => {
+            const nextPrefs = updater(state.userPrefs);
+            localStorage.setItem('vibes-arc-prefs', JSON.stringify(nextPrefs));
+            db.saveUserPrefs(nextPrefs).catch((error) => {
+                console.error('Erreur lors de la sauvegarde des préférences:', error);
+            });
+            return { userPrefs: nextPrefs };
+        });
+    };
 
     // Charger les données initiales
     const loadInitialData = async () => {
@@ -47,12 +73,15 @@ export const useAppStore = create<AppState>((set) => {
             const storedGam = localStorage.getItem('vibes-arc-gamification');
             const gamification: GamificationState = storedGam ? JSON.parse(storedGam) : { points: 0, rewards: [], challenges: [] };
             const storedPrefs = localStorage.getItem('vibes-arc-prefs');
-            const userPrefs: UserPrefs = storedPrefs ? JSON.parse(storedPrefs) : { 
-                notifHour: 20, 
-                weeklyEmailEnabled: false, 
-                weeklyEmailDay: 6, // samedi par défaut
-                weeklyEmailHour: 9 // 9h par défaut
-            };
+            const localPrefs: UserPrefs = storedPrefs ? { ...defaultUserPrefs, ...JSON.parse(storedPrefs) } : { ...defaultUserPrefs };
+            let serverPrefs: UserPrefs = { ...defaultUserPrefs };
+            try {
+                serverPrefs = await db.getUserPrefs();
+            } catch (error) {
+                console.warn('Préférences serveur indisponibles, utilisation du localStorage:', error);
+            }
+            const userPrefs = { ...defaultUserPrefs, ...localPrefs, ...serverPrefs };
+            localStorage.setItem('vibes-arc-prefs', JSON.stringify(userPrefs));
             set({ identities, habits, skipsByHabit, gamification, userPrefs });
         } catch (error) {
             console.error('Erreur lors du chargement des données:', error);
@@ -62,12 +91,7 @@ export const useAppStore = create<AppState>((set) => {
                 habits: [], 
                 skipsByHabit: {}, 
                 gamification: { points: 0, rewards: [], challenges: [] }, 
-                userPrefs: { 
-                    notifHour: 20, 
-                    weeklyEmailEnabled: false, 
-                    weeklyEmailDay: 6, 
-                    weeklyEmailHour: 9 
-                } 
+                userPrefs: { ...defaultUserPrefs } 
             });
         }
     };
@@ -83,7 +107,7 @@ export const useAppStore = create<AppState>((set) => {
         selectedHabitId: null,
         skipsByHabit: {},
         gamification: { points: 0, rewards: [], challenges: [] },
-        userPrefs: { notifHour: 20, weeklyEmailEnabled: false, weeklyEmailDay: 6, weeklyEmailHour: 9 },
+        userPrefs: { ...defaultUserPrefs },
 
         // Actions
         setView: (view) => set({ view }),
@@ -262,36 +286,56 @@ export const useAppStore = create<AppState>((set) => {
             });
         },
 
+        refreshUserPrefs: async () => {
+            try {
+                const prefs = await db.getUserPrefs();
+                set(() => {
+                    const merged = { ...defaultUserPrefs, ...prefs };
+                    localStorage.setItem('vibes-arc-prefs', JSON.stringify(merged));
+                    return { userPrefs: merged };
+                });
+            } catch (error) {
+                console.error('Impossible de rafraîchir les préférences:', error);
+            }
+        },
+
+        setNotifEnabled: (enabled) => {
+            persistUserPrefs((prev) => ({ ...prev, notifEnabled: enabled }));
+        },
+
         setNotifHour: (hour) => {
-            set((state) => {
-                const userPrefs = { ...state.userPrefs, notifHour: Math.max(0, Math.min(23, Math.floor(hour))) };
-                localStorage.setItem('vibes-arc-prefs', JSON.stringify(userPrefs));
-                return { userPrefs };
-            });
+            const value = Math.max(0, Math.min(23, Math.floor(hour)));
+            persistUserPrefs((prev) => ({ ...prev, notifHour: value }));
+        },
+
+        setNotifTimezone: (timezone) => {
+            persistUserPrefs((prev) => ({ ...prev, notifTimezone: timezone || prev.notifTimezone }));
+        },
+
+        setNotifChannel: (channel) => {
+            persistUserPrefs((prev) => ({ ...prev, notifChannel: channel }));
+        },
+
+        setTelegramContact: (chatId, username) => {
+            persistUserPrefs((prev) => ({ ...prev, telegramChatId: chatId, telegramUsername: username || prev.telegramUsername }));
+        },
+
+        setWhatsappNumber: (phone) => {
+            persistUserPrefs((prev) => ({ ...prev, whatsappNumber: phone }));
         },
 
         setWeeklyEmailEnabled: (enabled) => {
-            set((state) => {
-                const userPrefs = { ...state.userPrefs, weeklyEmailEnabled: enabled };
-                localStorage.setItem('vibes-arc-prefs', JSON.stringify(userPrefs));
-                return { userPrefs };
-            });
+            persistUserPrefs((prev) => ({ ...prev, weeklyEmailEnabled: enabled }));
         },
 
         setWeeklyEmailDay: (day) => {
-            set((state) => {
-                const userPrefs = { ...state.userPrefs, weeklyEmailDay: Math.max(0, Math.min(6, Math.floor(day))) };
-                localStorage.setItem('vibes-arc-prefs', JSON.stringify(userPrefs));
-                return { userPrefs };
-            });
+            const value = Math.max(0, Math.min(6, Math.floor(day)));
+            persistUserPrefs((prev) => ({ ...prev, weeklyEmailDay: value }));
         },
 
         setWeeklyEmailHour: (hour) => {
-            set((state) => {
-                const userPrefs = { ...state.userPrefs, weeklyEmailHour: Math.max(0, Math.min(23, Math.floor(hour))) };
-                localStorage.setItem('vibes-arc-prefs', JSON.stringify(userPrefs));
-                return { userPrefs };
-            });
+            const value = Math.max(0, Math.min(23, Math.floor(hour)));
+            persistUserPrefs((prev) => ({ ...prev, weeklyEmailHour: value }));
         },
     };
 });

@@ -10,7 +10,7 @@ export interface EmailTemplate {
 
 export function generateWeeklyEmailTemplate(report: WeeklyReport): EmailTemplate {
     const subject = `📊 Résumé hebdomadaire Vibes Arc - Semaine du ${report.weekStart.toLocaleDateString('fr-FR')}`;
-    
+
     const html = `
 <!DOCTYPE html>
 <html>
@@ -191,6 +191,16 @@ export async function sendWeeklyEmail(report: WeeklyReport, userEmail: string): 
         // Initialiser EmailJS
         emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
 
+        const formatList = (items: string[], emptyFallback: string) => {
+            if (!items || items.length === 0) {
+                return emptyFallback;
+            }
+            return items.map(item => `• ${item}`).join('\n');
+        };
+
+        const topHabitsNames = report.habits.topPerforming.map(h => h.name);
+        const strugglingHabitsNames = report.habits.struggling.map(h => h.name);
+
         // Préparer les données pour le template (format compatible EmailJS)
         const templateParams = {
             to_email: userEmail,
@@ -201,12 +211,16 @@ export async function sendWeeklyEmail(report: WeeklyReport, userEmail: string): 
             habits_total: report.habits.total.toString(),
             new_streaks: report.habits.newStreaks.toString(),
             total_points: report.gamification.currentPoints.toString(),
-            top_habits: report.habits.topPerforming.map(h => h.name).join(', '),
-            struggling_habits: report.habits.struggling.map(h => h.name).join(', '),
+            top_habits: topHabitsNames.join(', '),
+            top_habits_block: formatList(topHabitsNames, 'Aucune habitude mise en avant cette semaine.'),
+            struggling_habits: strugglingHabitsNames.join(', '),
+            struggling_habits_block: formatList(strugglingHabitsNames, 'Félicitations, aucune habitude en difficulté !'),
             active_identities: report.identities.active.toString(),
             total_identities: report.identities.total.toString(),
             insights: report.insights.join(' | '),
-            next_week_goals: report.nextWeekGoals.join(' | ')
+            insights_block: formatList(report.insights, 'Restez concentré sur vos intentions positives !'),
+            next_week_goals: report.nextWeekGoals.join(' | '),
+            next_week_goals_block: formatList(report.nextWeekGoals, 'Définissez une intention simple pour la semaine prochaine.')
         };
 
         console.log('Envoi de l\'email avec EmailJS:', templateParams);

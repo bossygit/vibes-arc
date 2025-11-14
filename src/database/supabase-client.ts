@@ -568,31 +568,58 @@ class SupabaseDatabaseClient {
     // ===== USER PREFS / NOTIFS =====
     async getUserPrefs(): Promise<UserPrefs> {
         const user = await this.getCurrentUser();
-        if (!user) return { 
-            notifHour: 20, 
-            weeklyEmailEnabled: false, 
-            weeklyEmailDay: 6, 
-            weeklyEmailHour: 9 
-        };
+        if (!user) {
+            return { 
+                notifEnabled: false,
+                notifHour: 20, 
+                notifTimezone: 'Europe/Paris',
+                notifChannel: 'none',
+                weeklyEmailEnabled: false, 
+                weeklyEmailDay: 6, 
+                weeklyEmailHour: 9 
+            };
+        }
         const { data } = await this.supabase
             .from('user_prefs')
-            .select('notif_hour, weekly_email_enabled, weekly_email_day, weekly_email_hour')
+            .select('notif_enabled, notif_hour, notif_timezone, notif_channel, telegram_chat_id, telegram_username, whatsapp_number, weekly_email_enabled, weekly_email_day, weekly_email_hour, last_notif_sent_at')
             .eq('user_id', user.id)
             .single();
         return { 
+            notifEnabled: data?.notif_enabled ?? false,
             notifHour: data?.notif_hour ?? 20,
+            notifTimezone: data?.notif_timezone ?? 'Europe/Paris',
+            notifChannel: data?.notif_channel ?? 'none',
+            telegramChatId: data?.telegram_chat_id ?? undefined,
+            telegramUsername: data?.telegram_username ?? undefined,
+            whatsappNumber: data?.whatsapp_number ?? undefined,
             weeklyEmailEnabled: data?.weekly_email_enabled ?? false,
             weeklyEmailDay: data?.weekly_email_day ?? 6,
-            weeklyEmailHour: data?.weekly_email_hour ?? 9
+            weeklyEmailHour: data?.weekly_email_hour ?? 9,
+            lastNotifSentAt: data?.last_notif_sent_at ?? undefined,
         };
     }
 
-    async setUserNotifHour(hour: number): Promise<boolean> {
+    async saveUserPrefs(prefs: UserPrefs): Promise<boolean> {
         const user = await this.getCurrentUser();
         if (!user) return false;
+        const payload = {
+            user_id: user.id,
+            notif_enabled: prefs.notifEnabled,
+            notif_hour: prefs.notifHour,
+            notif_timezone: prefs.notifTimezone,
+            notif_channel: prefs.notifChannel,
+            telegram_chat_id: prefs.telegramChatId || null,
+            telegram_username: prefs.telegramUsername || null,
+            whatsapp_number: prefs.whatsappNumber || null,
+            weekly_email_enabled: prefs.weeklyEmailEnabled,
+            weekly_email_day: prefs.weeklyEmailDay,
+            weekly_email_hour: prefs.weeklyEmailHour,
+            last_notif_sent_at: prefs.lastNotifSentAt || null,
+            updated_at: new Date().toISOString(),
+        };
         const { error } = await this.supabase
             .from('user_prefs')
-            .upsert({ user_id: user.id, notif_hour: hour, updated_at: new Date().toISOString() });
+            .upsert(payload);
         return !error;
     }
 
@@ -621,6 +648,21 @@ class SupabaseDatabaseClient {
             if (freq[h] > bestCount) { bestCount = freq[h]; best = h; }
         }
         return best;
+    }
+
+    async triggerNotificationTest(): Promise<{ status: string; message?: string }> {
+        try {
+            const { data, error } = await this.supabase.functions.invoke('send-notifications', {
+                body: { mode: 'single', reason: 'manual-test' }
+            });
+            if (error) {
+                throw error;
+            }
+            return data as { status: string; message?: string };
+        } catch (error) {
+            console.error('Erreur lors du déclenchement de la notification:', error);
+            throw error;
+        }
     }
 }
 

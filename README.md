@@ -21,6 +21,11 @@ Une plateforme moderne de suivi d'identités et d'habitudes pour transformer vot
 - Historique des streaks (séries de jours consécutifs)
 - Vue d'ensemble de toutes les habitudes actives
 
+### Notifications intelligentes
+- Rappels quotidiens programmables par fuseau horaire
+- Messages envoyés via Telegram ou WhatsApp (Twilio)
+- Test immédiat depuis l'interface pour vérifier la configuration
+
 ## 🛠️ Technologies
 
 - **Frontend**: React 18 avec TypeScript
@@ -114,7 +119,7 @@ src/
 
 - [x] Export/Import des données
 - [ ] Graphiques de progression avec Recharts
-- [ ] Notifications et rappels
+- [x] Notifications et rappels
 - [ ] Thèmes sombre/clair
 - [ ] Mode hors-ligne avec PWA
 - [ ] Synchronisation cloud
