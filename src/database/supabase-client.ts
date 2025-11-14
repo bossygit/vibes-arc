@@ -652,16 +652,27 @@ class SupabaseDatabaseClient {
 
     async triggerNotificationTest(): Promise<{ status: string; message?: string }> {
         try {
+            const user = await this.getCurrentUser();
+            if (!user) {
+                throw new Error('Utilisateur non authentifié');
+            }
+
             const { data, error } = await this.supabase.functions.invoke('send-notifications', {
                 body: { mode: 'single', reason: 'manual-test' }
             });
+            
             if (error) {
-                throw error;
+                console.error('Erreur Edge Function:', error);
+                throw new Error(error.message || 'Erreur lors de l\'appel à la fonction Edge');
             }
+            
             return data as { status: string; message?: string };
-        } catch (error) {
+        } catch (error: any) {
             console.error('Erreur lors du déclenchement de la notification:', error);
-            throw error;
+            return {
+                status: 'error',
+                message: error?.message || 'Impossible de contacter le serveur de notifications'
+            };
         }
     }
 }
