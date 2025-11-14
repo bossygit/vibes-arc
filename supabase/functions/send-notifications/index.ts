@@ -29,7 +29,17 @@ interface TwilioConfig {
 
 const DEFAULT_APP_URL = Deno.env.get("NOTIFICATIONS_APP_URL") ?? "https://vibes-arc.vercel.app";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 serve(async (req) => {
+  // Gérer les requêtes OPTIONS (preflight CORS)
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
     return jsonResponse({ error: "Méthode non autorisée" }, 405);
   }
@@ -318,6 +328,7 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
+      ...corsHeaders,
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
     },
