@@ -650,7 +650,7 @@ class SupabaseDatabaseClient {
         return best;
     }
 
-    async triggerNotificationTest(): Promise<{ status: string; message?: string }> {
+    async triggerNotificationTest(): Promise<{ status: string; message?: string; reason?: string }> {
         try {
             const user = await this.getCurrentUser();
             if (!user) {
@@ -666,12 +666,12 @@ class SupabaseDatabaseClient {
                 throw new Error(error.message || 'Erreur lors de l\'appel à la fonction Edge');
             }
             
-            return data as { status: string; message?: string };
+            return data as { status: string; message?: string; reason?: string };
         } catch (error: any) {
             console.error('Erreur lors du déclenchement de la notification:', error);
             return {
                 status: 'error',
-                message: error?.message || 'Impossible de contacter le serveur de notifications'
+                reason: error?.message || 'Impossible de contacter le serveur de notifications'
             };
         }
     }
