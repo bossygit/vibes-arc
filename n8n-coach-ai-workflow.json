@@ -1,0 +1,872 @@
+{
+  "name": "Vibes Arc - Coach IA avec Groq",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "rappel-matin",
+      "name": "Rappel du matin (8h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [250, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "url": "https://knpvbwlfdriavrebvzdy.supabase.co/functions/v1/coach-api/stats",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "user_id",
+                "value": "TON_USER_ID"
+              }
+            ]
+          }
+        }
+      },
+      "id": "get-stats",
+      "name": "Récupérer stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Coach API Key"
+        }
+      },
+      "position": [450, 250],
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "url": "https://knpvbwlfdriavrebvzdy.supabase.co/functions/v1/coach-api/today",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "user_id",
+                "value": "TON_USER_ID"
+              }
+            ]
+          }
+        }
+      },
+      "id": "get-today",
+      "name": "Récupérer habitudes du jour",
+      "type": "n8n-nodes-base.httpRequest",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Coach API Key"
+        }
+      },
+      "position": [450, 350],
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "url": "https://knpvbwlfdriavrebvzdy.supabase.co/functions/v1/coach-api/habits",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "user_id",
+                "value": "TON_USER_ID"
+              }
+            ]
+          }
+        }
+      },
+      "id": "get-habits",
+      "name": "Récupérer habitudes complètes",
+      "type": "n8n-nodes-base.httpRequest",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Coach API Key"
+        }
+      },
+      "position": [450, 450],
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fusionner toutes les données pour l'IA\nconst stats = $('get-stats').first().json.stats;\nconst today = $('get-today').first().json.today;\nconst habits = $('get-habits').first().json.habits;\n\n// Analyser les habitudes en difficulté\nconst struggling = habits\n  .filter(h => h.completionRate < 50 && h.totalDays > 7)\n  .map(h => ({\n    name: h.name,\n    completionRate: h.completionRate,\n    currentStreak: h.currentStreak\n  }));\n\n// Top performers\nconst topPerformers = habits\n  .filter(h => h.currentStreak >= 5)\n  .sort((a, b) => b.currentStreak - a.currentStreak)\n  .slice(0, 3)\n  .map(h => ({\n    name: h.name,\n    streak: h.currentStreak,\n    completionRate: h.completionRate\n  }));\n\n// Habitudes incomplètes aujourd'hui\nconst incomplete = today.todayHabits\n  .filter(h => !h.completed)\n  .map(h => h.name);\n\nconst contextForAI = {\n  date: new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),\n  stats: {\n    totalHabits: stats.totalHabits,\n    overallCompletionRate: stats.overallCompletionRate,\n    totalProgress: stats.totalProgress\n  },\n  today: {\n    completionRate: today.completionRate,\n    habitsCompleted: today.habitsCompleted,\n    habitsTotal: today.habitsTotal,\n    incomplete: incomplete\n  },\n  performance: {\n    struggling: struggling,\n    topPerformers: topPerformers\n  },\n  identities: stats.identities.map(i => i.name)\n};\n\nreturn { json: contextForAI };"
+      },
+      "id": "prepare-context",
+      "name": "Préparer contexte pour IA",
+      "type": "n8n-nodes-base.code",
+      "position": [650, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {
+          "baseURL": "https://api.groq.com/openai/v1",
+          "temperature": 0.8,
+          "maxTokens": 500
+        },
+        "messages": {
+          "messageType": "multipleMessages",
+          "values": [
+            {
+              "role": "system",
+              "content": "Tu es un coach personnel expert en développement d'habitudes et motivation. Tu es bienveillant, encourageant mais direct. Tu analyses les données d'habitudes de l'utilisateur et génères des messages motivants personnalisés en français. Tes messages doivent :\n\n1. Utiliser des emojis pour rendre le message vivant\n2. Être concis (max 10 lignes)\n3. Mettre en avant les progrès et célébrer les victoires\n4. Donner 1-2 conseils concrets pour les habitudes en difficulté\n5. Créer un sentiment d'urgence positive pour la journée\n6. Utiliser les identités de l'utilisateur pour renforcer son engagement\n\nFormat du message :\n- Salutation selon l'heure\n- Résumé des progrès (1-2 phrases)\n- Focus sur 2-3 habitudes du jour\n- Citation ou conseil inspirant\n- Appel à l'action"
+            },
+            {
+              "role": "user",
+              "content": "Voici mes données du jour :\n\n{{ JSON.stringify($json, null, 2) }}\n\nGénère-moi un message de motivation personnalisé pour commencer ma journée. Sois enthousiaste et précis sur mes habitudes à accomplir aujourd'hui."
+            }
+          ]
+        }
+      },
+      "id": "groq-morning",
+      "name": "Groq - Message du matin",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "credentials": {
+        "openAiApi": {
+          "name": "Groq API"
+        }
+      },
+      "position": [850, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "chatId": "7703388828",
+        "text": "={{ $json.message.content }}",
+        "additionalFields": {}
+      },
+      "id": "send-morning",
+      "name": "Envoyer sur Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram Bot"
+        }
+      },
+      "position": [1050, 300],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 20 * * *"
+            }
+          ]
+        }
+      },
+      "id": "rappel-soir",
+      "name": "Rappel du soir (20h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [250, 600],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "url": "https://knpvbwlfdriavrebvzdy.supabase.co/functions/v1/coach-api/today",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "user_id",
+                "value": "TON_USER_ID"
+              }
+            ]
+          }
+        }
+      },
+      "id": "check-evening",
+      "name": "Vérifier état du soir",
+      "type": "n8n-nodes-base.httpRequest",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Coach API Key"
+        }
+      },
+      "position": [450, 600],
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.today.completionRate }}",
+              "operation": "smaller",
+              "value2": 100
+            }
+          ]
+        }
+      },
+      "id": "check-incomplete",
+      "name": "Habitudes incomplètes ?",
+      "type": "n8n-nodes-base.if",
+      "position": [650, 600],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const today = $input.first().json.today;\n\nconst incomplete = today.todayHabits\n  .filter(h => !h.completed)\n  .map(h => ({\n    name: h.name,\n    type: h.type\n  }));\n\nconst contextForAI = {\n  timeOfDay: 'soir',\n  completionRate: today.completionRate,\n  habitsCompleted: today.habitsCompleted,\n  habitsTotal: today.habitsTotal,\n  incomplete: incomplete,\n  remainingTime: 'quelques heures avant minuit'\n};\n\nreturn { json: contextForAI };"
+      },
+      "id": "prepare-evening",
+      "name": "Préparer contexte soir",
+      "type": "n8n-nodes-base.code",
+      "position": [850, 600],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {
+          "baseURL": "https://api.groq.com/openai/v1",
+          "temperature": 0.7,
+          "maxTokens": 300
+        },
+        "messages": {
+          "messageType": "multipleMessages",
+          "values": [
+            {
+              "role": "system",
+              "content": "Tu es un coach personnel qui fait un rappel bienveillant en soirée. Ton message doit :\n\n1. Être court (max 5-6 lignes)\n2. Féliciter pour ce qui est déjà fait\n3. Rappeler gentiment ce qui reste à faire\n4. Créer une motivation positive pour terminer la journée en beauté\n5. Ne pas culpabiliser, mais encourager\n\nTon ton est celui d'un ami motivant, pas d'un sergent instructeur."
+            },
+            {
+              "role": "user",
+              "content": "État du jour :\n\n{{ JSON.stringify($json, null, 2) }}\n\nGénère un court message de rappel bienveillant pour m'encourager à compléter mes habitudes restantes avant la fin de la journée."
+            }
+          ]
+        }
+      },
+      "id": "groq-evening",
+      "name": "Groq - Rappel du soir",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "credentials": {
+        "openAiApi": {
+          "name": "Groq API"
+        }
+      },
+      "position": [1050, 600],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "chatId": "7703388828",
+        "text": "={{ $json.message.content }}"
+      },
+      "id": "send-evening",
+      "name": "Envoyer rappel soir",
+      "type": "n8n-nodes-base.telegram",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram Bot"
+        }
+      },
+      "position": [1250, 600],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ]
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram Bot"
+        }
+      },
+      "webhookId": "unique-webhook-id",
+      "position": [250, 900],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.message.text }}",
+              "operation": "startsWith",
+              "value2": "/"
+            }
+          ]
+        }
+      },
+      "id": "is-command",
+      "name": "C'est une commande ?",
+      "type": "n8n-nodes-base.if",
+      "position": [450, 900],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.message.text }}",
+                    "value2": "/stats"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "stats"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.message.text }}",
+                    "value2": "/today"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "today"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.message.text }}",
+                    "value2": "/motivation"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "motivation"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.message.text }}",
+                    "value2": "/analyse"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "analyse"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.message.text }}",
+                    "value2": "/help"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "help"
+            }
+          ]
+        }
+      },
+      "id": "switch-command",
+      "name": "Switch commande",
+      "type": "n8n-nodes-base.switch",
+      "position": [650, 900],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "url": "https://knpvbwlfdriavrebvzdy.supabase.co/functions/v1/coach-api/habits",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "user_id",
+                "value": "TON_USER_ID"
+              }
+            ]
+          }
+        }
+      },
+      "id": "get-habits-analyse",
+      "name": "Récupérer habitudes pour analyse",
+      "type": "n8n-nodes-base.httpRequest",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Coach API Key"
+        }
+      },
+      "position": [850, 1100],
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {
+          "baseURL": "https://api.groq.com/openai/v1",
+          "temperature": 0.6,
+          "maxTokens": 800
+        },
+        "messages": {
+          "messageType": "multipleMessages",
+          "values": [
+            {
+              "role": "system",
+              "content": "Tu es un expert en psychologie des habitudes et en analyse comportementale. Tu analyses en profondeur les données d'habitudes et fournis :\n\n1. Un diagnostic précis des patterns de comportement\n2. Les points forts à capitaliser\n3. Les points faibles à améliorer\n4. 3-4 recommandations concrètes et actionnables\n5. Des insights psychologiques sur la motivation\n\nTon analyse doit être structurée, factuelle et encourageante. Utilise des emojis pour la lisibilité."
+            },
+            {
+              "role": "user",
+              "content": "Voici toutes mes habitudes avec leur progression complète :\n\n{{ JSON.stringify($json.habits, null, 2) }}\n\nFais-moi une analyse complète et approfondie de mes habitudes. Identifie les patterns, les forces, les faiblesses et donne-moi des recommandations personnalisées pour améliorer ma constance."
+            }
+          ]
+        }
+      },
+      "id": "groq-analyse",
+      "name": "Groq - Analyse approfondie",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "credentials": {
+        "openAiApi": {
+          "name": "Groq API"
+        }
+      },
+      "position": [1050, 1100],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "chatId": "7703388828",
+        "text": "={{ $json.message.content }}"
+      },
+      "id": "send-analyse",
+      "name": "Envoyer analyse",
+      "type": "n8n-nodes-base.telegram",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram Bot"
+        }
+      },
+      "position": [1250, 1100],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "chatId": "7703388828",
+        "text": "🤖 **Vibes Arc Coach IA**\n\nCommandes disponibles :\n\n📊 `/stats` - Tes statistiques globales\n📋 `/today` - État des habitudes du jour\n💪 `/motivation` - Message motivant\n🔍 `/analyse` - Analyse approfondie de tes habitudes par l'IA\n❓ `/help` - Afficher cette aide\n\nJe t'envoie aussi des rappels automatiques :\n• ☀️ 8h : Message de motivation du matin\n• 🌙 20h : Rappel des habitudes à terminer\n\nTu peux aussi me poser des questions naturelles sur tes habitudes !",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "send-help",
+      "name": "Envoyer aide",
+      "type": "n8n-nodes-base.telegram",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram Bot"
+        }
+      },
+      "position": [850, 800],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "url": "https://knpvbwlfdriavrebvzdy.supabase.co/functions/v1/coach-api/stats",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "user_id",
+                "value": "TON_USER_ID"
+              }
+            ]
+          }
+        }
+      },
+      "id": "get-stats-cmd",
+      "name": "Récupérer stats (cmd)",
+      "type": "n8n-nodes-base.httpRequest",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Coach API Key"
+        }
+      },
+      "position": [850, 850],
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "chatId": "7703388828",
+        "text": "📊 **Tes statistiques Vibes Arc**\n\n🎯 Habitudes actives : {{ $json.stats.totalHabits }}\n✅ Progression totale : {{ $json.stats.totalProgress }} jours complétés\n📈 Taux de réussite global : {{ $json.stats.overallCompletionRate }}%\n\n👤 **Tes identités :**\n{{ $json.stats.identities.map(i => '• ' + i.name).join('\\n') }}\n\nContinue comme ça ! 💪"
+      },
+      "id": "send-stats",
+      "name": "Envoyer stats",
+      "type": "n8n-nodes-base.telegram",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram Bot"
+        }
+      },
+      "position": [1050, 850],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "url": "https://knpvbwlfdriavrebvzdy.supabase.co/functions/v1/coach-api/today",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "user_id",
+                "value": "TON_USER_ID"
+              }
+            ]
+          }
+        }
+      },
+      "id": "get-today-cmd",
+      "name": "Récupérer today (cmd)",
+      "type": "n8n-nodes-base.httpRequest",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Coach API Key"
+        }
+      },
+      "position": [850, 950],
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "chatId": "7703388828",
+        "text": "📋 **État du jour - {{ $json.today.date }}**\n\n✅ Complétées : {{ $json.today.habitsCompleted }}/{{ $json.today.habitsTotal }}\n📊 Taux : {{ $json.today.completionRate }}%\n\n{{ $json.today.todayHabits.map(h => (h.completed ? '✅' : '⬜️') + ' ' + h.name).join('\\n') }}\n\n{{ $json.today.completionRate === 100 ? '🎉 Parfait ! Tous les objectifs atteints !' : '💪 Continue, tu y es presque !' }}"
+      },
+      "id": "send-today",
+      "name": "Envoyer today",
+      "type": "n8n-nodes-base.telegram",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram Bot"
+        }
+      },
+      "position": [1050, 950],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "url": "https://knpvbwlfdriavrebvzdy.supabase.co/functions/v1/coach-api/motivation",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "user_id",
+                "value": "TON_USER_ID"
+              }
+            ]
+          }
+        }
+      },
+      "id": "get-motivation-cmd",
+      "name": "Récupérer motivation (cmd)",
+      "type": "n8n-nodes-base.httpRequest",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Coach API Key"
+        }
+      },
+      "position": [850, 1000],
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "chatId": "7703388828",
+        "text": "={{ $json.message }}"
+      },
+      "id": "send-motivation",
+      "name": "Envoyer motivation",
+      "type": "n8n-nodes-base.telegram",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram Bot"
+        }
+      },
+      "position": [1050, 1000],
+      "typeVersion": 1.2
+    }
+  ],
+  "connections": {
+    "rappel-matin": {
+      "main": [
+        [
+          {
+            "node": "get-stats",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "get-today",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "get-habits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get-stats": {
+      "main": [
+        [
+          {
+            "node": "prepare-context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get-today": {
+      "main": [
+        [
+          {
+            "node": "prepare-context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get-habits": {
+      "main": [
+        [
+          {
+            "node": "prepare-context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare-context": {
+      "main": [
+        [
+          {
+            "node": "groq-morning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "groq-morning": {
+      "main": [
+        [
+          {
+            "node": "send-morning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "rappel-soir": {
+      "main": [
+        [
+          {
+            "node": "check-evening",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check-evening": {
+      "main": [
+        [
+          {
+            "node": "check-incomplete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check-incomplete": {
+      "main": [
+        [
+          {
+            "node": "prepare-evening",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare-evening": {
+      "main": [
+        [
+          {
+            "node": "groq-evening",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "groq-evening": {
+      "main": [
+        [
+          {
+            "node": "send-evening",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "telegram-trigger": {
+      "main": [
+        [
+          {
+            "node": "is-command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "is-command": {
+      "main": [
+        [
+          {
+            "node": "switch-command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "switch-command": {
+      "main": [
+        [
+          {
+            "node": "get-stats-cmd",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "get-today-cmd",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "get-motivation-cmd",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "get-habits-analyse",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "send-help",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get-habits-analyse": {
+      "main": [
+        [
+          {
+            "node": "groq-analyse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "groq-analyse": {
+      "main": [
+        [
+          {
+            "node": "send-analyse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get-stats-cmd": {
+      "main": [
+        [
+          {
+            "node": "send-stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get-today-cmd": {
+      "main": [
+        [
+          {
+            "node": "send-today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get-motivation-cmd": {
+      "main": [
+        [
+          {
+            "node": "send-motivation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}
+
