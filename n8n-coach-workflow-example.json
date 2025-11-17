@@ -1,0 +1,299 @@
+{
+  "name": "Vibes Arc - Coach Virtuel Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Rappel du matin",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://knpvbwlfdriavrebvzdy.supabase.co/functions/v1/coach-api/motivation",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "user_id",
+                "value": "TON_USER_ID"
+              }
+            ]
+          }
+        }
+      },
+      "name": "Récupérer message motivation",
+      "type": "n8n-nodes-base.httpRequest",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Coach API Key"
+        }
+      },
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "7703388828",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "name": "Envoyer sur Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram Bot"
+        }
+      },
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 20 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Rappel du soir",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "url": "https://knpvbwlfdriavrebvzdy.supabase.co/functions/v1/coach-api/today",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "user_id",
+                "value": "TON_USER_ID"
+              }
+            ]
+          }
+        }
+      },
+      "name": "Vérifier état du jour",
+      "type": "n8n-nodes-base.httpRequest",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Coach API Key"
+        }
+      },
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.today.completionRate }}",
+              "operation": "smaller",
+              "value2": 100
+            }
+          ]
+        }
+      },
+      "name": "Habitudes incomplètes ?",
+      "type": "n8n-nodes-base.if",
+      "position": [650, 500]
+    },
+    {
+      "parameters": {
+        "chatId": "7703388828",
+        "text": "🌙 Bonsoir ! Il te reste encore quelques habitudes à compléter aujourd'hui :\n\n{{ $json.today.todayHabits.filter(h => !h.completed).map(h => '• ' + h.name).join('\\n') }}\n\nTu peux encore le faire ! 💪"
+      },
+      "name": "Rappel habitudes manquantes",
+      "type": "n8n-nodes-base.telegram",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram Bot"
+        }
+      },
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ]
+      },
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "credentials": {
+        "telegramApi": {
+          "name": "Telegram Bot"
+        }
+      },
+      "webhookId": "unique-webhook-id",
+      "position": [250, 700]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.message.text }}",
+              "operation": "startsWith",
+              "value2": "/"
+            }
+          ]
+        }
+      },
+      "name": "C'est une commande ?",
+      "type": "n8n-nodes-base.if",
+      "position": [450, 700]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.message.text }}",
+                    "value2": "/today"
+                  }
+                ]
+              },
+              "output": 0
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.message.text }}",
+                    "value2": "/stats"
+                  }
+                ]
+              },
+              "output": 1
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.message.text }}",
+                    "value2": "/motivation"
+                  }
+                ]
+              },
+              "output": 2
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.message.text }}",
+                    "value2": "/habits"
+                  }
+                ]
+              },
+              "output": 3
+            }
+          ]
+        }
+      },
+      "name": "Switch commande",
+      "type": "n8n-nodes-base.switch",
+      "position": [650, 700]
+    }
+  ],
+  "connections": {
+    "Rappel du matin": {
+      "main": [
+        [
+          {
+            "node": "Récupérer message motivation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Récupérer message motivation": {
+      "main": [
+        [
+          {
+            "node": "Envoyer sur Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rappel du soir": {
+      "main": [
+        [
+          {
+            "node": "Vérifier état du jour",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vérifier état du jour": {
+      "main": [
+        [
+          {
+            "node": "Habitudes incomplètes ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Habitudes incomplètes ?": {
+      "main": [
+        [
+          {
+            "node": "Rappel habitudes manquantes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "C'est une commande ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "C'est une commande ?": {
+      "main": [
+        [
+          {
+            "node": "Switch commande",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
+
