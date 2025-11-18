@@ -276,3 +276,13 @@ Tu pourrais aussi ajouter un webhook pour que l'app notifie n8n quand :
 - Le format JSON est compatible avec tous les outils no-code
 - Tu peux ajouter d'autres endpoints selon tes besoins
 
+
+
+HTTP Header Auth (pour l'API Coach)
+Name: Coach API Key
+Header: X-API-Key
+Value: f0b95ce832383809116f190cbcb51c369e1dcd563ef89398f7a561dbec4809dc
+
+
+TELEGRAM_BOT_TOKEN="8213551832:AAE-Ru93xbtJXnrgGVSvdUdAIhGAr3Uoij8"
+
