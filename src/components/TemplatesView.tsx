@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 const TemplatesView: React.FC = () => {
-    const { addHabit, addIdentity, setView } = useAppStore();
+    const { addHabit, addIdentity, setView, identities } = useAppStore();
     const [activeTab, setActiveTab] = useState<'habits' | 'identities'>('habits');
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
     const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
@@ -28,6 +28,7 @@ const TemplatesView: React.FC = () => {
     const [selectedTemplate, setSelectedTemplate] = useState<HabitTemplate | null>(null);
     const [selectedIdentityTemplate, setSelectedIdentityTemplate] = useState<IdentityTemplate | null>(null);
     const [selectedDuration, setSelectedDuration] = useState<number>(30);
+    const [selectedIdentityId, setSelectedIdentityId] = useState<number | string>('');
 
     const categories = [
         { id: 'all', name: 'Toutes', icon: Filter },
@@ -75,27 +76,39 @@ const TemplatesView: React.FC = () => {
         return difficultyMatch && authorMatch;
     });
 
-    const handleCreateHabit = () => {
+    const handleCreateHabit = async () => {
         if (!selectedTemplate) return;
         
-        addHabit({
+        await addHabit({
             name: selectedTemplate.name,
             type: selectedTemplate.type,
             totalDays: selectedDuration,
-            linkedIdentities: []
+            linkedIdentities: selectedIdentityId ? [Number(selectedIdentityId)] : []
         });
         
         setView('dashboard');
     };
 
-    const handleCreateIdentity = () => {
+    const handleCreateIdentity = async () => {
         if (!selectedIdentityTemplate) return;
         
-        addIdentity({
+        const newIdentity = await addIdentity({
             name: selectedIdentityTemplate.name,
             description: selectedIdentityTemplate.description,
             color: selectedIdentityTemplate.color
         });
+
+        // Créer automatiquement les habitudes liées à cette identité
+        if (newIdentity && selectedIdentityTemplate.habits) {
+            for (const habitName of selectedIdentityTemplate.habits) {
+                await addHabit({
+                    name: habitName,
+                    type: 'start',
+                    totalDays: 90, // Durée standard de 3 mois
+                    linkedIdentities: [newIdentity.id]
+                });
+            }
+        }
         
         setView('dashboard');
     };
@@ -278,6 +291,24 @@ const TemplatesView: React.FC = () => {
                                     <div className="space-y-3">
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-2">
+                                                Lier à une identité (optionnel)
+                                            </label>
+                                            <select
+                                                value={selectedIdentityId}
+                                                onChange={(e) => setSelectedIdentityId(e.target.value)}
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                                            >
+                                                <option value="">Aucune identité liée</option>
+                                                {identities.map(identity => (
+                                                    <option key={identity.id} value={identity.id}>
+                                                        {identity.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">
                                                 Durée (jours)
                                             </label>
                                             <select
@@ -290,6 +321,8 @@ const TemplatesView: React.FC = () => {
                                                         {duration} jours
                                                     </option>
                                                 ))}
+                                                <option value={180}>6 mois (180 jours)</option>
+                                                <option value={365}>1 an (365 jours)</option>
                                             </select>
                                         </div>
 

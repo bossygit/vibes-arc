@@ -16,10 +16,10 @@ interface AppState {
     // Actions
     setView: (view: ViewType) => void;
     setSelectedHabit: (habitId: number | null) => void;
-    addIdentity: (identity: Omit<Identity, 'id' | 'createdAt'>) => Promise<void>;
+    addIdentity: (identity: Omit<Identity, 'id' | 'createdAt'>) => Promise<Identity>;
     updateIdentity: (id: number, name: string, description?: string) => void;
     deleteIdentity: (id: number) => void;
-    addHabit: (habit: Omit<Habit, 'id' | 'createdAt' | 'progress'>) => void;
+    addHabit: (habit: Omit<Habit, 'id' | 'createdAt' | 'progress'>) => Promise<Habit>;
     deleteHabit: (id: number) => void;
     toggleHabitDay: (habitId: number, dayIndex: number) => void;
     updateHabit: (id: number, updates: Partial<Habit>) => void;
@@ -132,6 +132,7 @@ export const useAppStore = create<AppState>((set) => {
                 set((state) => ({
                     identities: [...state.identities, newIdentity],
                 }));
+                return newIdentity;
             } catch (error) {
                 console.error('Erreur lors de la création de l\'identité:', error);
                 throw error;
@@ -181,8 +182,10 @@ export const useAppStore = create<AppState>((set) => {
                 set((state) => ({
                     habits: [...state.habits, newHabit],
                 }));
+                return newHabit;
             } catch (error) {
                 console.error('Erreur lors de la création de l\'habitude:', error);
+                throw error; // Propagate error or return null, but for now throwing is fine if caught
             }
         },
 
