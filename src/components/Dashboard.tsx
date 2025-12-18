@@ -1,5 +1,5 @@
 import React from 'react';
-import { Target, TrendingUp, Calendar, BarChart3, Flame } from 'lucide-react';
+import { Target, TrendingUp, Calendar, BarChart3, Flame, Trophy, Award } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { calculateIdentityScore, calculateHabitStats } from '@/utils/habitUtils';
 import IdentityCard from './IdentityCard';
@@ -26,6 +26,15 @@ const Dashboard: React.FC = () => {
     const overallProgress = totalDays > 0 ? Math.round((completedDays / totalDays) * 100) : 0;
     const currentStreaks = habits.map(h => calculateHabitStats(h).currentStreak);
     const longestCurrentStreak = currentStreaks.length > 0 ? Math.max(...currentStreaks) : 0;
+
+    // Filtrer les habitudes avec un streak d'au moins 21 jours
+    const milestone21Habits = habits
+        .map(habit => ({
+            habit,
+            stats: calculateHabitStats(habit)
+        }))
+        .filter(({ stats }) => stats.longestStreak >= 21)
+        .sort((a, b) => b.stats.longestStreak - a.stats.longestStreak);
 
     // Tendance hebdo globale: sur l'ensemble des habitudes actives par jour
     const { last7Pct, prev7Pct, deltaPct } = (() => {
@@ -73,6 +82,103 @@ const Dashboard: React.FC = () => {
             {habits.length > 0 && (
                 <section>
                     <OverallCalendar habits={habits} />
+                </section>
+            )}
+
+            {/* Habitudes avec 21+ jours de streak */}
+            {milestone21Habits.length > 0 && (
+                <section>
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="relative"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-r from-amber-100 via-yellow-100 to-amber-100 rounded-2xl blur-sm opacity-50"></div>
+                        <div className="relative card bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-50 border-2 border-amber-200">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="p-3 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-xl shadow-lg">
+                                    <Trophy className="w-8 h-8 text-white" />
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-bold text-amber-900">
+                                        🎉 Objectif 21 Jours Atteint !
+                                    </h2>
+                                    <p className="text-sm text-amber-700">
+                                        Félicitations ! {milestone21Habits.length} habitude{milestone21Habits.length > 1 ? 's' : ''} avec un streak de 21+ jours
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {milestone21Habits.map(({ habit, stats }, index) => (
+                                    <motion.div
+                                        key={habit.id}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: index * 0.1 }}
+                                        className="bg-white rounded-xl p-4 shadow-md border-2 border-amber-300 hover:shadow-xl transition-all cursor-pointer"
+                                        onClick={() => {
+                                            useAppStore.getState().setSelectedHabit(habit.id);
+                                            useAppStore.getState().setView('habitDetail');
+                                        }}
+                                    >
+                                        <div className="flex items-start justify-between mb-3">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <Award className="w-5 h-5 text-amber-500" />
+                                                    <h3 className="font-bold text-slate-800 text-lg">{habit.name}</h3>
+                                                </div>
+                                                <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                                                    habit.type === 'start' 
+                                                        ? 'bg-green-100 text-green-700' 
+                                                        : 'bg-red-100 text-red-700'
+                                                }`}>
+                                                    {habit.type === 'start' ? '▲ Commencer' : '▼ Arrêter'}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm text-slate-600">Plus long streak</span>
+                                                <div className="flex items-center gap-1">
+                                                    <Flame className="w-4 h-4 text-orange-500" />
+                                                    <span className="font-bold text-orange-600">{stats.longestStreak} jours</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm text-slate-600">Streak actuel</span>
+                                                <div className="flex items-center gap-1">
+                                                    <Flame className="w-4 h-4 text-amber-500" />
+                                                    <span className="font-bold text-amber-600">{stats.currentStreak} jours</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm text-slate-600">Progression</span>
+                                                <span className="font-bold text-indigo-600">{stats.percentage}%</span>
+                                            </div>
+
+                                            <div className="mt-3 pt-3 border-t border-amber-200">
+                                                <div className="flex items-center justify-center gap-2 text-amber-700">
+                                                    <Trophy className="w-4 h-4" />
+                                                    <span className="text-xs font-semibold">Objectif 21 jours ✓</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+
+                            {/* Message motivant */}
+                            <div className="mt-6 p-4 bg-white/70 rounded-lg border border-amber-200">
+                                <p className="text-sm text-center text-amber-900 font-medium">
+                                    💪 Il faut 21 jours pour former une habitude. Tu l'as fait ! Continue comme ça !
+                                </p>
+                            </div>
+                        </div>
+                    </motion.div>
                 </section>
             )}
 
