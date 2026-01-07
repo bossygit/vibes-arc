@@ -1,37 +1,106 @@
 import React, { useState } from 'react';
-import { Download, Upload, Trash2, Database } from 'lucide-react';
+import { Download, Upload, Trash2, Database, FileText } from 'lucide-react';
 import BrowserDatabaseClient from '@/database/browser-client';
+import { useAppStore } from '@/store/useAppStore';
+import { generateEngagementReport, toCSV } from '@/utils/engagementReportUtils';
 
 interface DataManagerProps {
     onDataChange?: () => void;
 }
 
 const DataManager: React.FC<DataManagerProps> = ({ onDataChange }) => {
+    const { identities, habits } = useAppStore();
     const [isExporting, setIsExporting] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
     const [importError, setImportError] = useState<string | null>(null);
     const [importSuccess, setImportSuccess] = useState(false);
+    const [isReportExporting, setIsReportExporting] = useState(false);
 
     const db = BrowserDatabaseClient.getInstance();
+
+    const downloadText = (content: string, filename: string, mime: string) => {
+        const blob = new Blob([content], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
 
     const handleExport = () => {
         setIsExporting(true);
         try {
             const data = db.exportData();
-            const blob = new Blob([data], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `vibes-arc-backup-${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            downloadText(data, `vibes-arc-backup-${new Date().toISOString().split('T')[0]}.json`, 'application/json');
         } catch (error) {
             console.error('Erreur lors de l\'export:', error);
         } finally {
             setIsExporting(false);
+        }
+    };
+
+    const handleExportEngagementReport = () => {
+        setIsReportExporting(true);
+        try {
+            const report = generateEngagementReport({ identities, habits });
+            const stamp = new Date().toISOString().split('T')[0];
+
+            // JSON complet (pour ChatGPT / coach / analyse externe)
+            downloadText(JSON.stringify(report, null, 2), `vibes-arc-engagement-report-T4-2025-${stamp}.json`, 'application/json');
+
+            // CSV (tables)
+            downloadText(
+                toCSV(report.tables.habits.map(h => ({
+                    habitId: h.habitId,
+                    name: h.name,
+                    type: h.type,
+                    activeDays: h.activeDays,
+                    completedDays: h.completedDays,
+                    completionPct: h.completionPct,
+                    longestStreak: h.longestStreak,
+                    breaks: h.breaks,
+                    avgRecoveryDays: h.avgRecoveryDays ?? '',
+                    linkedIdentities: h.linkedIdentities.join(' | '),
+                    flags: h.flags.join(' | '),
+                }))),
+                `vibes-arc-engagement-habits-T4-2025-${stamp}.csv`,
+                'text/csv'
+            );
+
+            downloadText(
+                toCSV(report.tables.identities.map(i => ({
+                    identityId: i.identityId,
+                    name: i.name,
+                    linkedHabits: i.linkedHabits,
+                    completionPct: i.completionPct ?? '',
+                    status: i.status,
+                    evidence: i.evidence.join(' | '),
+                }))),
+                `vibes-arc-engagement-identities-T4-2025-${stamp}.csv`,
+                'text/csv'
+            );
+
+            downloadText(
+                toCSV(report.tables.daily.map(d => ({
+                    dayIndex: d.dayIndex,
+                    dateISO: d.dateISO,
+                    dateLabel: d.dateLabel,
+                    weekday: d.weekday,
+                    activeHabits: d.activeHabits,
+                    completedHabits: d.completedHabits,
+                    engaged: d.engaged ? 1 : 0,
+                }))),
+                `vibes-arc-engagement-daily-T4-2025-${stamp}.csv`,
+                'text/csv'
+            );
+        } catch (error) {
+            console.error('Erreur lors de l\'export du rapport:', error);
+            alert('Impossible de générer le rapport. Vérifiez la console pour plus de détails.');
+        } finally {
+            setIsReportExporting(false);
         }
     };
 
@@ -123,6 +192,17 @@ const DataManager: React.FC<DataManagerProps> = ({ onDataChange }) => {
                         />
                     </label>
 
+                    {/* Rapport engagement */}
+                    <button
+                        onClick={handleExportEngagementReport}
+                        disabled={isReportExporting || habits.length === 0}
+                        className="btn-secondary flex items-center justify-center gap-2"
+                        title={habits.length === 0 ? 'Crée au moins une habitude pour générer un rapport' : 'Exporter le rapport d’engagement'}
+                    >
+                        <FileText className="w-4 h-4" />
+                        {isReportExporting ? 'Rapport...' : 'Rapport T4 2025'}
+                    </button>
+                    
                     {/* Clear */}
                     <button
                         onClick={handleClearData}
@@ -150,6 +230,10 @@ const DataManager: React.FC<DataManagerProps> = ({ onDataChange }) => {
                 <div className="text-xs text-slate-500 bg-blue-50 p-3 rounded-lg">
                     💡 <strong>Conseil :</strong> Exportez régulièrement vos données pour éviter toute perte.
                     Les données sont stockées localement dans votre navigateur.
+                </div>
+                <div className="text-xs text-slate-500 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                    🧠 <strong>Lucidité comportementale :</strong> le bouton <strong>Rapport T4 2025</strong> exporte un JSON + 3 CSV (habitudes, identités, timeline journalière)
+                    directement exploitables par un coach ou ChatGPT.
                 </div>
             </div>
         </div>
