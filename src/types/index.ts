@@ -34,11 +34,40 @@ export interface Streak {
 export interface AppState {
     identities: Identity[];
     habits: Habit[];
-    view: 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel';
+    view: 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming';
     selectedHabitId: number | null;
 }
 
-export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel';
+export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming';
+
+// ===== Priming My Brain (système nerveux) =====
+
+export type NervousSystemState = 'calme' | 'tension' | 'agitation' | 'shutdown';
+
+export interface PrimingTemplate {
+    id: string;
+    title: string;
+    durationMin: number; // 3..10
+    intent: 'sécurité' | 'focus' | 'discipline' | 'sobriété' | 'abondance';
+    steps: string[];
+    safetyNote?: string;
+}
+
+export interface PrimingSession {
+    id: string;
+    createdAt: string; // ISO
+    templateId: string;
+    templateTitle: string;
+    durationMin: number;
+    goal?: string; // ex: 5 000 000 FCFA
+    identityId?: number;
+    identityName?: string;
+    preState: NervousSystemState;
+    preIntensity: number; // 0..4
+    postState: NervousSystemState;
+    postIntensity: number; // 0..4
+    notes?: string;
+}
 
 // Extensions motivation/gamification
 export interface Reward {

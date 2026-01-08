@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs, NotificationChannel } from '@/types';
+import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs, NotificationChannel, PrimingSession } from '@/types';
 import SupabaseDatabaseClient from '@/database/supabase-client';
 import { computePointsForAction, calculateHabitStats } from '@/utils/habitUtils';
 
@@ -12,6 +12,7 @@ interface AppState {
     skipsByHabit: SkipsByHabit;
     gamification: GamificationState;
     userPrefs: UserPrefs;
+    primingSessions: PrimingSession[];
 
     // Actions
     setView: (view: ViewType) => void;
@@ -37,6 +38,8 @@ interface AppState {
     setWeeklyEmailEnabled: (enabled: boolean) => void;
     setWeeklyEmailDay: (day: number) => void;
     setWeeklyEmailHour: (hour: number) => void;
+    addPrimingSession: (session: PrimingSession) => void;
+    clearPrimingSessions: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => {
@@ -69,6 +72,21 @@ export const useAppStore = create<AppState>((set) => {
         });
     };
 
+    const PRIMING_KEY = 'vibes-arc-priming-sessions';
+    const loadPrimingSessions = (): PrimingSession[] => {
+        try {
+            const raw = localStorage.getItem(PRIMING_KEY);
+            const parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    };
+
+    const persistPrimingSessions = (sessions: PrimingSession[]) => {
+        localStorage.setItem(PRIMING_KEY, JSON.stringify(sessions));
+    };
+
     // Charger les données initiales
     const loadInitialData = async () => {
         try {
@@ -95,7 +113,8 @@ export const useAppStore = create<AppState>((set) => {
                     userPrefs = { ...defaultUserPrefs, ...JSON.parse(storedPrefs) };
                 }
             }
-            set({ identities, habits, skipsByHabit, gamification, userPrefs });
+            const primingSessions = loadPrimingSessions();
+            set({ identities, habits, skipsByHabit, gamification, userPrefs, primingSessions });
         } catch (error) {
             console.error('Erreur lors du chargement des données:', error);
             // En cas d'erreur, initialiser avec des tableaux vides
@@ -104,7 +123,8 @@ export const useAppStore = create<AppState>((set) => {
                 habits: [], 
                 skipsByHabit: {}, 
                 gamification: { points: 0, rewards: [], challenges: [] }, 
-                userPrefs: { ...defaultUserPrefs } 
+                userPrefs: { ...defaultUserPrefs },
+                primingSessions: loadPrimingSessions(),
             });
         }
     };
@@ -121,6 +141,7 @@ export const useAppStore = create<AppState>((set) => {
         skipsByHabit: {},
         gamification: { points: 0, rewards: [], challenges: [] },
         userPrefs: { ...defaultUserPrefs },
+        primingSessions: loadPrimingSessions(),
 
         // Actions
         setView: (view) => set({ view }),
@@ -352,6 +373,21 @@ export const useAppStore = create<AppState>((set) => {
         setWeeklyEmailHour: (hour) => {
             const value = Math.max(0, Math.min(23, Math.floor(hour)));
             persistUserPrefs((prev) => ({ ...prev, weeklyEmailHour: value }));
+        },
+
+        addPrimingSession: (session) => {
+            set((state) => {
+                const next = [session, ...state.primingSessions].slice(0, 200);
+                persistPrimingSessions(next);
+                return { primingSessions: next };
+            });
+        },
+
+        clearPrimingSessions: () => {
+            set(() => {
+                persistPrimingSessions([]);
+                return { primingSessions: [] };
+            });
         },
     };
 });

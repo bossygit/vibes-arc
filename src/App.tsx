@@ -13,6 +13,7 @@ import TemplatesView from '@/components/TemplatesView';
 import MagicGratitudeChallenge from '@/components/MagicGratitudeChallenge';
 import MoneyMindsetGame from '@/components/MoneyMindsetGame';
 import FocusWheelGame from '@/components/FocusWheelGame';
+import PrimingView from '@/components/PrimingView';
 
 function App() {
     const { view } = useAppStore();
@@ -60,6 +61,8 @@ function App() {
                 return <MoneyMindsetGame />;
             case 'focusWheel':
                 return <FocusWheelGame />;
+            case 'priming':
+                return <PrimingView />;
             default:
                 return <Dashboard />;
         }
