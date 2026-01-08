@@ -1,5 +1,5 @@
 import React from 'react';
-import { Target, TrendingUp, Calendar, BarChart3, Flame, Trophy, Award, Brain } from 'lucide-react';
+import { Target, TrendingUp, Calendar, BarChart3, Flame, Trophy, Award, Brain, Copy, CheckCircle2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { calculateIdentityScore, calculateHabitStats } from '@/utils/habitUtils';
 import IdentityCard from './IdentityCard';
@@ -12,12 +12,15 @@ import { motion } from 'framer-motion';
 import { getCurrentDayIndex } from '@/utils/habitUtils';
 
 const Dashboard: React.FC = () => {
-    const { identities, habits, setView, gamification, addPoints, createReward, claimReward } = useAppStore();
+    const { identities, habits, setView, gamification, addPoints, createReward, claimReward, primingSessions } = useAppStore();
 
     const handleDataChange = () => {
         // Recharger les données depuis le store
         window.location.reload();
     };
+
+    const lastNextActionSession = primingSessions.find(s => !!s.nextAction && s.nextAction.trim().length > 0);
+    const nextAction = lastNextActionSession?.nextAction?.trim() ?? '';
 
     // Calculer les statistiques globales
     const totalHabits = habits.length;
@@ -90,6 +93,55 @@ const Dashboard: React.FC = () => {
                     </div>
                 </div>
             </section>
+
+            {/* Next action (2 min) */}
+            {nextAction && (
+                <section>
+                    <div className="card bg-white border border-slate-200">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                                    Next action (2 min)
+                                </h2>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    Dernier priming: {lastNextActionSession ? new Date(lastNextActionSession.createdAt).toLocaleString('fr-FR') : ''}
+                                    {lastNextActionSession?.identityName ? ` • ${lastNextActionSession.identityName}` : ''}
+                                    {lastNextActionSession?.goal ? ` • ${lastNextActionSession.goal}` : ''}
+                                </p>
+
+                                <div className="mt-3 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+                                    <div className="text-sm text-emerald-900 font-semibold">Action</div>
+                                    <div className="text-lg font-bold text-slate-900 mt-1">{nextAction}</div>
+                                    <div className="text-xs text-emerald-800 mt-2">
+                                        Règle: une action de 2 minutes doit être “bête et faisable maintenant”.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <button
+                                    className="btn-secondary flex items-center justify-center gap-2"
+                                    onClick={async () => {
+                                        try {
+                                            await navigator.clipboard.writeText(nextAction);
+                                        } catch {
+                                            // fallback silencieux
+                                        }
+                                    }}
+                                    title="Copier l’action"
+                                >
+                                    <Copy className="w-4 h-4" />
+                                    Copier
+                                </button>
+                                <button className="btn-primary" onClick={() => setView('priming')}>
+                                    Nouveau priming
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            )}
 
             {/* Today Status */}
             {habits.length > 0 && (
