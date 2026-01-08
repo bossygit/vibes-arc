@@ -34,11 +34,11 @@ export interface Streak {
 export interface AppState {
     identities: Identity[];
     habits: Habit[];
-    view: 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming';
+    view: 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment';
     selectedHabitId: number | null;
 }
 
-export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming';
+export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment';
 
 // ===== Priming My Brain (système nerveux) =====
 
@@ -67,6 +67,23 @@ export interface PrimingSession {
     postState: NervousSystemState;
     postIntensity: number; // 0..4
     nextAction?: string; // prochaine action business (2 minutes)
+    notes?: string;
+}
+
+// ===== Design de l'environnement =====
+
+export type EnvironmentRiskLevel = 0 | 1 | 2 | 3 | 4; // 0 = neutre, 4 = très risqué (déclencheurs)
+
+export interface EnvironmentMap {
+    id: string;
+    name: string; // ex: Lit, Bureau, Téléphone
+    room?: string; // ex: Chambre, Salon
+    riskLevel: EnvironmentRiskLevel;
+    createdAt: string; // ISO
+    updatedAt: string; // ISO
+    desiredBehaviors: string[]; // comportements souhaités
+    avoidBehaviors: string[]; // comportements à éviter
+    transitionRituals: string[]; // rituels courts (30-120s)
     notes?: string;
 }
 

@@ -9,6 +9,7 @@ const Header: React.FC = () => {
     const navItems = [
         { key: 'dashboard', label: 'Tableau de bord' },
         { key: 'priming', label: 'Priming' },
+        { key: 'environment', label: 'Environnement' },
         { key: 'identities', label: 'Identités' },
         { key: 'addHabit', label: 'Ajouter Habitude' },
         { key: 'templates', label: 'Templates' },

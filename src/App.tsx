@@ -14,6 +14,7 @@ import MagicGratitudeChallenge from '@/components/MagicGratitudeChallenge';
 import MoneyMindsetGame from '@/components/MoneyMindsetGame';
 import FocusWheelGame from '@/components/FocusWheelGame';
 import PrimingView from '@/components/PrimingView';
+import EnvironmentDesignView from '@/components/EnvironmentDesignView';
 
 function App() {
     const { view } = useAppStore();
@@ -63,6 +64,8 @@ function App() {
                 return <FocusWheelGame />;
             case 'priming':
                 return <PrimingView />;
+            case 'environment':
+                return <EnvironmentDesignView />;
             default:
                 return <Dashboard />;
         }

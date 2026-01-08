@@ -1,5 +1,5 @@
 import React from 'react';
-import { Target, TrendingUp, Calendar, BarChart3, Flame, Trophy, Award, Brain, Copy, CheckCircle2 } from 'lucide-react';
+import { Target, TrendingUp, Calendar, BarChart3, Flame, Trophy, Award, Brain, Copy, CheckCircle2, Home } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { calculateIdentityScore, calculateHabitStats } from '@/utils/habitUtils';
 import IdentityCard from './IdentityCard';
@@ -89,6 +89,26 @@ const Dashboard: React.FC = () => {
                         </div>
                         <button onClick={() => setView('priming')} className="btn-primary">
                             Démarrer
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            {/* Environnement CTA */}
+            <section>
+                <div className="card bg-gradient-to-br from-slate-50 to-white border border-slate-200">
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                <Home className="w-5 h-5 text-slate-700" />
+                                Design de l’environnement
+                            </h2>
+                            <p className="text-sm text-slate-600 mt-1">
+                                Mappe tes espaces (lit, téléphone, bureau) pour rendre le bon comportement facile et le mauvais coûteux.
+                            </p>
+                        </div>
+                        <button onClick={() => setView('environment')} className="btn-secondary">
+                            Ouvrir
                         </button>
                     </div>
                 </div>

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs, NotificationChannel, PrimingSession } from '@/types';
+import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs, NotificationChannel, PrimingSession, EnvironmentMap } from '@/types';
 import SupabaseDatabaseClient from '@/database/supabase-client';
 import { computePointsForAction, calculateHabitStats } from '@/utils/habitUtils';
 
@@ -13,6 +13,7 @@ interface AppState {
     gamification: GamificationState;
     userPrefs: UserPrefs;
     primingSessions: PrimingSession[];
+    environments: EnvironmentMap[];
 
     // Actions
     setView: (view: ViewType) => void;
@@ -40,6 +41,9 @@ interface AppState {
     setWeeklyEmailHour: (hour: number) => void;
     addPrimingSession: (session: PrimingSession) => void;
     clearPrimingSessions: () => void;
+    addEnvironment: (env: Omit<EnvironmentMap, 'id' | 'createdAt' | 'updatedAt'>) => void;
+    updateEnvironment: (id: string, updates: Partial<Omit<EnvironmentMap, 'id' | 'createdAt'>>) => void;
+    deleteEnvironment: (id: string) => void;
 }
 
 export const useAppStore = create<AppState>((set) => {
@@ -87,6 +91,21 @@ export const useAppStore = create<AppState>((set) => {
         localStorage.setItem(PRIMING_KEY, JSON.stringify(sessions));
     };
 
+    const ENV_KEY = 'vibes-arc-environments';
+    const loadEnvironments = (): EnvironmentMap[] => {
+        try {
+            const raw = localStorage.getItem(ENV_KEY);
+            const parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    };
+
+    const persistEnvironments = (envs: EnvironmentMap[]) => {
+        localStorage.setItem(ENV_KEY, JSON.stringify(envs));
+    };
+
     // Charger les données initiales
     const loadInitialData = async () => {
         try {
@@ -114,7 +133,8 @@ export const useAppStore = create<AppState>((set) => {
                 }
             }
             const primingSessions = loadPrimingSessions();
-            set({ identities, habits, skipsByHabit, gamification, userPrefs, primingSessions });
+            const environments = loadEnvironments();
+            set({ identities, habits, skipsByHabit, gamification, userPrefs, primingSessions, environments });
         } catch (error) {
             console.error('Erreur lors du chargement des données:', error);
             // En cas d'erreur, initialiser avec des tableaux vides
@@ -125,6 +145,7 @@ export const useAppStore = create<AppState>((set) => {
                 gamification: { points: 0, rewards: [], challenges: [] }, 
                 userPrefs: { ...defaultUserPrefs },
                 primingSessions: loadPrimingSessions(),
+                environments: loadEnvironments(),
             });
         }
     };
@@ -142,6 +163,7 @@ export const useAppStore = create<AppState>((set) => {
         gamification: { points: 0, rewards: [], challenges: [] },
         userPrefs: { ...defaultUserPrefs },
         primingSessions: loadPrimingSessions(),
+        environments: loadEnvironments(),
 
         // Actions
         setView: (view) => set({ view }),
@@ -387,6 +409,45 @@ export const useAppStore = create<AppState>((set) => {
             set(() => {
                 persistPrimingSessions([]);
                 return { primingSessions: [] };
+            });
+        },
+
+        addEnvironment: (env) => {
+            set((state) => {
+                const now = new Date().toISOString();
+                const nextEnv: EnvironmentMap = {
+                    id: `env_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+                    createdAt: now,
+                    updatedAt: now,
+                    name: env.name,
+                    room: env.room,
+                    riskLevel: env.riskLevel,
+                    desiredBehaviors: env.desiredBehaviors || [],
+                    avoidBehaviors: env.avoidBehaviors || [],
+                    transitionRituals: env.transitionRituals || [],
+                    notes: env.notes,
+                };
+                const next = [nextEnv, ...state.environments];
+                persistEnvironments(next);
+                return { environments: next };
+            });
+        },
+
+        updateEnvironment: (id, updates) => {
+            set((state) => {
+                const next = state.environments.map((e) =>
+                    e.id === id ? { ...e, ...updates, updatedAt: new Date().toISOString() } : e
+                );
+                persistEnvironments(next);
+                return { environments: next };
+            });
+        },
+
+        deleteEnvironment: (id) => {
+            set((state) => {
+                const next = state.environments.filter((e) => e.id !== id);
+                persistEnvironments(next);
+                return { environments: next };
             });
         },
     };
