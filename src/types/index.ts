@@ -66,6 +66,7 @@ export interface PrimingSession {
     preIntensity: number; // 0..4
     postState: NervousSystemState;
     postIntensity: number; // 0..4
+    nextAction?: string; // prochaine action business (2 minutes)
     notes?: string;
 }
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Brain, Timer, Shield, Sparkles, ArrowLeft, Trash2 } from 'lucide-react';
+import { Brain, Timer, Shield, Sparkles, ArrowLeft, Trash2, Target } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { primingTemplates } from '@/data/primingTemplates';
 import { NervousSystemState, PrimingTemplate, PrimingSession } from '@/types';
@@ -25,6 +25,7 @@ function clampInt(n: number, min: number, max: number) {
 const PrimingView: React.FC = () => {
   const { identities, setView, addPrimingSession, primingSessions, clearPrimingSessions } = useAppStore();
 
+  const [focusBusinessMode, setFocusBusinessMode] = useState(true);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(primingTemplates[0]?.id ?? '');
   const selectedTemplate: PrimingTemplate | undefined = useMemo(
     () => primingTemplates.find((t) => t.id === selectedTemplateId),
@@ -38,10 +39,35 @@ const PrimingView: React.FC = () => {
   const [preIntensity, setPreIntensity] = useState<number>(2);
   const [postState, setPostState] = useState<NervousSystemState>('calme');
   const [postIntensity, setPostIntensity] = useState<number>(1);
+  const [nextAction, setNextAction] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
 
   const [phase, setPhase] = useState<'setup' | 'running' | 'complete'>('setup');
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
+
+  const recommendedTemplateId = useMemo(() => {
+    // Règle simple, data-driven plus tard:
+    // - si état "tension/agitation/shutdown" => sécurité (downshift)
+    // - sinon => focus (execution)
+    const isAlarm = preState === 'tension' || preState === 'agitation' || preState === 'shutdown';
+    const desiredIntent = isAlarm ? 'sécurité' : 'focus';
+    const found = primingTemplates.find((t) => t.intent === desiredIntent);
+    return found?.id ?? primingTemplates[0]?.id ?? '';
+  }, [preState]);
+
+  const displayedTemplates = useMemo(() => {
+    if (!focusBusinessMode) return primingTemplates;
+    // Focus business: on garde ce qui mène à exécution + stabilité (sans excitation)
+    return primingTemplates.filter((t) => ['focus', 'discipline', 'sécurité', 'abondance'].includes(t.intent));
+  }, [focusBusinessMode]);
+
+  useEffect(() => {
+    // En mode focus business, proposer une intention d'objectif par défaut si vide
+    if (!focusBusinessMode) return;
+    if (goal.trim().length > 0) return;
+    setGoal('Focus business (prochain pas concret)');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusBusinessMode]);
 
   useEffect(() => {
     if (phase !== 'running') return;
@@ -79,6 +105,7 @@ const PrimingView: React.FC = () => {
       preIntensity: clampInt(preIntensity, 0, 4),
       postState,
       postIntensity: clampInt(postIntensity, 0, 4),
+      nextAction: nextAction.trim() || undefined,
       notes: notes.trim() || undefined,
     };
 
@@ -86,6 +113,7 @@ const PrimingView: React.FC = () => {
     setPhase('setup');
     setSecondsLeft(0);
     setNotes('');
+    setNextAction('');
   };
 
   const reset = () => {
@@ -123,8 +151,31 @@ const PrimingView: React.FC = () => {
               Choisir un priming (3–10 min)
             </h3>
 
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <button
+                onClick={() => setFocusBusinessMode((v) => !v)}
+                className={`px-3 py-2 rounded-lg border text-sm font-medium transition ${
+                  focusBusinessMode ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-700'
+                }`}
+              >
+                <Target className="w-4 h-4 inline mr-2" />
+                Mode Focus Business {focusBusinessMode ? 'ON' : 'OFF'}
+              </button>
+              <button
+                onClick={() => setSelectedTemplateId(recommendedTemplateId)}
+                className="px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 text-sm font-medium hover:bg-amber-100 transition"
+                disabled={!recommendedTemplateId}
+                title="Choisit automatiquement un rituel adapté à ton état (sécurité → focus)"
+              >
+                Recommandé (selon état)
+              </button>
+              <span className="text-xs text-slate-500">
+                Règle: si tension/agitation → sécurité d’abord, sinon focus.
+              </span>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {primingTemplates.map((t) => (
+              {displayedTemplates.map((t) => (
                 <button
                   key={t.id}
                   onClick={() => setSelectedTemplateId(t.id)}
@@ -329,6 +380,16 @@ const PrimingView: React.FC = () => {
                     className="input-field"
                   />
                 </div>
+              </div>
+
+              <div className="mt-3">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Prochain pas business (2 minutes)</label>
+                <input
+                  value={nextAction}
+                  onChange={(e) => setNextAction(e.target.value)}
+                  className="input-field"
+                  placeholder="ex: envoyer 1 message client / publier 1 post / écrire 3 lignes d’offre"
+                />
               </div>
 
               <div className="mt-3">
