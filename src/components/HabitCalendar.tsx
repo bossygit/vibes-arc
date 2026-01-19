@@ -55,21 +55,24 @@ const HabitCalendar: React.FC<HabitCalendarProps> = ({ habit, onToggleDay }) => 
                             const isTodayDate = isToday(date);
                             const isFutureDate = isFuture(date);
                             const isSkipped = skips.includes(dayIndex);
+                            const outOfRange = dayIndex < 0 || dayIndex >= habit.progress.length;
 
                             return (
                                 <button
                                     key={i}
                                     onClick={() => handleDayClick(dayIndex)}
-                                    disabled={isFutureDate}
+                                    disabled={isFutureDate || outOfRange}
                                     className={`habit-day ${checked
                                         ? 'habit-day-completed'
                                         : isSkipped
                                             ? 'bg-slate-200 text-slate-400 line-through'
-                                            : isFutureDate
+                                            : outOfRange
+                                                ? 'bg-slate-50 text-slate-300 cursor-not-allowed'
+                                                : isFutureDate
                                                 ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
                                                 : 'habit-day-pending'
                                         } ${isTodayDate ? 'ring-2 ring-indigo-300' : ''}`}
-                                    title={`${i + 1} ${month.name.toLowerCase()}`}
+                                    title={outOfRange ? 'Hors durée de l’habitude' : `${i + 1} ${month.name.toLowerCase()}`}
                                 >
                                     {i + 1}
                                 </button>
