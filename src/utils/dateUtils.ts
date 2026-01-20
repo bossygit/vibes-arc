@@ -1,9 +1,9 @@
-import { format, addDays, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
+import { format, addDays, startOfMonth, endOfMonth, eachDayOfInterval, differenceInCalendarDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 export const startDate = new Date(2025, 9, 1); // October 1, 2025
-export const endDate = new Date(2025, 11, 31); // December 31, 2025
-export const totalDays = 92; // Oct: 31, Nov: 30, Dec: 31
+export const endDate = new Date(2026, 11, 31); // December 31, 2026
+export const totalDays = differenceInCalendarDays(endDate, startDate) + 1;
 
 export const getDateForDay = (dayIndex: number): Date => {
     return addDays(startDate, dayIndex);

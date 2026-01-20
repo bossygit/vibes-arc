@@ -316,25 +316,29 @@ class SupabaseDatabaseClient {
         const user = await this.getCurrentUser();
         if (!user) throw new Error('Utilisateur non authentifié');
 
-        // Récupérer l'état actuel
+        // Récupérer l'état actuel (peut ne pas exister si l'habitude a été étendue)
         const { data: currentProgress } = await this.supabase
             .from('habit_progress')
             .select('completed')
             .eq('habit_id', habitId)
             .eq('day_index', dayIndex)
-            .single();
+            .maybeSingle();
 
         const newCompleted = !currentProgress?.completed;
 
+        // Upsert pour créer la ligne si absente
         const { error } = await this.supabase
             .from('habit_progress')
-            .update({
-                completed: newCompleted,
-                completed_at: newCompleted ? new Date().toISOString() : null,
-                updated_at: new Date().toISOString(),
-            })
-            .eq('habit_id', habitId)
-            .eq('day_index', dayIndex);
+            .upsert(
+                {
+                    habit_id: habitId,
+                    day_index: dayIndex,
+                    completed: newCompleted,
+                    completed_at: newCompleted ? new Date().toISOString() : null,
+                    updated_at: new Date().toISOString(),
+                },
+                { onConflict: 'habit_id,day_index' }
+            );
 
         return !error;
     }

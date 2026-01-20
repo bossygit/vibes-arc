@@ -116,7 +116,13 @@ class BrowserDatabaseClient {
         const habits = this.getHabits();
         const habit = habits.find(h => h.id === habitId);
 
-        if (habit && habit.progress[dayIndex] !== undefined) {
+        if (habit) {
+            // Si l'habitude est trop courte, l'étendre à la demande
+            if (dayIndex >= habit.progress.length) {
+                const missing = dayIndex + 1 - habit.progress.length;
+                habit.progress = [...habit.progress, ...new Array(missing).fill(false)];
+                habit.totalDays = habit.progress.length;
+            }
             habit.progress[dayIndex] = !habit.progress[dayIndex];
             this.saveHabits(habits);
             return true;

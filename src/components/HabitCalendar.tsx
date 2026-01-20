@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Habit } from '@/types';
-import { getDateForDay, isToday, isFuture } from '@/utils/dateUtils';
+import { endDate, formatDateFull, getDateForDay, isToday, isFuture, startDate, totalDays } from '@/utils/dateUtils';
 import { useAppStore } from '@/store/useAppStore';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 interface HabitCalendarProps {
     habit: Habit;
@@ -11,11 +13,48 @@ interface HabitCalendarProps {
 const HabitCalendar: React.FC<HabitCalendarProps> = ({ habit, onToggleDay }) => {
     const { skipsByHabit } = useAppStore();
     const skips = skipsByHabit[habit.id] || [];
-    const months = [
-        { name: 'Octobre 2025', startDay: 0, days: 31, emptyCells: 2 },
-        { name: 'Novembre 2025', startDay: 31, days: 30, emptyCells: 5 },
-        { name: 'Décembre 2025', startDay: 61, days: 31, emptyCells: 0 },
-    ];
+    const months = useMemo(() => {
+        const res: Array<{ name: string; startDay: number; days: number; emptyCells: number }> = [];
+
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(0, 0, 0, 0);
+
+        let y = start.getFullYear();
+        let m = start.getMonth();
+        const endY = end.getFullYear();
+        const endM = end.getMonth();
+
+        while (y < endY || (y === endY && m <= endM)) {
+            const monthStart = new Date(y, m, 1);
+            monthStart.setHours(0, 0, 0, 0);
+            const monthEnd = new Date(y, m + 1, 0);
+            monthEnd.setHours(0, 0, 0, 0);
+
+            const diffTime = monthStart.getTime() - start.getTime();
+            const startDay = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+            const days = monthEnd.getDate();
+            const firstDay = monthStart.getDay(); // 0=dimanche
+            const emptyCells = (firstDay + 6) % 7; // aligner lundi=0
+
+            res.push({
+                name: format(monthStart, 'MMMM yyyy', { locale: fr }),
+                startDay,
+                days,
+                emptyCells,
+            });
+
+            m += 1;
+            if (m > 11) {
+                m = 0;
+                y += 1;
+            }
+        }
+
+        return res;
+    }, []);
 
     const handleDayClick = (dayIndex: number) => {
         const date = getDateForDay(dayIndex);
@@ -28,7 +67,7 @@ const HabitCalendar: React.FC<HabitCalendarProps> = ({ habit, onToggleDay }) => 
     return (
         <div className="mb-4">
             <div className="text-xs font-medium text-slate-600 mb-3">
-                Du 01/10/2025 au 31/12/2025
+                Du {formatDateFull(startDate)} au {formatDateFull(endDate)} • {totalDays} jours
             </div>
 
             {months.map((month, monthIndex) => (

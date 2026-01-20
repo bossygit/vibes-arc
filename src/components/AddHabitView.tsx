@@ -8,7 +8,7 @@ const AddHabitView: React.FC = () => {
     const [newHabit, setNewHabit] = useState({
         name: '',
         type: 'start' as 'start' | 'stop',
-        totalDays: 92,
+        totalDays: 365,
         linkedIdentities: [] as number[]
     });
 
@@ -132,13 +132,13 @@ const AddHabitView: React.FC = () => {
                     <input
                         type="number"
                         value={newHabit.totalDays}
-                        onChange={(e) => setNewHabit({ ...newHabit, totalDays: Math.min(365, Math.max(1, parseInt(e.target.value) || 1)) })}
+                        onChange={(e) => setNewHabit({ ...newHabit, totalDays: Math.min(500, Math.max(1, parseInt(e.target.value) || 1)) })}
                         className="input-field"
                         min="1"
-                        max="365"
+                        max="500"
                     />
                     <p className="text-xs text-slate-500 mt-2">
-                        Choisis 21, 30, 66, 90… selon ton objectif
+                        Choisis 21, 30, 66, 90… ou 365 pour l’année (tu peux étendre plus tard)
                     </p>
                 </div>
 

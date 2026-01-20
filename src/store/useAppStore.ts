@@ -247,6 +247,20 @@ export const useAppStore = create<AppState>((set) => {
 
         toggleHabitDay: async (habitId, dayIndex) => {
             try {
+                // Étendre l'habitude côté client + DB si nécessaire (ex: passer à 2026)
+                const currentHabit = useAppStore.getState().habits.find(h => h.id === habitId);
+                if (currentHabit && dayIndex >= currentHabit.progress.length) {
+                    const newLen = dayIndex + 1;
+                    const newProgress = [...currentHabit.progress, ...new Array(newLen - currentHabit.progress.length).fill(false)];
+                    // Best-effort: mettre à jour la durée côté DB pour que le calendrier survive aux reloads
+                    try {
+                        await db.updateHabit(habitId, { totalDays: newLen });
+                    } catch { }
+                    set((state) => ({
+                        habits: state.habits.map(h => h.id === habitId ? { ...h, totalDays: newLen, progress: newProgress } : h)
+                    }));
+                }
+
                 const success = await db.toggleHabitDay(habitId, dayIndex);
                 if (success) {
                     set((state) => {

@@ -149,8 +149,13 @@ export const calculateIdentityScore = (identityId: number, habits: Habit[]): num
 export const getHabitProgressForMonth = (habit: Habit, month: number, year: number): boolean[] => {
     const monthStart = new Date(year, month, 1);
     const monthEnd = new Date(year, month + 1, 0);
-    const startIndex = Math.max(0, Math.floor((monthStart.getTime() - new Date(2025, 9, 1).getTime()) / (1000 * 60 * 60 * 24)));
-    const endIndex = Math.min(habit.progress.length - 1, Math.floor((monthEnd.getTime() - new Date(2025, 9, 1).getTime()) / (1000 * 60 * 60 * 24)));
+    const base = new Date(startDate);
+    base.setHours(0, 0, 0, 0);
+    monthStart.setHours(0, 0, 0, 0);
+    monthEnd.setHours(0, 0, 0, 0);
+
+    const startIndex = Math.max(0, Math.floor((monthStart.getTime() - base.getTime()) / (1000 * 60 * 60 * 24)));
+    const endIndex = Math.min(habit.progress.length - 1, Math.floor((monthEnd.getTime() - base.getTime()) / (1000 * 60 * 60 * 24)));
 
     return habit.progress.slice(startIndex, endIndex + 1);
 };
