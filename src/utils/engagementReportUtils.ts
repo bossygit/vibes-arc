@@ -1,5 +1,6 @@
 import { Habit, Identity } from '@/types';
 import { getDateForDay, formatDateFull } from '@/utils/dateUtils';
+import { getHabitStartDayIndex, isHabitActiveOnDay } from '@/utils/habitUtils';
 
 type IdentityStatus = 'incarnée' | 'idéalisée' | 'fantasmée' | 'déclarée';
 
@@ -164,7 +165,7 @@ export function generateEngagementReport(input: {
 
   const daily = Array.from({ length: totalDays }, (_, dayIndex) => {
     const date = getDateForDay(dayIndex);
-    const activeHabits = input.habits.filter((h) => dayIndex >= 0 && dayIndex < h.progress.length);
+    const activeHabits = input.habits.filter((h) => isHabitActiveOnDay(h, dayIndex));
     const completedHabits = activeHabits.filter((h) => !!h.progress[dayIndex]).length;
     return {
       dayIndex,
@@ -181,18 +182,19 @@ export function generateEngagementReport(input: {
   const engagementDaysPct = pct(safeDiv(engagedDays, totalDays));
 
   const habitRows = input.habits.map((h) => {
+    const startIdx = getHabitStartDayIndex(h);
     const slice = h.progress.slice(0, totalDays);
-    const activeDays = slice.length;
-    const completedDays = slice.filter(Boolean).length;
+    const activeDays = Math.max(0, Math.min(slice.length, totalDays) - Math.min(startIdx, totalDays));
+    const completedDays = slice.reduce((s, v, idx) => s + (idx >= startIdx && idx < totalDays && v ? 1 : 0), 0);
     const completionPct = pct(safeDiv(completedDays, activeDays));
-    const { longestStreak, breaks, avgRecoveryDays } = computeStreakAndBreaks(slice);
+    const { longestStreak, breaks, avgRecoveryDays } = computeStreakAndBreaks(slice.slice(startIdx));
 
     const linkedIdentityNames = h.linkedIdentities
       .map((id) => input.identities.find((i) => i.id === id)?.name)
       .filter(Boolean) as string[];
 
     const flags: string[] = [];
-    if (detectNear21(slice)) flags.push('quasi-21 (18–20 jours sans franchir 21)');
+    if (detectNear21(slice.slice(startIdx))) flags.push('quasi-21 (18–20 jours sans franchir 21)');
     if (breaks >= 6) flags.push('rythme instable (ruptures fréquentes)');
     if (completionPct <= 15) flags.push('évitée (faible exécution)');
 
@@ -336,5 +338,6 @@ export function generateEngagementReport(input: {
     questionsDeVerite,
   };
 }
+
 
 

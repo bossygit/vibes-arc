@@ -14,6 +14,11 @@ export interface Habit {
     linkedIdentities: number[];
     progress: boolean[];
     createdAt: string;
+    /**
+     * Index (par rapport à `startDate` dans `dateUtils`) à partir duquel l’habitude devient “active”.
+     * Si absent (données historiques), on le déduit de `createdAt`.
+     */
+    startDayIndex?: number;
 }
 
 export interface HabitStats {

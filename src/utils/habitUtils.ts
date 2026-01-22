@@ -1,6 +1,28 @@
 import { Habit, HabitStats, Streak } from '@/types';
 import { getDateForDay, formatDate, startDate } from './dateUtils';
 
+export const getHabitStartDayIndex = (habit: Habit): number => {
+    if (typeof habit.startDayIndex === 'number' && Number.isFinite(habit.startDayIndex)) {
+        return Math.max(0, Math.floor(habit.startDayIndex));
+    }
+    // Fallback: déduire depuis createdAt (données historiques)
+    try {
+        const created = new Date(habit.createdAt);
+        created.setHours(0, 0, 0, 0);
+        const base = new Date(startDate);
+        base.setHours(0, 0, 0, 0);
+        const diffTime = created.getTime() - base.getTime();
+        return Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+    } catch {
+        return 0;
+    }
+};
+
+export const isHabitActiveOnDay = (habit: Habit, dayIndex: number): boolean => {
+    const startIdx = getHabitStartDayIndex(habit);
+    return dayIndex >= startIdx && dayIndex >= 0 && dayIndex < habit.progress.length;
+};
+
 export interface Badge {
     name: string;
     level: number;
@@ -59,13 +81,15 @@ export const getCurrentDayIndex = (): number => {
 
 export const calculateHabitStats = (habit: Habit, skippedDays: number[] = []): HabitStats => {
     const skippedSet = new Set(skippedDays);
-    const completed = habit.progress.reduce((sum, v) => sum + (v ? 1 : 0), 0);
-    const effectiveTotal = Math.max(0, habit.totalDays - skippedSet.size);
+    const startIdx = getHabitStartDayIndex(habit);
+    const completed = habit.progress.reduce((sum, v, idx) => sum + (idx >= startIdx && v ? 1 : 0), 0);
+    const skippedInRange = skippedDays.filter((d) => d >= startIdx && d < habit.progress.length).length;
+    const effectiveTotal = Math.max(0, (habit.progress.length - startIdx) - skippedInRange);
     const percentage = effectiveTotal > 0 ? Math.round((completed / effectiveTotal) * 100) : 0;
 
     // Calculate current streak (from the beginning)
     let currentStreak = 0;
-    for (let i = 0; i < habit.progress.length; i++) {
+    for (let i = startIdx; i < habit.progress.length; i++) {
         if (skippedSet.has(i)) continue; // skip neutre
         if (habit.progress[i]) currentStreak++;
         else break;
@@ -74,7 +98,7 @@ export const calculateHabitStats = (habit: Habit, skippedDays: number[] = []): H
     // Calculate longest streak
     let longestStreak = 0;
     let tempStreak = 0;
-    for (let i = 0; i < habit.progress.length; i++) {
+    for (let i = startIdx; i < habit.progress.length; i++) {
         if (skippedSet.has(i)) {
             // neutre: ne casse pas le streak, ne l'augmente pas
             continue;
@@ -92,7 +116,7 @@ export const calculateHabitStats = (habit: Habit, skippedDays: number[] = []): H
     let currentStreakStart: number | null = null;
     tempStreak = 0;
 
-    for (let i = 0; i < habit.progress.length; i++) {
+    for (let i = startIdx; i < habit.progress.length; i++) {
         if (skippedSet.has(i)) {
             continue; // ne ferme pas une séquence
         }

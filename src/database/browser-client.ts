@@ -72,6 +72,11 @@ class BrowserDatabaseClient {
 
     public createHabit(name: string, type: 'start' | 'stop', totalDays: number, linkedIdentities: number[]): Habit {
         const habits = this.getHabits();
+        const start = new Date(2025, 9, 1); // startDate (Oct 1, 2025) - keep local to avoid circular deps
+        start.setHours(0, 0, 0, 0);
+        const created = new Date();
+        created.setHours(0, 0, 0, 0);
+        const startDayIndex = Math.max(0, Math.floor((created.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
         const newHabit: Habit = {
             id: Date.now(),
             name,
@@ -79,7 +84,8 @@ class BrowserDatabaseClient {
             totalDays,
             linkedIdentities,
             progress: new Array(totalDays).fill(false),
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            startDayIndex,
         };
 
         habits.push(newHabit);

@@ -200,6 +200,17 @@ class SupabaseDatabaseClient {
             linkedIdentities,
             progress: new Array(totalDays).fill(false),
             createdAt: habitData.created_at,
+            startDayIndex: (() => {
+                try {
+                    const base = new Date(2025, 9, 1);
+                    base.setHours(0, 0, 0, 0);
+                    const created = new Date(habitData.created_at);
+                    created.setHours(0, 0, 0, 0);
+                    return Math.max(0, Math.floor((created.getTime() - base.getTime()) / (1000 * 60 * 60 * 24)));
+                } catch {
+                    return 0;
+                }
+            })(),
         };
     }
 
@@ -245,6 +256,17 @@ class SupabaseDatabaseClient {
                 linkedIdentities: linkedIdentities?.map(item => item.identity_id) || [],
                 progress,
                 createdAt: habit.created_at,
+                startDayIndex: (() => {
+                    try {
+                        const base = new Date(2025, 9, 1);
+                        base.setHours(0, 0, 0, 0);
+                        const created = new Date(habit.created_at);
+                        created.setHours(0, 0, 0, 0);
+                        return Math.max(0, Math.floor((created.getTime() - base.getTime()) / (1000 * 60 * 60 * 24)));
+                    } catch {
+                        return 0;
+                    }
+                })(),
             });
         }
 

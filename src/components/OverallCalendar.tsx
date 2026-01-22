@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { Habit } from '@/types';
 import { getDaysInMonth, getFirstDayOfMonth, startDate } from '@/utils/dateUtils';
+import { isHabitActiveOnDay } from '@/utils/habitUtils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -29,8 +30,8 @@ const OverallCalendar: React.FC<OverallCalendarProps> = ({ habits }) => {
         const dayIndex = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
         // Filtrer les habitudes actives pour ce jour
-        const activeHabits = habits.filter(habit => 
-            dayIndex >= 0 && dayIndex < habit.progress.length
+        const activeHabits = habits.filter(habit =>
+            isHabitActiveOnDay(habit, dayIndex)
         );
 
         if (activeHabits.length === 0) return null;

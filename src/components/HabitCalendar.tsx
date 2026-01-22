@@ -4,6 +4,7 @@ import { endDate, formatDateFull, getDateForDay, isToday, isFuture, startDate, t
 import { useAppStore } from '@/store/useAppStore';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { getHabitStartDayIndex } from '@/utils/habitUtils';
 
 interface HabitCalendarProps {
     habit: Habit;
@@ -13,6 +14,7 @@ interface HabitCalendarProps {
 const HabitCalendar: React.FC<HabitCalendarProps> = ({ habit, onToggleDay }) => {
     const { skipsByHabit } = useAppStore();
     const skips = skipsByHabit[habit.id] || [];
+    const habitStartIdx = getHabitStartDayIndex(habit);
     const months = useMemo(() => {
         const res: Array<{ name: string; startDay: number; days: number; emptyCells: number }> = [];
 
@@ -94,7 +96,7 @@ const HabitCalendar: React.FC<HabitCalendarProps> = ({ habit, onToggleDay }) => 
                             const isTodayDate = isToday(date);
                             const isFutureDate = isFuture(date);
                             const isSkipped = skips.includes(dayIndex);
-                            const outOfRange = dayIndex < 0 || dayIndex >= habit.progress.length;
+                            const outOfRange = dayIndex < habitStartIdx || dayIndex < 0 || dayIndex >= habit.progress.length;
 
                             return (
                                 <button

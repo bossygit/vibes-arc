@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Target, TrendingUp, Calendar, BarChart3, Flame, Trophy, Award, Brain, Copy, CheckCircle2, Home, CalendarCheck } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { calculateIdentityScore, calculateHabitStats } from '@/utils/habitUtils';
+import { calculateIdentityScore, calculateHabitStats, getHabitStartDayIndex } from '@/utils/habitUtils';
 import IdentityCard from './IdentityCard';
 import HabitCard from './HabitCard';
 import DataManager from './DataManager';
@@ -25,11 +25,28 @@ const Dashboard: React.FC = () => {
 
     const quickHabits = useMemo(() => habits, [habits]);
 
-    // Calculer les statistiques globales
+    // Calculer les statistiques globales (sans rétro‑impacter le passé)
+    // Règle: une habitude n'est comptée qu'à partir de sa date de création.
     const totalHabits = habits.length;
-    const totalDays = habits.reduce<number>((sum, h) => sum + h.totalDays, 0);
-    const completedDays = habits.reduce<number>((sum, h) => sum + h.progress.filter(Boolean).length, 0);
-    const overallProgress = totalDays > 0 ? Math.round((completedDays / totalDays) * 100) : 0;
+    const todayIdxForStats = getCurrentDayIndex();
+    const { totalActiveDays, totalCompletedDays } = habits.reduce(
+        (acc, h) => {
+            const startIdx = getHabitStartDayIndex(h);
+            const endIdx = Math.min(todayIdxForStats, h.progress.length - 1);
+            if (endIdx < startIdx) return acc;
+            const activeDays = endIdx - startIdx + 1;
+            let completed = 0;
+            for (let i = startIdx; i <= endIdx; i++) {
+                if (h.progress[i]) completed += 1;
+            }
+            return {
+                totalActiveDays: acc.totalActiveDays + activeDays,
+                totalCompletedDays: acc.totalCompletedDays + completed,
+            };
+        },
+        { totalActiveDays: 0, totalCompletedDays: 0 }
+    );
+    const overallProgress = totalActiveDays > 0 ? Math.round((totalCompletedDays / totalActiveDays) * 100) : 0;
     const currentStreaks = habits.map(h => calculateHabitStats(h).currentStreak);
     const longestCurrentStreak = currentStreaks.length > 0 ? Math.max(...currentStreaks) : 0;
 
@@ -51,7 +68,7 @@ const Dashboard: React.FC = () => {
         const prevStart = Math.max(0, prevEnd - 6);
 
         const dayPct = (idx: number): number | null => {
-            const active = habits.filter(h => idx >= 0 && idx < h.progress.length);
+            const active = habits.filter(h => idx >= getHabitStartDayIndex(h) && idx >= 0 && idx < h.progress.length);
             if (active.length === 0) return null;
             const done = active.filter(h => h.progress[idx]).length;
             return Math.round((done / active.length) * 100);
@@ -359,7 +376,7 @@ const Dashboard: React.FC = () => {
                                 </div>
                                 <div>
                                     <p className="text-sm text-slate-600">Jours complétés</p>
-                                    <p className="text-2xl font-bold text-green-600">{completedDays}/{totalDays}</p>
+                                    <p className="text-2xl font-bold text-green-600">{totalCompletedDays}/{totalActiveDays}</p>
                                 </div>
                             </div>
                         </motion.div>
@@ -532,7 +549,7 @@ const Dashboard: React.FC = () => {
                                 const start = Math.max(0, todayIdx - 6);
                                 const daysCompleted: number = Array.from({ length: todayIdx - start + 1 }).reduce<number>((sum, _, offset) => {
                                     const idx = start + offset;
-                                    const active = habits.filter(h => idx >= 0 && idx < h.progress.length);
+                                    const active = habits.filter(h => idx >= getHabitStartDayIndex(h) && idx >= 0 && idx < h.progress.length);
                                     if (active.length === 0) return sum;
                                     const completed = active.some(h => h.progress[idx]);
                                     return sum + (completed ? 1 : 0);

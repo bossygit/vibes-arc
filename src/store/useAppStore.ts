@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs, NotificationChannel, PrimingSession, EnvironmentMap } from '@/types';
 import SupabaseDatabaseClient from '@/database/supabase-client';
-import { computePointsForAction, calculateHabitStats } from '@/utils/habitUtils';
+import { computePointsForAction, calculateHabitStats, isHabitActiveOnDay } from '@/utils/habitUtils';
 
 interface AppState {
     // State
@@ -281,7 +281,10 @@ export const useAppStore = create<AppState>((set) => {
                         let newGam = state.gamification;
                         if (justChecked) {
                             const stats = calculateHabitStats(habit, state.skipsByHabit[habitId] || []);
-                            const isFirstCheckOfDay = updatedHabits.every(h => h.progress[dayIndex] === false) ? true : false;
+                            // "Premier check du jour" = avant cette action, aucune habitude active ce jour n'était cochée
+                            const activeHabitsToday = updatedHabits.filter(h => isHabitActiveOnDay(h, dayIndex));
+                            const wasAnyCheckedBefore = activeHabitsToday.some(h => h.id !== habitId && !!h.progress[dayIndex]);
+                            const isFirstCheckOfDay = !wasAnyCheckedBefore;
                             const gain = computePointsForAction({
                                 isFirstCheckOfDay,
                                 currentStreak: stats.currentStreak,

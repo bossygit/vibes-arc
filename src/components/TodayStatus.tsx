@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Calendar, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { Habit } from '@/types';
-import { getCurrentDayIndex } from '@/utils/habitUtils';
+import { getCurrentDayIndex, isHabitActiveOnDay } from '@/utils/habitUtils';
 import { formatDateFull } from '@/utils/dateUtils';
 import { useAppStore } from '@/store/useAppStore';
 import { motion } from 'framer-motion';
@@ -24,7 +24,7 @@ const TodayStatus: React.FC<TodayStatusProps> = ({ habits }) => {
 
     // Filtrer les habitudes qui sont dans la plage valide (currentDayIndex existe dans leur progress)
     const activeHabitsToday = habits.filter(habit =>
-        currentDayIndex >= 0 && currentDayIndex < habit.progress.length
+        isHabitActiveOnDay(habit, currentDayIndex)
     );
 
     // Calculer les habitudes non cochées aujourd'hui
