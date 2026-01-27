@@ -65,11 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const prefs = userSubs[0]?.user_prefs;
       if (!prefs?.notif_enabled) continue;
       const tz = prefs.notif_timezone || 'Europe/Paris';
-      const hour = Number(prefs.notif_hour ?? 20);
-
-      const localHour = Number(new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', hour12: false }).format(now));
-      if (localHour !== hour) continue;
-
+      // Vercel Hobby: cron limité à 1x/jour → on envoie 1 rappel/jour (sans filtrer par heure).
       const dayIndex = getDayIndexForTZ(tz);
 
       // Fetch habits for user
