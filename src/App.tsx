@@ -15,6 +15,7 @@ import MoneyMindsetGame from '@/components/MoneyMindsetGame';
 import FocusWheelGame from '@/components/FocusWheelGame';
 import PrimingView from '@/components/PrimingView';
 import EnvironmentDesignView from '@/components/EnvironmentDesignView';
+import { getCurrentDayIndex, isHabitActiveOnDay, getHabitStartDayIndex } from '@/utils/habitUtils';
 
 function App() {
     const { view } = useAppStore();
@@ -100,46 +101,95 @@ function App() {
 
 export default App;
 
-// Composant simple pour nudges (localStorage + Notification API si dispo)
+// Notifications navigateur (si activées dans les réglages)
 const SmartNudges: React.FC = () => {
     useEffect(() => {
-        const schedule = async () => {
+        const BROWSER_ENABLED_KEY = 'vibes-arc-browser-notifs-enabled';
+        const LAST_SENT_KEY = 'vibes-arc-browser-notifs-last-sent';
+
+        const schedule = () => {
+            const enabled = localStorage.getItem(BROWSER_ENABLED_KEY) === 'true';
+            if (!enabled) return null;
+
             const now = new Date();
-            // Récupérer heure préférée et heure optimale (best-effort)
-            let preferredHour = 20;
-            try {
-                const supabase = SupabaseDatabaseClient.getInstance();
-                const prefs = await supabase.getUserPrefs();
-                preferredHour = prefs.notifHour ?? 20;
-                // Optionnel: calculer une heure optimale et prendre la moyenne arrondie
-                const optimal = await supabase.computeOptimalNotifHour();
-                preferredHour = Math.round((preferredHour + optimal) / 2);
-            } catch { }
+            const { userPrefs } = useAppStore.getState();
+            const preferredHour = userPrefs?.notifHour ?? 20;
 
             const target = new Date();
             target.setHours(preferredHour, 0, 0, 0);
             let delay = target.getTime() - now.getTime();
-            if (delay < 0) delay += 24 * 60 * 60 * 1000; // demain 20h
+            if (delay < 0) delay += 24 * 60 * 60 * 1000; // demain
 
-            const t = setTimeout(async () => {
+            const t = window.setTimeout(() => {
                 try {
-                    // Demande de permission
-                    if ('Notification' in window && Notification.permission !== 'granted') {
-                        await Notification.requestPermission();
-                    }
-                    // Envoi
-                    if ('Notification' in window && Notification.permission === 'granted') {
-                        new Notification('Petit rappel Vibes Arc', { body: 'Un pas aujourd\'hui renforce ton identité 💪' });
-                    }
+                    // Eviter les doublons le même jour (ex: re-render)
+                    const stamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+                    if (localStorage.getItem(LAST_SENT_KEY) === stamp) return;
+
+                    if (!('Notification' in window)) return;
+                    if (Notification.permission !== 'granted') return;
+
+                    const state = useAppStore.getState();
+                    const todayIdx = getCurrentDayIndex();
+                    const activeToday = (state.habits || []).filter((h) => isHabitActiveOnDay(h, todayIdx));
+                    const remaining = activeToday.filter((h) => !h.progress[todayIdx]);
+
+                    const completed = activeToday.length - remaining.length;
+                    const todayPct = activeToday.length > 0 ? Math.round((completed / activeToday.length) * 100) : 0;
+
+                    // Trend 7 jours (moyenne des % quotidiens)
+                    const dayPct = (idx: number): number | null => {
+                        const active = (state.habits || []).filter((h) => idx >= getHabitStartDayIndex(h) && idx >= 0 && idx < h.progress.length);
+                        if (active.length === 0) return null;
+                        const done = active.filter((h) => !!h.progress[idx]).length;
+                        return Math.round((done / active.length) * 100);
+                    };
+                    const avgPct = (start: number, end: number) => {
+                        let sum = 0;
+                        let count = 0;
+                        for (let i = start; i <= end; i++) {
+                            const p = dayPct(i);
+                            if (p !== null) {
+                                sum += p;
+                                count += 1;
+                            }
+                        }
+                        return count > 0 ? Math.round(sum / count) : 0;
+                    };
+                    const end = todayIdx;
+                    const start = Math.max(0, end - 6);
+                    const prevEnd = start - 1;
+                    const prevStart = Math.max(0, prevEnd - 6);
+                    const last7 = avgPct(start, end);
+                    const prev7 = avgPct(prevStart, prevEnd);
+                    const delta = last7 - prev7;
+
+                    const title = remaining.length > 0
+                        ? `Vibes Arc — ${remaining.length} habitude${remaining.length > 1 ? 's' : ''} restante${remaining.length > 1 ? 's' : ''}`
+                        : 'Vibes Arc — Journée complète';
+
+                    const names = remaining.slice(0, 3).map((h) => h.name);
+                    const more = remaining.length - names.length;
+                    const list = remaining.length > 0
+                        ? `Restantes: ${names.join(', ')}${more > 0 ? ` (+${more})` : ''}`
+                        : 'Tout est coché pour aujourd’hui.';
+
+                    const body = `${completed}/${activeToday.length} (${todayPct}%) • Trend 7j: ${last7}% (${delta >= 0 ? '+' : ''}${delta}%)\n${list}`;
+
+                    new Notification(title, { body });
+                    localStorage.setItem(LAST_SENT_KEY, stamp);
                 } finally {
-                    schedule(); // reprogrammer pour le lendemain
+                    schedule(); // reprogrammer
                 }
             }, delay);
+
             return t;
         };
 
         const timer = schedule();
-        return () => clearTimeout(timer as any);
+        return () => {
+            if (timer) window.clearTimeout(timer);
+        };
     }, []);
 
     return null;

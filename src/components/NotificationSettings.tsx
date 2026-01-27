@@ -39,6 +39,8 @@ const NotificationSettings: React.FC = () => {
     const [whatsappSaveStatus, setWhatsappSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [testStatus, setTestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
     const [testMessage, setTestMessage] = useState<string>('');
+    const [browserEnabled, setBrowserEnabled] = useState(() => localStorage.getItem('vibes-arc-browser-notifs-enabled') === 'true');
+    const [browserPerm, setBrowserPerm] = useState(() => ('Notification' in window ? Notification.permission : 'unsupported'));
 
     useEffect(() => {
         setChatIdInput(userPrefs.telegramChatId ?? '');
@@ -64,6 +66,17 @@ const NotificationSettings: React.FC = () => {
 
     const canSendTest = userPrefs.notifEnabled && channelReady;
     const channelLabel = userPrefs.notifChannel === 'whatsapp' ? 'WhatsApp' : 'Telegram';
+
+    const saveBrowserEnabled = (enabled: boolean) => {
+        setBrowserEnabled(enabled);
+        localStorage.setItem('vibes-arc-browser-notifs-enabled', enabled ? 'true' : 'false');
+    };
+
+    const requestBrowserPerm = async () => {
+        if (!('Notification' in window)) return;
+        const p = await Notification.requestPermission();
+        setBrowserPerm(p);
+    };
 
     const handleSaveTelegram = () => {
         if (!chatIdInput.trim()) {
@@ -120,6 +133,54 @@ const NotificationSettings: React.FC = () => {
                         <p className="text-sm text-slate-600">
                             Recevez un message quotidien avec un rappel personnalisé directement sur Telegram ou WhatsApp.
                         </p>
+                    </div>
+
+                    {/* Browser notifications */}
+                    <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
+                        <div className="font-semibold text-slate-800">Notifications navigateur</div>
+                        <p className="text-sm text-slate-600">
+                            Affiche un rappel à l’heure choisie avec tes <strong>habitudes restantes</strong> + un mini résumé (trend 7j).
+                            <span className="block text-xs text-slate-500 mt-1">
+                                Note: sans “Web Push”, ça fonctionne surtout quand l’app est ouverte (onglet actif ou en arrière-plan).
+                            </span>
+                        </p>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                                <input
+                                    type="checkbox"
+                                    checked={browserEnabled}
+                                    onChange={(e) => saveBrowserEnabled(e.target.checked)}
+                                    className="w-4 h-4"
+                                    disabled={!('Notification' in window)}
+                                />
+                                Activer notifications navigateur
+                            </label>
+                            <span className={`text-xs px-2 py-1 rounded-full ${browserPerm === 'granted' ? 'bg-emerald-200 text-emerald-800' : browserPerm === 'denied' ? 'bg-red-200 text-red-800' : 'bg-slate-200 text-slate-700'}`}>
+                                {browserPerm === 'granted' ? 'Autorisé' : browserPerm === 'denied' ? 'Bloqué' : browserPerm === 'unsupported' ? 'Non supporté' : 'Non autorisé'}
+                            </span>
+                            <button
+                                type="button"
+                                className="btn-secondary"
+                                onClick={requestBrowserPerm}
+                                disabled={!('Notification' in window)}
+                                title="Demander l’autorisation au navigateur"
+                            >
+                                Autoriser
+                            </button>
+                            <button
+                                type="button"
+                                className="btn-secondary"
+                                onClick={() => {
+                                    if (!('Notification' in window)) return;
+                                    if (Notification.permission !== 'granted') return;
+                                    new Notification('Vibes Arc — test', { body: 'Notifications navigateur actives.' });
+                                }}
+                                disabled={!('Notification' in window) || Notification.permission !== 'granted'}
+                                title="Envoyer un test"
+                            >
+                                Test
+                            </button>
+                        </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
