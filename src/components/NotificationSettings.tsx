@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Bell, Smartphone, MessageCircle, Phone, Send } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { triggerNotificationTest } from '@/services/notificationService';
+import { disableWebPush, enableWebPush, getPushStatus, sendWebPushTest } from '@/services/pushService';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => ({
     value: i,
@@ -41,6 +42,9 @@ const NotificationSettings: React.FC = () => {
     const [testMessage, setTestMessage] = useState<string>('');
     const [browserEnabled, setBrowserEnabled] = useState(() => localStorage.getItem('vibes-arc-browser-notifs-enabled') === 'true');
     const [browserPerm, setBrowserPerm] = useState(() => ('Notification' in window ? Notification.permission : 'unsupported'));
+    const [pushStatus, setPushStatus] = useState(() => getPushStatus());
+    const [pushMsg, setPushMsg] = useState<string>('');
+    const [pushBusy, setPushBusy] = useState<'idle' | 'enabling' | 'disabling' | 'testing'>('idle');
 
     useEffect(() => {
         setChatIdInput(userPrefs.telegramChatId ?? '');
@@ -77,6 +81,8 @@ const NotificationSettings: React.FC = () => {
         const p = await Notification.requestPermission();
         setBrowserPerm(p);
     };
+
+    const refreshPush = () => setPushStatus(getPushStatus());
 
     const handleSaveTelegram = () => {
         if (!chatIdInput.trim()) {
@@ -180,6 +186,81 @@ const NotificationSettings: React.FC = () => {
                             >
                                 Test
                             </button>
+                        </div>
+                    </div>
+
+                    {/* Web Push */}
+                    <div className="rounded-lg border border-indigo-200 bg-white p-4 space-y-3">
+                        <div className="font-semibold text-slate-800">Web Push (app fermée)</div>
+                        <p className="text-sm text-slate-600">
+                            Active des notifications “push” via service worker (selon support navigateur). Idéal pour recevoir les rappels même sans onglet ouvert.
+                        </p>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <span className={`text-xs px-2 py-1 rounded-full ${pushStatus.supported ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-200 text-slate-700'}`}>
+                                {pushStatus.supported ? 'Supporté' : 'Non supporté'}
+                            </span>
+                            <span className={`text-xs px-2 py-1 rounded-full ${pushStatus.permission === 'granted' ? 'bg-emerald-200 text-emerald-800' : pushStatus.permission === 'denied' ? 'bg-red-200 text-red-800' : 'bg-slate-200 text-slate-700'}`}>
+                                {pushStatus.permission === 'granted' ? 'Autorisé' : pushStatus.permission === 'denied' ? 'Bloqué' : pushStatus.permission === 'unsupported' ? 'Non supporté' : 'Non autorisé'}
+                            </span>
+                            <span className={`text-xs px-2 py-1 rounded-full ${pushStatus.enabled ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-700'}`}>
+                                {pushStatus.enabled ? 'Activé' : 'Désactivé'}
+                            </span>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                className="btn-primary disabled:opacity-50"
+                                disabled={!pushStatus.supported || pushBusy !== 'idle'}
+                                onClick={async () => {
+                                    setPushBusy('enabling');
+                                    setPushMsg('');
+                                    const r = await enableWebPush();
+                                    setPushMsg(r.ok ? '✅ Web Push activé' : `❌ ${r.reason || 'Impossible'}`);
+                                    setPushBusy('idle');
+                                    refreshPush();
+                                }}
+                            >
+                                Activer Web Push
+                            </button>
+                            <button
+                                type="button"
+                                className="btn-secondary disabled:opacity-50"
+                                disabled={!pushStatus.supported || pushBusy !== 'idle'}
+                                onClick={async () => {
+                                    setPushBusy('disabling');
+                                    setPushMsg('');
+                                    await disableWebPush();
+                                    setPushMsg('Web Push désactivé');
+                                    setPushBusy('idle');
+                                    refreshPush();
+                                }}
+                            >
+                                Désactiver
+                            </button>
+                            <button
+                                type="button"
+                                className="btn-secondary disabled:opacity-50"
+                                disabled={!pushStatus.supported || !pushStatus.enabled || pushBusy !== 'idle'}
+                                onClick={async () => {
+                                    setPushBusy('testing');
+                                    setPushMsg('');
+                                    const r = await sendWebPushTest();
+                                    setPushMsg(r.ok ? '✅ Push envoyé (si tout est OK, tu le reçois)' : `❌ ${r.reason || 'Erreur'}`);
+                                    setPushBusy('idle');
+                                }}
+                            >
+                                Test Push
+                            </button>
+                        </div>
+
+                        {pushMsg && (
+                            <div className="text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2">
+                                {pushMsg}
+                            </div>
+                        )}
+                        <div className="text-[11px] text-slate-500">
+                            Prérequis: ajouter les variables VAPID + table <code>push_subscriptions</code> dans Supabase. (Je te donne le SQL juste après.)
                         </div>
                     </div>
 

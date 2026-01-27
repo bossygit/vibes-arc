@@ -11,8 +11,18 @@
   ],
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/push/cron",
+      "schedule": "0 * * * *"
     }
   ],
   "headers": [

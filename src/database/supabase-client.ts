@@ -33,6 +33,21 @@ class SupabaseDatabaseClient {
         return SupabaseDatabaseClient.instance;
     }
 
+    // ===== SESSION HELPERS (client-side) =====
+    async getAccessToken(): Promise<string | null> {
+        try {
+            const { data } = await this.supabase.auth.getSession();
+            return data.session?.access_token ?? null;
+        } catch {
+            return null;
+        }
+    }
+
+    // Expose supabase auth helper for internal services (avoid direct property access)
+    async getSession() {
+        return await this.supabase.auth.getSession();
+    }
+
     // ===== AUTHENTIFICATION =====
 
     async signUp(email: string, password: string) {
