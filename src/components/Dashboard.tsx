@@ -8,6 +8,7 @@ import DataManager from './DataManager';
 import IdentitiesProgressChart from './IdentitiesProgressChart';
 import TodayStatus from './TodayStatus';
 import OverallCalendar from './OverallCalendar';
+import MonthlySummary2026 from './MonthlySummary2026';
 import { motion } from 'framer-motion';
 import { getCurrentDayIndex } from '@/utils/habitUtils';
 
@@ -241,6 +242,13 @@ const Dashboard: React.FC = () => {
             {habits.length > 0 && (
                 <section>
                     <OverallCalendar habits={habits} />
+                </section>
+            )}
+
+            {/* Résumé mensuel 2026 */}
+            {habits.length > 0 && (
+                <section>
+                    <MonthlySummary2026 habits={habits} />
                 </section>
             )}
 
