@@ -93,7 +93,7 @@ function App() {
             <main className="max-w-6xl mx-auto px-6 py-8">
                 {renderView()}
             </main>
-            {/* Notifications intelligentes: heure préférée + heure optimale */}
+            {/* Notifications navigateur : 3 rappels/jour (7h30, 12h00, 18h30) */}
             <SmartNudges />
         </div>
     );
@@ -101,94 +101,125 @@ function App() {
 
 export default App;
 
-// Notifications navigateur (si activées dans les réglages)
+// ─── Créneaux de notification navigateur ──────────────────────────────────────
+
+const NOTIFICATION_SLOTS = [
+    { id: 'morning', hour: 7, minute: 30, label: 'Matin' },
+    { id: 'noon', hour: 12, minute: 0, label: 'Midi' },
+    { id: 'evening', hour: 18, minute: 30, label: 'Soir' },
+] as const;
+
+const BROWSER_ENABLED_KEY = 'vibes-arc-browser-notifs-enabled';
+
+/** Construit et envoie une notification navigateur avec les habitudes restantes */
+function buildAndSendNotification(slotLabel: string) {
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+
+    const state = useAppStore.getState();
+    const todayIdx = getCurrentDayIndex();
+    const activeToday = (state.habits || []).filter((h) => isHabitActiveOnDay(h, todayIdx));
+    const remaining = activeToday.filter((h) => !h.progress[todayIdx]);
+
+    // Pas de notification si aucune habitude active
+    if (activeToday.length === 0) return;
+
+    const completed = activeToday.length - remaining.length;
+    const todayPct = activeToday.length > 0 ? Math.round((completed / activeToday.length) * 100) : 0;
+
+    // Trend 7 jours (moyenne des % quotidiens)
+    const dayPct = (idx: number): number | null => {
+        const active = (state.habits || []).filter(
+            (h) => idx >= getHabitStartDayIndex(h) && idx >= 0 && idx < h.progress.length
+        );
+        if (active.length === 0) return null;
+        const done = active.filter((h) => !!h.progress[idx]).length;
+        return Math.round((done / active.length) * 100);
+    };
+    const avgPct = (s: number, e: number) => {
+        let sum = 0;
+        let count = 0;
+        for (let i = s; i <= e; i++) {
+            const p = dayPct(i);
+            if (p !== null) { sum += p; count += 1; }
+        }
+        return count > 0 ? Math.round(sum / count) : 0;
+    };
+    const end = todayIdx;
+    const start = Math.max(0, end - 6);
+    const prevEnd = start - 1;
+    const prevStart = Math.max(0, prevEnd - 6);
+    const last7 = avgPct(start, end);
+    const prev7 = avgPct(prevStart, prevEnd);
+    const delta = last7 - prev7;
+
+    const title = remaining.length > 0
+        ? `Vibes Arc (${slotLabel}) — ${remaining.length} habitude${remaining.length > 1 ? 's' : ''} restante${remaining.length > 1 ? 's' : ''}`
+        : `Vibes Arc (${slotLabel}) — Journée complète !`;
+
+    const names = remaining.slice(0, 3).map((h) => h.name);
+    const more = remaining.length - names.length;
+    const list = remaining.length > 0
+        ? `Restantes: ${names.join(', ')}${more > 0 ? ` (+${more})` : ''}`
+        : 'Tout est coché pour aujourd\'hui.';
+
+    const body = `${completed}/${activeToday.length} (${todayPct}%) • Trend 7j: ${last7}% (${delta >= 0 ? '+' : ''}${delta}%)\n${list}`;
+
+    new Notification(title, { body });
+}
+
+/** Composant invisible qui programme 3 notifications navigateur par jour */
 const SmartNudges: React.FC = () => {
     useEffect(() => {
-        const BROWSER_ENABLED_KEY = 'vibes-arc-browser-notifs-enabled';
-        const LAST_SENT_KEY = 'vibes-arc-browser-notifs-last-sent';
+        const timers: number[] = [];
 
-        const schedule = () => {
-            const enabled = localStorage.getItem(BROWSER_ENABLED_KEY) === 'true';
-            if (!enabled) return null;
+        const scheduleSlot = (slot: typeof NOTIFICATION_SLOTS[number]) => {
+            const dedupKey = `vibes-arc-notif-sent-${slot.id}`;
 
-            const now = new Date();
-            const { userPrefs } = useAppStore.getState();
-            const preferredHour = userPrefs?.notifHour ?? 20;
-
-            const target = new Date();
-            target.setHours(preferredHour, 0, 0, 0);
-            let delay = target.getTime() - now.getTime();
-            if (delay < 0) delay += 24 * 60 * 60 * 1000; // demain
-
-            const t = window.setTimeout(() => {
-                try {
-                    // Eviter les doublons le même jour (ex: re-render)
-                    const stamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-                    if (localStorage.getItem(LAST_SENT_KEY) === stamp) return;
-
-                    if (!('Notification' in window)) return;
-                    if (Notification.permission !== 'granted') return;
-
-                    const state = useAppStore.getState();
-                    const todayIdx = getCurrentDayIndex();
-                    const activeToday = (state.habits || []).filter((h) => isHabitActiveOnDay(h, todayIdx));
-                    const remaining = activeToday.filter((h) => !h.progress[todayIdx]);
-
-                    const completed = activeToday.length - remaining.length;
-                    const todayPct = activeToday.length > 0 ? Math.round((completed / activeToday.length) * 100) : 0;
-
-                    // Trend 7 jours (moyenne des % quotidiens)
-                    const dayPct = (idx: number): number | null => {
-                        const active = (state.habits || []).filter((h) => idx >= getHabitStartDayIndex(h) && idx >= 0 && idx < h.progress.length);
-                        if (active.length === 0) return null;
-                        const done = active.filter((h) => !!h.progress[idx]).length;
-                        return Math.round((done / active.length) * 100);
-                    };
-                    const avgPct = (start: number, end: number) => {
-                        let sum = 0;
-                        let count = 0;
-                        for (let i = start; i <= end; i++) {
-                            const p = dayPct(i);
-                            if (p !== null) {
-                                sum += p;
-                                count += 1;
-                            }
-                        }
-                        return count > 0 ? Math.round(sum / count) : 0;
-                    };
-                    const end = todayIdx;
-                    const start = Math.max(0, end - 6);
-                    const prevEnd = start - 1;
-                    const prevStart = Math.max(0, prevEnd - 6);
-                    const last7 = avgPct(start, end);
-                    const prev7 = avgPct(prevStart, prevEnd);
-                    const delta = last7 - prev7;
-
-                    const title = remaining.length > 0
-                        ? `Vibes Arc — ${remaining.length} habitude${remaining.length > 1 ? 's' : ''} restante${remaining.length > 1 ? 's' : ''}`
-                        : 'Vibes Arc — Journée complète';
-
-                    const names = remaining.slice(0, 3).map((h) => h.name);
-                    const more = remaining.length - names.length;
-                    const list = remaining.length > 0
-                        ? `Restantes: ${names.join(', ')}${more > 0 ? ` (+${more})` : ''}`
-                        : 'Tout est coché pour aujourd’hui.';
-
-                    const body = `${completed}/${activeToday.length} (${todayPct}%) • Trend 7j: ${last7}% (${delta >= 0 ? '+' : ''}${delta}%)\n${list}`;
-
-                    new Notification(title, { body });
-                    localStorage.setItem(LAST_SENT_KEY, stamp);
-                } finally {
-                    schedule(); // reprogrammer
+            const run = () => {
+                const enabled = localStorage.getItem(BROWSER_ENABLED_KEY) === 'true';
+                if (!enabled) {
+                    // Réessayer dans 60 s au cas où l'utilisateur active entre-temps
+                    const t = window.setTimeout(run, 60_000);
+                    timers.push(t);
+                    return;
                 }
-            }, delay);
 
-            return t;
+                const now = new Date();
+                const target = new Date();
+                target.setHours(slot.hour, slot.minute, 0, 0);
+
+                let delay = target.getTime() - now.getTime();
+                if (delay < 0) {
+                    // L'heure est déjà passée aujourd'hui → programmer pour demain
+                    delay += 24 * 60 * 60 * 1000;
+                }
+
+                const t = window.setTimeout(() => {
+                    try {
+                        const stamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+                        // Dedup : un seul envoi par créneau par jour
+                        if (localStorage.getItem(dedupKey) === stamp) return;
+
+                        buildAndSendNotification(slot.label);
+                        localStorage.setItem(dedupKey, stamp);
+                    } finally {
+                        // Reprogrammer pour le prochain passage
+                        run();
+                    }
+                }, delay);
+
+                timers.push(t);
+            };
+
+            run();
         };
 
-        const timer = schedule();
+        // Programmer les 3 créneaux indépendamment
+        NOTIFICATION_SLOTS.forEach(scheduleSlot);
+
         return () => {
-            if (timer) window.clearTimeout(timer);
+            timers.forEach((t) => window.clearTimeout(t));
         };
     }, []);
 
