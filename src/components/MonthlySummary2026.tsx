@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
-import { CalendarDays, TrendingUp, Trophy, Star, ChevronRight } from 'lucide-react';
+import { CalendarDays, TrendingUp, Trophy, Star } from 'lucide-react';
 import { Habit } from '@/types';
 import { startDate } from '@/utils/dateUtils';
-import { isHabitActiveOnDay, getHabitStartDayIndex } from '@/utils/habitUtils';
+import { isHabitActiveOnDay } from '@/utils/habitUtils';
 import { motion } from 'framer-motion';
 
 interface MonthlySummary2026Props {
