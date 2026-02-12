@@ -31,6 +31,12 @@ function getDayIndexForTZ(timeZone: string) {
   return Math.max(0, diff);
 }
 
+/** Retourne l'heure locale courante (0-23) dans le fuseau horaire donne */
+function getLocalHour(timeZone: string): number {
+  const fmt = new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', hour12: false });
+  return Number(fmt.format(new Date()));
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Secure with a secret token (recommended)
   const secret = process.env.CRON_SECRET;
@@ -65,7 +71,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const prefs = userSubs[0]?.user_prefs;
       if (!prefs?.notif_enabled) continue;
       const tz = prefs.notif_timezone || 'Europe/Paris';
-      // Vercel Hobby: cron limité à 1x/jour → on envoie 1 rappel/jour (sans filtrer par heure).
+
+      // Ne pas envoyer en dehors de la plage 6h-22h (heure locale de l'utilisateur)
+      const localHour = getLocalHour(tz);
+      if (localHour < 6 || localHour > 22) continue;
+
       const dayIndex = getDayIndexForTZ(tz);
 
       // Fetch habits for user
