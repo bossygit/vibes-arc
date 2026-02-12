@@ -152,7 +152,7 @@ const NotificationSettings: React.FC = () => {
         // Envoyer la notification de test
         try {
             new Notification('Vibes Arc — test', {
-                body: 'Les notifications fonctionnent ! Rappels a 7h30, 12h00 et 18h30.',
+                body: 'Les notifications fonctionnent ! Rappels toutes les heures de 6h00 a 22h00.',
                 icon: '/favicon.ico',
             });
             setBrowserTestMsg('Notification envoyee ! Si tu ne la vois pas, verifie les reglages de ton systeme (Ne pas deranger, etc.).');
@@ -183,7 +183,7 @@ const NotificationSettings: React.FC = () => {
                     <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
                         <div className="font-semibold text-slate-800">Notifications navigateur</div>
                         <p className="text-sm text-slate-600">
-                            3 rappels par jour (<strong>7h30</strong>, <strong>12h00</strong>, <strong>18h30</strong>) avec tes <strong>habitudes restantes</strong> + trend 7 jours.
+                            Rappels <strong>toutes les heures de 6h00 a 22h00</strong> avec tes <strong>habitudes restantes</strong> + trend 7 jours. Un message de felicitations est envoye quand tout est complete.
                             <span className="block text-xs text-slate-500 mt-1">
                                 Fonctionne quand l'app est ouverte (onglet actif ou en arriere-plan). Pour recevoir les rappels meme app fermee, active aussi le Web Push ci-dessous.
                             </span>

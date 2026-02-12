@@ -1,5 +1,15 @@
 /* Web Push Service Worker for Vibes Arc */
 
+// ─── Activation immediate du SW ─────────────────────────────────────────────
+self.addEventListener('install', () => {
+  self.skipWaiting(); // Active immediatement le nouveau SW sans attendre
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(clients.claim()); // Prend le controle de tous les onglets ouverts
+});
+
+// ─── Web Push ────────────────────────────────────────────────────────────────
 self.addEventListener('push', (event) => {
   let data = {};
   try {

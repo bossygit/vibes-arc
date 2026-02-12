@@ -104,13 +104,12 @@ function App() {
 
 export default App;
 
-// ─── Creneaux de notification navigateur ──────────────────────────────────────
+// ─── Creneaux de notification navigateur (toutes les heures de 6h a 22h) ─────
 
-const NOTIFICATION_SLOTS = [
-    { id: 'morning', hour: 7, minute: 30, label: 'Matin' },
-    { id: 'noon', hour: 12, minute: 0, label: 'Midi' },
-    { id: 'evening', hour: 18, minute: 30, label: 'Soir' },
-] as const;
+const NOTIFICATION_SLOTS = Array.from({ length: 17 }, (_, i) => {
+    const hour = 6 + i; // 6, 7, 8 … 22
+    return { id: `h${hour}`, hour, minute: 0, label: `${hour}h00` };
+});
 
 const BROWSER_ENABLED_KEY = 'vibes-arc-browser-notifs-enabled';
 
@@ -118,7 +117,9 @@ const BROWSER_ENABLED_KEY = 'vibes-arc-browser-notifs-enabled';
  * Envoie une notification via le Service Worker (mobile-friendly)
  * avec fallback sur new Notification() pour le desktop.
  */
-async function sendNotification(title: string, body: string) {
+async function sendNotification(title: string, body: string, slotId?: string) {
+    const tag = slotId ? `vibes-arc-reminder-${slotId}` : 'vibes-arc-reminder';
+
     // Tenter via le Service Worker (fonctionne sur mobile + arriere-plan)
     if ('serviceWorker' in navigator) {
         try {
@@ -128,7 +129,7 @@ async function sendNotification(title: string, body: string) {
                     body,
                     icon: '/vite.svg',
                     badge: '/vite.svg',
-                    tag: 'vibes-arc-reminder',
+                    tag,
                 } as NotificationOptions);
                 return;
             }
@@ -139,12 +140,12 @@ async function sendNotification(title: string, body: string) {
 
     // Fallback desktop : new Notification()
     if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(title, { body });
+        new Notification(title, { body, tag });
     }
 }
 
 /** Construit le contenu de la notification et l'envoie */
-async function buildAndSendNotification(slotLabel: string) {
+async function buildAndSendNotification(slotLabel: string, slotId?: string) {
     // Verifier que la permission est accordee
     if ('Notification' in window && Notification.permission !== 'granted') return;
 
@@ -197,7 +198,7 @@ async function buildAndSendNotification(slotLabel: string) {
 
     const body = `${completed}/${activeToday.length} (${todayPct}%) | Trend 7j: ${last7}% (${delta >= 0 ? '+' : ''}${delta}%)\n${list}`;
 
-    await sendNotification(title, body);
+    await sendNotification(title, body, slotId);
 }
 
 /**
@@ -207,9 +208,12 @@ async function buildAndSendNotification(slotLabel: string) {
  */
 const SmartNudges: React.FC = () => {
     useEffect(() => {
-        // Enregistrer le service worker au demarrage
+        // Enregistrer le service worker au demarrage et forcer la mise a jour
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').catch((e) =>
+            navigator.serviceWorker.register('/sw.js').then((reg) => {
+                // Forcer la verification d'une nouvelle version du SW
+                reg.update().catch(() => {});
+            }).catch((e) =>
                 console.warn('SW registration failed:', e)
             );
         }
@@ -232,7 +236,7 @@ const SmartNudges: React.FC = () => {
                     // Dedup : un seul envoi par creneau par jour
                     if (localStorage.getItem(dedupKey) === stamp) continue;
 
-                    buildAndSendNotification(slot.label);
+                    buildAndSendNotification(slot.label, slot.id);
                     localStorage.setItem(dedupKey, stamp);
                 }
             }
