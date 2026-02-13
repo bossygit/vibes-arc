@@ -206,6 +206,16 @@ const NotificationSettings: React.FC = () => {
                                         }
                                         saveBrowserEnabled(wantEnabled);
                                         setBrowserTestMsg('');
+
+                                        // Auto-activer Web Push en meme temps (si supporte et pas deja actif)
+                                        if (wantEnabled && getPushStatus().supported && !getPushStatus().enabled) {
+                                            enableWebPush().then((r) => {
+                                                refreshPush();
+                                                if (r.ok) {
+                                                    setPushMsg('Web Push active automatiquement');
+                                                }
+                                            }).catch(() => {});
+                                        }
                                     }}
                                     className="w-4 h-4"
                                     disabled={!('Notification' in window)}

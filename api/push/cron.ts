@@ -38,9 +38,9 @@ function getLocalHour(timeZone: string): number {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Secure with a secret token (recommended)
+  // Securiser le endpoint avec CRON_SECRET (obligatoire en production)
   const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.authorization !== `Bearer ${secret}`) {
+  if (!secret || req.headers.authorization !== `Bearer ${secret}`) {
     return res.status(401).send('Unauthorized');
   }
   try {
