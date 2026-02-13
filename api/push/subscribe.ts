@@ -7,7 +7,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { supabase, user } = await requireUserFromBearer(req.headers.authorization);
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     const subscription = body?.subscription;
-    if (!subscription?.endpoint) return res.status(400).send('Missing subscription');
+    if (!subscription?.endpoint) return res.status(400).send('Missing subscription endpoint in request body');
 
     const keys = subscription.keys || {};
     const payload = {
@@ -24,10 +24,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .from('push_subscriptions')
       .upsert(payload, { onConflict: 'user_id,endpoint' });
 
-    if (error) return res.status(500).send(error.message);
+    if (error) return res.status(500).send(`Supabase: ${error.message}`);
     return res.status(200).json({ ok: true });
   } catch (e: any) {
-    return res.status(401).send(e?.message || 'Unauthorized');
+    return res.status(401).send(`Auth: ${e?.message || 'Unauthorized'}`);
   }
 }
 

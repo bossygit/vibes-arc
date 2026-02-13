@@ -47,10 +47,15 @@ export async function enableWebPush(): Promise<{ ok: boolean; reason?: string }>
   const reg = await registerServiceWorker();
   if (!reg) return { ok: false, reason: 'Service worker non disponible.' };
 
-  const subscription = await reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-  });
+  let subscription: PushSubscription;
+  try {
+    subscription = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+    });
+  } catch (e: any) {
+    return { ok: false, reason: `Echec subscription Push: ${e?.message || e}` };
+  }
 
   const client = SupabaseDatabaseClient.getInstance();
   const user = await client.getCurrentUser();
@@ -59,18 +64,23 @@ export async function enableWebPush(): Promise<{ ok: boolean; reason?: string }>
   const accessToken = await client.getAccessToken();
   if (!accessToken) return { ok: false, reason: 'Token de session indisponible.' };
 
-  const res = await fetch('/api/push/subscribe', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({ subscription }),
-  });
+  let res: Response;
+  try {
+    res = await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ subscription }),
+    });
+  } catch (e: any) {
+    return { ok: false, reason: `Erreur reseau: ${e?.message || e}` };
+  }
 
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
-    return { ok: false, reason: txt || 'Impossible de sauvegarder la subscription.' };
+    return { ok: false, reason: `Erreur ${res.status}: ${txt || 'Impossible de sauvegarder la subscription.'}` };
   }
 
   localStorage.setItem('vibes-arc-webpush-enabled', 'true');
