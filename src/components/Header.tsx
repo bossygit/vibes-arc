@@ -17,6 +17,7 @@ const Header: React.FC = () => {
         { key: 'magicGratitude', label: 'Gratitude' },
         { key: 'moneyMindset', label: 'Abondance' },
         { key: 'focusWheel', label: 'Focus Wheel' },
+        { key: 'manifestation', label: 'Manifestation' },
     ] as const;
 
     const [open, setOpen] = useState(false);

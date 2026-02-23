@@ -15,6 +15,7 @@ import MoneyMindsetGame from '@/components/MoneyMindsetGame';
 import FocusWheelGame from '@/components/FocusWheelGame';
 import PrimingView from '@/components/PrimingView';
 import EnvironmentDesignView from '@/components/EnvironmentDesignView';
+import ManifestationView from '@/components/ManifestationView';
 import { getCurrentDayIndex, isHabitActiveOnDay, getHabitStartDayIndex } from '@/utils/habitUtils';
 import { Download, X, Share } from 'lucide-react';
 
@@ -68,6 +69,8 @@ function App() {
                 return <PrimingView />;
             case 'environment':
                 return <EnvironmentDesignView />;
+            case 'manifestation':
+                return <ManifestationView />;
             default:
                 return <Dashboard />;
         }
