@@ -8,6 +8,7 @@ const Header: React.FC = () => {
 
     const navItems = [
         { key: 'dashboard', label: 'Tableau de bord' },
+        { key: 'coachChat', label: '🤖 Coach IA' },
         { key: 'priming', label: 'Priming' },
         { key: 'environment', label: 'Environnement' },
         { key: 'identities', label: 'Identites' },

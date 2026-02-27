@@ -16,6 +16,7 @@ import FocusWheelGame from '@/components/FocusWheelGame';
 import PrimingView from '@/components/PrimingView';
 import EnvironmentDesignView from '@/components/EnvironmentDesignView';
 import ManifestationView from '@/components/ManifestationView';
+import CoachChat from '@/components/CoachChat';
 import { getCurrentDayIndex, isHabitActiveOnDay, getHabitStartDayIndex } from '@/utils/habitUtils';
 import { Download, X, Share } from 'lucide-react';
 
@@ -71,6 +72,8 @@ function App() {
                 return <EnvironmentDesignView />;
             case 'manifestation':
                 return <ManifestationView />;
+            case 'coachChat':
+                return <CoachChat />;
             default:
                 return <Dashboard />;
         }
@@ -215,7 +218,7 @@ const SmartNudges: React.FC = () => {
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js').then((reg) => {
                 // Forcer la verification d'une nouvelle version du SW
-                reg.update().catch(() => {});
+                reg.update().catch(() => { });
             }).catch((e) =>
                 console.warn('SW registration failed:', e)
             );
