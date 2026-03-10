@@ -18,10 +18,12 @@ import EnvironmentDesignView from '@/components/EnvironmentDesignView';
 import ManifestationView from '@/components/ManifestationView';
 import CoachChat from '@/components/CoachChat';
 import { getCurrentDayIndex, isHabitActiveOnDay, getHabitStartDayIndex } from '@/utils/habitUtils';
+import { useGameHabitSync } from '@/hooks/useGameHabitSync';
 import { Download, X, Share } from 'lucide-react';
 
 function App() {
     const { view } = useAppStore();
+    useGameHabitSync(view);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
