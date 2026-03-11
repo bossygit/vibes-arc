@@ -68,7 +68,7 @@ export function computeFutureSelf(input: FutureSelfInput): FutureSelfResult {
 
   if (currentStreak >= 14) {
     const identityMessages = [
-      { title: 'Ton futur toi', message: 'Tu deviens quelqu'un qui ne lâche pas.', emoji: '✨' },
+      { title: 'Ton futur toi', message: "Tu deviens quelqu'un qui ne lâche pas.", emoji: '✨' },
       { title: 'Identité en marche', message: 'Cette régularité forge des gens solides.', emoji: '🏆' },
     ];
     const idx = (currentStreak + completionRate) % identityMessages.length;
@@ -103,7 +103,7 @@ export function computeFutureSelf(input: FutureSelfInput): FutureSelfResult {
   const transformMessages = [
     { title: 'Chaque jour compte', message: 'Chaque jour tu deviens plus discipliné.', emoji: '💪' },
     { title: 'Ton futur', message: 'Ton futur se construit une habitude à la fois.', emoji: '✨' },
-    { title: 'Aujourd'hui', message: 'Petites actions aujourd'hui, futur plus fort.', emoji: '🌱' },
+    { title: "Aujourd'hui", message: "Petites actions aujourd'hui, futur plus fort.", emoji: '🌱' },
   ];
   const idx = currentStreak % transformMessages.length;
   return {
