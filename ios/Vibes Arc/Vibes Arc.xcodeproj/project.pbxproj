@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		6FC37C142F61A4EB00BF75C5 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FC37C132F61A4EB00BF75C5 /* WidgetKit.framework */; };
+		6FC37C162F61A4EB00BF75C5 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FC37C152F61A4EB00BF75C5 /* SwiftUI.framework */; };
+		6FC37C272F61A4ED00BF75C5 /* VibesArcWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6FC37C112F61A4EB00BF75C5 /* VibesArcWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		6F246CA82F61A32B005BC107 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,13 +27,48 @@
 			remoteGlobalIDString = 6F246C992F61A328005BC107;
 			remoteInfo = "Vibes Arc";
 		};
+		6FC37C252F61A4ED00BF75C5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6F246C922F61A328005BC107 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6FC37C102F61A4EB00BF75C5;
+			remoteInfo = VibesArcWidgetsExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		6FC37C282F61A4ED00BF75C5 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				6FC37C272F61A4ED00BF75C5 /* VibesArcWidgetsExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		6F246C9A2F61A328005BC107 /* Vibes Arc.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Vibes Arc.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		6F246CA72F61A32B005BC107 /* Vibes ArcTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Vibes ArcTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		6F246CB12F61A32C005BC107 /* Vibes ArcUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Vibes ArcUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		6FC37C112F61A4EB00BF75C5 /* VibesArcWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = VibesArcWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		6FC37C132F61A4EB00BF75C5 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		6FC37C152F61A4EB00BF75C5 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		6FC37C2E2F61A6A200BF75C5 /* VibesArcWidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = VibesArcWidgetsExtension.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		6FC37C2B2F61A4ED00BF75C5 /* Exceptions for "VibesArcWidgets" folder in "VibesArcWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 6FC37C102F61A4EB00BF75C5 /* VibesArcWidgetsExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		6F246C9C2F61A328005BC107 /* Vibes Arc */ = {
@@ -43,6 +84,14 @@
 		6F246CB42F61A32C005BC107 /* Vibes ArcUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Vibes ArcUITests";
+			sourceTree = "<group>";
+		};
+		6FC37C172F61A4EB00BF75C5 /* VibesArcWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				6FC37C2B2F61A4ED00BF75C5 /* Exceptions for "VibesArcWidgets" folder in "VibesArcWidgetsExtension" target */,
+			);
+			path = VibesArcWidgets;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -69,15 +118,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6FC37C0E2F61A4EB00BF75C5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6FC37C162F61A4EB00BF75C5 /* SwiftUI.framework in Frameworks */,
+				6FC37C142F61A4EB00BF75C5 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		6F246C912F61A328005BC107 = {
 			isa = PBXGroup;
 			children = (
+				6FC37C2E2F61A6A200BF75C5 /* VibesArcWidgetsExtension.entitlements */,
 				6F246C9C2F61A328005BC107 /* Vibes Arc */,
 				6F246CAA2F61A32B005BC107 /* Vibes ArcTests */,
 				6F246CB42F61A32C005BC107 /* Vibes ArcUITests */,
+				6FC37C172F61A4EB00BF75C5 /* VibesArcWidgets */,
+				6FC37C122F61A4EB00BF75C5 /* Frameworks */,
 				6F246C9B2F61A328005BC107 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -88,8 +149,18 @@
 				6F246C9A2F61A328005BC107 /* Vibes Arc.app */,
 				6F246CA72F61A32B005BC107 /* Vibes ArcTests.xctest */,
 				6F246CB12F61A32C005BC107 /* Vibes ArcUITests.xctest */,
+				6FC37C112F61A4EB00BF75C5 /* VibesArcWidgetsExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		6FC37C122F61A4EB00BF75C5 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				6FC37C132F61A4EB00BF75C5 /* WidgetKit.framework */,
+				6FC37C152F61A4EB00BF75C5 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -102,10 +173,12 @@
 				6F246C962F61A328005BC107 /* Sources */,
 				6F246C972F61A328005BC107 /* Frameworks */,
 				6F246C982F61A328005BC107 /* Resources */,
+				6FC37C282F61A4ED00BF75C5 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				6FC37C262F61A4ED00BF75C5 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				6F246C9C2F61A328005BC107 /* Vibes Arc */,
@@ -163,6 +236,28 @@
 			productReference = 6F246CB12F61A32C005BC107 /* Vibes ArcUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		6FC37C102F61A4EB00BF75C5 /* VibesArcWidgetsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6FC37C2C2F61A4ED00BF75C5 /* Build configuration list for PBXNativeTarget "VibesArcWidgetsExtension" */;
+			buildPhases = (
+				6FC37C0D2F61A4EB00BF75C5 /* Sources */,
+				6FC37C0E2F61A4EB00BF75C5 /* Frameworks */,
+				6FC37C0F2F61A4EB00BF75C5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				6FC37C172F61A4EB00BF75C5 /* VibesArcWidgets */,
+			);
+			name = VibesArcWidgetsExtension;
+			packageProductDependencies = (
+			);
+			productName = VibesArcWidgetsExtension;
+			productReference = 6FC37C112F61A4EB00BF75C5 /* VibesArcWidgetsExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -184,6 +279,9 @@
 						CreatedOnToolsVersion = 26.3;
 						TestTargetID = 6F246C992F61A328005BC107;
 					};
+					6FC37C102F61A4EB00BF75C5 = {
+						CreatedOnToolsVersion = 26.3;
+					};
 				};
 			};
 			buildConfigurationList = 6F246C952F61A328005BC107 /* Build configuration list for PBXProject "Vibes Arc" */;
@@ -203,6 +301,7 @@
 				6F246C992F61A328005BC107 /* Vibes Arc */,
 				6F246CA62F61A32B005BC107 /* Vibes ArcTests */,
 				6F246CB02F61A32C005BC107 /* Vibes ArcUITests */,
+				6FC37C102F61A4EB00BF75C5 /* VibesArcWidgetsExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -223,6 +322,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		6F246CAF2F61A32C005BC107 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6FC37C0F2F61A4EB00BF75C5 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -253,6 +359,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6FC37C0D2F61A4EB00BF75C5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -265,6 +378,11 @@
 			isa = PBXTargetDependency;
 			target = 6F246C992F61A328005BC107 /* Vibes Arc */;
 			targetProxy = 6F246CB22F61A32C005BC107 /* PBXContainerItemProxy */;
+		};
+		6FC37C262F61A4ED00BF75C5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6FC37C102F61A4EB00BF75C5 /* VibesArcWidgetsExtension */;
+			targetProxy = 6FC37C252F61A4ED00BF75C5 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -395,6 +513,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Vibes Arc/Vibes Arc.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = GNEZG29SH7;
@@ -427,6 +546,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Vibes Arc/Vibes Arc.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = GNEZG29SH7;
@@ -538,6 +658,68 @@
 			};
 			name = Release;
 		};
+		6FC37C292F61A4ED00BF75C5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = VibesArcWidgetsExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = GNEZG29SH7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = VibesArcWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = VibesArcWidgets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.vibesarc.Vibes-Arc.VibesArcWidgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		6FC37C2A2F61A4ED00BF75C5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = VibesArcWidgetsExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = GNEZG29SH7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = VibesArcWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = VibesArcWidgets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.vibesarc.Vibes-Arc.VibesArcWidgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -573,6 +755,15 @@
 			buildConfigurations = (
 				6F246CC22F61A32C005BC107 /* Debug */,
 				6F246CC32F61A32C005BC107 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6FC37C2C2F61A4ED00BF75C5 /* Build configuration list for PBXNativeTarget "VibesArcWidgetsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6FC37C292F61A4ED00BF75C5 /* Debug */,
+				6FC37C2A2F61A4ED00BF75C5 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

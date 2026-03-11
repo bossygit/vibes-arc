@@ -5,6 +5,7 @@ import { getCurrentDayIndex } from '@/utils/habitUtils';
 import { generatePsychologicalInsight, getDefaultPsychology } from './psychologyEngine';
 import { generateFutureSelf, getDefaultFutureSelf } from './futureSelfEngine';
 import { generateDopamineReward, getDefaultReward } from './dopamineRewardEngine';
+import { generateLockScreenTrigger, getDefaultTrigger } from './lockScreenTriggerEngine';
 
 interface WidgetSummaryResponse {
   today: string;
@@ -55,6 +56,12 @@ interface WidgetSummaryResponse {
     message: string;
     emoji: string;
   };
+  trigger?: {
+    title: string;
+    message: string;
+    emoji: string;
+    strength: 'light' | 'medium' | 'strong';
+  };
 }
 
 function dateToDayIndex(d: Date): number {
@@ -90,6 +97,7 @@ function buildEmptySummary(today: Date): WidgetSummaryResponse {
   const psychology = getDefaultPsychology();
   const futureSelf = getDefaultFutureSelf();
   const reward = getDefaultReward();
+  const trigger = getDefaultTrigger();
   const todayIdx = dateToDayIndex(today);
   const emptyCalendar: { date: string; completed: boolean }[] = [];
   for (let i = 0; i < CHAIN_WINDOW_DAYS; i++) {
@@ -112,6 +120,7 @@ function buildEmptySummary(today: Date): WidgetSummaryResponse {
     chain: { length: 0, status: 'broken', pressure: false, calendar: emptyCalendar },
     futureSelf,
     reward,
+    trigger,
   };
 }
 
@@ -397,6 +406,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     dayOfWeek: today.getDay(),
   });
   summary.reward = reward;
+
+  const trigger = generateLockScreenTrigger({
+    todayRemaining: summary.todayRemaining.count,
+    chainLength: chain.length,
+    chainPressure: chain.pressure,
+    currentStreak: summary.streaks.current,
+  });
+  summary.trigger = trigger;
 
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=60');
   return res.status(200).json(summary);

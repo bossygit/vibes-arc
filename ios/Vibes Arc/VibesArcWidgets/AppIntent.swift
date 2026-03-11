@@ -5,14 +5,11 @@
 //  Created by smartvision on 11/03/2026.
 //
 
-import WidgetKit
 import AppIntents
+import WidgetKit
 
+/// Minimal configuration intent (content is driven by API summary).
 struct ConfigurationAppIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource { "Configuration" }
-    static var description: IntentDescription { "This is an example widget." }
-
-    // An example configurable parameter.
-    @Parameter(title: "Favorite Emoji", default: "😃")
-    var favoriteEmoji: String
+    static var title: LocalizedStringResource { "Vibes Arc" }
+    static var description: IntentDescription { "Affiche ton rappel d'habitudes." }
 }
