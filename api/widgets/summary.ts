@@ -4,6 +4,7 @@ import { getDateForDay, startDate } from '@/utils/dateUtils';
 import { getCurrentDayIndex } from '@/utils/habitUtils';
 import { generatePsychologicalInsight, getDefaultPsychology } from './psychologyEngine';
 import { generateFutureSelf, getDefaultFutureSelf } from './futureSelfEngine';
+import { generateDopamineReward, getDefaultReward } from './dopamineRewardEngine';
 
 interface WidgetSummaryResponse {
   today: string;
@@ -47,6 +48,13 @@ interface WidgetSummaryResponse {
     projectedStreak: { in7days: number; in30days: number };
     message: { title: string; message: string; emoji: string };
   };
+  reward?: {
+    rewardType: string;
+    rewardLevel: 'low' | 'medium' | 'high' | 'epic';
+    title: string;
+    message: string;
+    emoji: string;
+  };
 }
 
 function dateToDayIndex(d: Date): number {
@@ -81,6 +89,7 @@ function buildEmptySummary(today: Date): WidgetSummaryResponse {
   const weekStart = getWeekStart(today).toISOString().slice(0, 10);
   const psychology = getDefaultPsychology();
   const futureSelf = getDefaultFutureSelf();
+  const reward = getDefaultReward();
   const todayIdx = dateToDayIndex(today);
   const emptyCalendar: { date: string; completed: boolean }[] = [];
   for (let i = 0; i < CHAIN_WINDOW_DAYS; i++) {
@@ -102,6 +111,7 @@ function buildEmptySummary(today: Date): WidgetSummaryResponse {
     },
     chain: { length: 0, status: 'broken', pressure: false, calendar: emptyCalendar },
     futureSelf,
+    reward,
   };
 }
 
@@ -374,6 +384,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     completionRate: summary.weeklyStats.completionRate,
   });
   summary.futureSelf = futureSelf;
+
+  const allHabitsCompletedToday = todayCompleted && summary.todayRemaining.count === 0;
+  const chainProtected = todayCompleted && chain.length >= 3;
+  const reward = generateDopamineReward({
+    habitCompletedToday: todayCompleted,
+    allHabitsCompletedToday,
+    currentStreak: summary.streaks.current,
+    chainLength: chain.length,
+    chainProtected,
+    weeklyCompletionRate: summary.weeklyStats.completionRate,
+    dayOfWeek: today.getDay(),
+  });
+  summary.reward = reward;
 
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=60');
   return res.status(200).json(summary);

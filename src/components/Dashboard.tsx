@@ -9,6 +9,7 @@ import IdentitiesProgressChart from './IdentitiesProgressChart';
 import TodayStatus from './TodayStatus';
 import ChainSection from './ChainSection';
 import FutureSelfSection from './FutureSelfSection';
+import RewardSection from './RewardSection';
 import OverallCalendar from './OverallCalendar';
 import MonthlySummary2026 from './MonthlySummary2026';
 import { motion } from 'framer-motion';
@@ -251,6 +252,13 @@ const Dashboard: React.FC = () => {
             {habits.length > 0 && (
                 <section>
                     <FutureSelfSection habits={habits} />
+                </section>
+            )}
+
+            {/* Reward (Dopamine Loop) */}
+            {habits.length > 0 && (
+                <section>
+                    <RewardSection habits={habits} />
                 </section>
             )}
 
