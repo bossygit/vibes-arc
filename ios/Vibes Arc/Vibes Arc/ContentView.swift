@@ -7,6 +7,8 @@
 
 import SwiftUI
 
+private let vibesArcSiteURL = URL(string: "https://vibes-arc.vercel.app")!
+
 struct ContentView: View {
     private var deviceId: String {
         WidgetSharedStorage.ensureDeviceId()
@@ -35,6 +37,13 @@ struct ContentView: View {
                     Label("Copier", systemImage: "doc.on.doc")
                 }
                 .buttonStyle(.borderedProminent)
+
+                Button {
+                    UIApplication.shared.open(vibesArcSiteURL)
+                } label: {
+                    Label("Ouvrir le site Vibes Arc", systemImage: "safari")
+                }
+                .buttonStyle(.bordered)
             }
             .padding()
         }
