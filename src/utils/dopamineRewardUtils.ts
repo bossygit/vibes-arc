@@ -52,7 +52,6 @@ function chooseReward(input: DopamineRewardInput): DopamineRewardResult {
     habitCompletedToday,
     allHabitsCompletedToday,
     currentStreak,
-    chainLength,
     chainProtected,
     weeklyCompletionRate,
   } = input;
