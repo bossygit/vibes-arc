@@ -7,6 +7,7 @@ import HabitCard from './HabitCard';
 import DataManager from './DataManager';
 import IdentitiesProgressChart from './IdentitiesProgressChart';
 import TodayStatus from './TodayStatus';
+import ChainSection from './ChainSection';
 import OverallCalendar from './OverallCalendar';
 import MonthlySummary2026 from './MonthlySummary2026';
 import { motion } from 'framer-motion';
@@ -235,6 +236,13 @@ const Dashboard: React.FC = () => {
             {habits.length > 0 && (
                 <section>
                     <TodayStatus habits={habits} />
+                </section>
+            )}
+
+            {/* Never Break the Chain */}
+            {habits.length > 0 && (
+                <section>
+                    <ChainSection habits={habits} />
                 </section>
             )}
 

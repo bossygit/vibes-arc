@@ -75,3 +75,14 @@ NOT NULL,
     UNIQUE
 (habit_id, day_index)
 );
+
+-- Table de mapping des devices pour les widgets iOS
+CREATE TABLE IF NOT EXISTS device_widgets
+(
+    device_id TEXT PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_device_widgets_user_id ON device_widgets(user_id);
