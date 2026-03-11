@@ -79,6 +79,25 @@ export const getCurrentDayIndex = (): number => {
     return diffDays;
 };
 
+/**
+ * Weekly completion rate (last 7 days): average of daily rates.
+ * Daily rate = (habits completed that day) / (habits active that day). Skips days with no active habits.
+ * Returns 0-100. Same logic as widgets API completionRate.
+ */
+export function getWeeklyCompletionRate(habits: Habit[], todayIdx: number): number {
+    const start = Math.max(0, todayIdx - 6);
+    let sum = 0;
+    let count = 0;
+    for (let idx = start; idx <= todayIdx; idx++) {
+        const active = habits.filter(h => idx >= getHabitStartDayIndex(h) && idx >= 0 && idx < h.progress.length);
+        if (active.length === 0) continue;
+        const done = active.filter(h => h.progress[idx]).length;
+        sum += (done / active.length) * 100;
+        count += 1;
+    }
+    return count > 0 ? Math.round(sum / count) : 0;
+}
+
 export const calculateHabitStats = (habit: Habit, skippedDays: number[] = []): HabitStats => {
     const skippedSet = new Set(skippedDays);
     const startIdx = getHabitStartDayIndex(habit);

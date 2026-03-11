@@ -3,6 +3,7 @@ import { getServiceSupabase } from '../push/_supabase';
 import { getDateForDay, startDate } from '@/utils/dateUtils';
 import { getCurrentDayIndex } from '@/utils/habitUtils';
 import { generatePsychologicalInsight, getDefaultPsychology } from './psychologyEngine';
+import { generateFutureSelf, getDefaultFutureSelf } from './futureSelfEngine';
 
 interface WidgetSummaryResponse {
   today: string;
@@ -41,6 +42,11 @@ interface WidgetSummaryResponse {
     pressure: boolean;
     calendar: { date: string; completed: boolean }[];
   };
+  futureSelf?: {
+    nextLevel: { name: string; daysRemaining: number };
+    projectedStreak: { in7days: number; in30days: number };
+    message: { title: string; message: string; emoji: string };
+  };
 }
 
 function dateToDayIndex(d: Date): number {
@@ -74,6 +80,7 @@ function buildEmptySummary(today: Date): WidgetSummaryResponse {
   const monthKey = today.toISOString().slice(0, 7);
   const weekStart = getWeekStart(today).toISOString().slice(0, 10);
   const psychology = getDefaultPsychology();
+  const futureSelf = getDefaultFutureSelf();
   const todayIdx = dateToDayIndex(today);
   const emptyCalendar: { date: string; completed: boolean }[] = [];
   for (let i = 0; i < CHAIN_WINDOW_DAYS; i++) {
@@ -94,6 +101,7 @@ function buildEmptySummary(today: Date): WidgetSummaryResponse {
       streakPressure: psychology.streakPressure,
     },
     chain: { length: 0, status: 'broken', pressure: false, calendar: emptyCalendar },
+    futureSelf,
   };
 }
 
@@ -359,6 +367,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   });
   summary.psychology = psychology;
   summary.insight = { title: psychology.insight.title, message: psychology.insight.message };
+
+  const futureSelf = generateFutureSelf({
+    currentStreak: summary.streaks.current,
+    longestStreak: summary.streaks.longest,
+    completionRate: summary.weeklyStats.completionRate,
+  });
+  summary.futureSelf = futureSelf;
 
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=60');
   return res.status(200).json(summary);

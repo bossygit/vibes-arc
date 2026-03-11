@@ -23,11 +23,36 @@ function getChainStatus(length: number): ChainStatus {
 /**
  * Returns true if at least one habit active on that day has completed it.
  */
-function isDayCompleted(habits: Habit[], dayIndex: number): boolean {
+export function isDayCompleted(habits: Habit[], dayIndex: number): boolean {
   if (dayIndex < 0) return false;
   return habits.some(
     (habit) => isHabitActiveOnDay(habit, dayIndex) && !!habit.progress[dayIndex]
   );
+}
+
+const DEFAULT_LONGEST_STREAK_WINDOW = 60;
+
+/**
+ * Longest consecutive "completed" days (at least one habit done) in the given window.
+ * O(windowDays). Aligned with widgets API summary.
+ */
+export function getGlobalLongestStreak(
+  habits: Habit[],
+  todayIdx: number,
+  windowDays: number = DEFAULT_LONGEST_STREAK_WINDOW
+): number {
+  const start = Math.max(0, todayIdx - windowDays + 1);
+  let maxLen = 0;
+  let current = 0;
+  for (let idx = todayIdx; idx >= start; idx--) {
+    if (isDayCompleted(habits, idx)) {
+      current++;
+      maxLen = Math.max(maxLen, current);
+    } else {
+      current = 0;
+    }
+  }
+  return maxLen;
 }
 
 /**
