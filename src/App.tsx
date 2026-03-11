@@ -9,6 +9,7 @@ import Auth from '@/components/Auth';
 import SupabaseDatabaseClient from '@/database/supabase-client';
 
 import RewardsChallenges from '@/components/RewardsChallenges';
+import AccountSettingsView from '@/components/AccountSettingsView';
 import TemplatesView from '@/components/TemplatesView';
 import MagicGratitudeChallenge from '@/components/MagicGratitudeChallenge';
 import MoneyMindsetGame from '@/components/MoneyMindsetGame';
@@ -76,6 +77,8 @@ function App() {
                 return <ManifestationView />;
             case 'coachChat':
                 return <CoachChat />;
+            case 'accountSettings':
+                return <AccountSettingsView />;
             default:
                 return <Dashboard />;
         }

@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Target, TrendingUp, Calendar, BarChart3, Flame, Trophy, Award, Brain, Copy, CheckCircle2, Home, CalendarCheck } from 'lucide-react';
+import React from 'react';
+import { Target, TrendingUp, Calendar, BarChart3, Flame, Trophy, Award, Copy, CheckCircle2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { calculateIdentityScore, calculateHabitStats, getHabitStartDayIndex } from '@/utils/habitUtils';
 import IdentityCard from './IdentityCard';
@@ -16,8 +16,7 @@ import { motion } from 'framer-motion';
 import { getCurrentDayIndex } from '@/utils/habitUtils';
 
 const Dashboard: React.FC = () => {
-    const { identities, habits, setView, setSelectedHabit, gamification, addPoints, createReward, claimReward, primingSessions } = useAppStore();
-    const [quickHabitId, setQuickHabitId] = useState<number | ''>('');
+    const { identities, habits, setView, gamification, addPoints, createReward, claimReward, primingSessions } = useAppStore();
 
     const handleDataChange = () => {
         // Recharger les données depuis le store
@@ -26,8 +25,6 @@ const Dashboard: React.FC = () => {
 
     const lastNextActionSession = primingSessions.find(s => !!s.nextAction && s.nextAction.trim().length > 0);
     const nextAction = lastNextActionSession?.nextAction?.trim() ?? '';
-
-    const quickHabits = useMemo(() => habits, [habits]);
 
     // Calculer les statistiques globales (sans rétro‑impacter le passé)
     // Règle: une habitude n'est comptée qu'à partir de sa date de création.
@@ -98,94 +95,14 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="space-y-8">
-            {/* Priming CTA */}
-            <section>
-                <div className="card bg-gradient-to-br from-indigo-50 to-white border border-indigo-100">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                                <Brain className="w-5 h-5 text-indigo-600" />
-                                Priming My Brain
-                            </h2>
-                            <p className="text-sm text-slate-600 mt-1">
-                                3–10 min pour calmer le système nerveux avant l’action (sécurité → clarté → exécution).
-                            </p>
-                        </div>
-                        <button onClick={() => setView('priming')} className="btn-primary">
-                            Démarrer
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            {/* Environnement CTA */}
-            <section>
-                <div className="card bg-gradient-to-br from-slate-50 to-white border border-slate-200">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                                <Home className="w-5 h-5 text-slate-700" />
-                                Design de l’environnement
-                            </h2>
-                            <p className="text-sm text-slate-600 mt-1">
-                                Mappe tes espaces (lit, téléphone, bureau) pour rendre le bon comportement facile et le mauvais coûteux.
-                            </p>
-                        </div>
-                        <button onClick={() => setView('environment')} className="btn-secondary">
-                            Ouvrir
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            {/* Accès rapide calendrier (si TodayStatus ne s’affiche pas, on garde un moyen de sélectionner) */}
-            {quickHabits.length > 0 && (
+            {/* Today Status — premier bloc */}
+            {habits.length > 0 && (
                 <section>
-                    <div className="card bg-white border border-slate-200">
-                        <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                                    <CalendarCheck className="w-5 h-5 text-indigo-600" />
-                                    Ouvrir le calendrier d’une habitude
-                                </h2>
-                                <p className="text-sm text-slate-600 mt-1">
-                                    Sélectionne une habitude pour accéder à son calendrier et cocher les jours.
-                                </p>
-                                <div className="mt-3 flex flex-col md:flex-row gap-2">
-                                    <select
-                                        value={quickHabitId}
-                                        onChange={(e) => setQuickHabitId(e.target.value ? Number(e.target.value) : '')}
-                                        className="w-full md:max-w-md px-3 py-2 border border-slate-300 rounded-lg bg-white"
-                                    >
-                                        <option value="">Choisir une habitude…</option>
-                                        {quickHabits.map((h) => (
-                                            <option key={h.id} value={h.id}>
-                                                {h.name} ({h.totalDays}j)
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <button
-                                        className="btn-primary"
-                                        disabled={quickHabitId === ''}
-                                        onClick={() => {
-                                            if (quickHabitId === '') return;
-                                            setSelectedHabit(quickHabitId);
-                                            setView('habitDetail');
-                                        }}
-                                    >
-                                        Ouvrir
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="text-xs text-slate-500">
-                                Astuce: si une habitude est “finie” (durée courte), certains jours du calendrier peuvent être hors durée.
-                            </div>
-                        </div>
-                    </div>
+                    <TodayStatus habits={habits} />
                 </section>
             )}
 
-            {/* Next action (2 min) */}
+            {/* Next action (2 min) */}            {/* Next action (2 min) */}
             {nextAction && (
                 <section>
                     <div className="card bg-white border border-slate-200">
@@ -231,13 +148,6 @@ const Dashboard: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                </section>
-            )}
-
-            {/* Today Status */}
-            {habits.length > 0 && (
-                <section>
-                    <TodayStatus habits={habits} />
                 </section>
             )}
 

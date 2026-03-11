@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
-import { Trophy, Gift, Bell, Target, Star, Filter } from 'lucide-react';
+import { Trophy, Gift, Target, Star, Filter } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { detoxChallenges } from '@/data/detoxChallenges';
-import WeeklyEmailSettings from './WeeklyEmailSettings';
-import NotificationSettings from './NotificationSettings';
 
 const RewardsChallenges: React.FC = () => {
-    const { gamification, addPoints, createReward, claimReward, userPrefs, setNotifHour } = useAppStore() as any;
+    const { gamification, addPoints, createReward, claimReward } = useAppStore() as any;
     const [title, setTitle] = useState('');
     const [cost, setCost] = useState(100);
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -73,18 +71,7 @@ const RewardsChallenges: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="card">
-                    <h3 className="font-semibold text-slate-800 mb-2 flex items-center gap-2"><Bell className="w-5 h-5 text-green-600" /> Rappels</h3>
-                    <div className="text-sm text-slate-600 mb-2">Heure de rappel: {userPrefs.notifHour}h</div>
-                    <input type="range" min={0} max={23} value={userPrefs.notifHour} onChange={(e) => setNotifHour(parseInt(e.target.value))} className="w-full" />
-                </div>
             </div>
-
-            {/* Notifications */}
-            <NotificationSettings />
-
-            {/* Configuration des emails hebdomadaires */}
-            <WeeklyEmailSettings />
 
             {/* Défis Detox Dopamine */}
             <div className="card">

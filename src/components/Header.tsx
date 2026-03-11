@@ -3,33 +3,53 @@ import { useAppStore } from '@/store/useAppStore';
 import SupabaseDatabaseClient from '@/database/supabase-client';
 import { Trophy, User, ChevronDown, Menu, X } from 'lucide-react';
 
+type NavKey = 'dashboard' | 'coachChat' | 'priming' | 'environment' | 'identities' | 'addHabit' | 'templates' | 'rewards' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'manifestation';
+
+const directNav: { key: NavKey; label: string }[] = [
+    { key: 'dashboard', label: 'Tableau de bord' },
+    { key: 'coachChat', label: '🤖 Coach IA' },
+];
+
+const toolsNav: { key: NavKey; label: string }[] = [
+    { key: 'priming', label: 'Priming' },
+    { key: 'environment', label: 'Environnement' },
+    { key: 'magicGratitude', label: 'Gratitude' },
+    { key: 'moneyMindset', label: 'Abondance' },
+    { key: 'focusWheel', label: 'Focus Wheel' },
+    { key: 'manifestation', label: 'Manifestation' },
+];
+
+const habitNav: { key: NavKey; label: string }[] = [
+    { key: 'identities', label: 'Identités' },
+    { key: 'addHabit', label: 'Ajouter Habitude' },
+    { key: 'templates', label: 'Templates' },
+    { key: 'rewards', label: 'Récompenses' },
+];
+
 const Header: React.FC = () => {
     const { view, setView, gamification } = useAppStore();
 
-    const navItems = [
-        { key: 'dashboard', label: 'Tableau de bord' },
-        { key: 'coachChat', label: '🤖 Coach IA' },
-        { key: 'priming', label: 'Priming' },
-        { key: 'environment', label: 'Environnement' },
-        { key: 'identities', label: 'Identites' },
-        { key: 'addHabit', label: 'Ajouter Habitude' },
-        { key: 'templates', label: 'Templates' },
-        { key: 'rewards', label: 'Recompenses' },
-        { key: 'magicGratitude', label: 'Gratitude' },
-        { key: 'moneyMindset', label: 'Abondance' },
-        { key: 'focusWheel', label: 'Focus Wheel' },
-        { key: 'manifestation', label: 'Manifestation' },
-    ] as const;
-
     const [open, setOpen] = useState(false);
+    const [openSubmenu, setOpenSubmenu] = useState<'tools' | 'habit' | null>(null);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
+    const [mobileHabitOpen, setMobileHabitOpen] = useState(false);
     const [userEmail, setUserEmail] = useState<string | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
+    const submenuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const onClick = (e: MouseEvent) => {
             if (!menuRef.current) return;
             if (!menuRef.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener('click', onClick);
+        return () => document.removeEventListener('click', onClick);
+    }, []);
+
+    useEffect(() => {
+        const onClick = (e: MouseEvent) => {
+            if (submenuRef.current && !submenuRef.current.contains(e.target as Node)) setOpenSubmenu(null);
         };
         document.addEventListener('click', onClick);
         return () => document.removeEventListener('click', onClick);
@@ -47,11 +67,15 @@ const Header: React.FC = () => {
         })();
     }, []);
 
-    // Fermer le menu mobile quand on navigue
-    const handleMobileNav = (key: typeof navItems[number]['key']) => {
+    const handleNav = (key: NavKey | 'accountSettings') => {
         setView(key);
+        setOpenSubmenu(null);
         setMobileMenuOpen(false);
+        setOpen(false);
     };
+
+    const isViewInTools = toolsNav.some((i) => i.key === view);
+    const isViewInHabit = habitNav.some((i) => i.key === view);
 
     return (
         <>
@@ -66,22 +90,63 @@ const Header: React.FC = () => {
                             <p className="text-xs sm:text-sm text-slate-600 mt-0.5">Deviens qui tu veux etre</p>
                         </div>
 
-                        {/* Desktop nav -- masquee sur mobile */}
+                        {/* Desktop nav + user menu */}
                         <div className="hidden lg:flex items-center gap-3">
-                            <nav className="flex gap-1 xl:gap-2 flex-wrap">
-                                {navItems.map((item) => (
-                                    <button
-                                        key={item.key}
-                                        onClick={() => setView(item.key)}
-                                        className={`px-3 py-1.5 xl:px-4 xl:py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${view === item.key
-                                            ? 'bg-indigo-600 text-white'
-                                            : 'text-slate-600 hover:bg-white'
-                                            }`}
-                                    >
-                                        {item.label}
-                                    </button>
-                                ))}
-                            </nav>
+                        <div ref={submenuRef} className="flex items-center gap-1 xl:gap-2 flex-wrap">
+                            {directNav.map((item) => (
+                                <button
+                                    key={item.key}
+                                    onClick={() => handleNav(item.key)}
+                                    className={`px-3 py-1.5 xl:px-4 xl:py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${view === item.key ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-white'}`}
+                                >
+                                    {item.label}
+                                </button>
+                            ))}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setOpenSubmenu((v) => (v === 'tools' ? null : 'tools'))}
+                                    className={`px-3 py-1.5 xl:px-4 xl:py-2 rounded-lg text-sm font-medium transition whitespace-nowrap flex items-center gap-1 ${isViewInTools ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-white'}`}
+                                >
+                                    Tools
+                                    <ChevronDown className={`w-4 h-4 ${openSubmenu === 'tools' ? 'rotate-180' : ''}`} />
+                                </button>
+                                {openSubmenu === 'tools' && (
+                                    <div className="absolute left-0 top-full mt-1 py-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-50">
+                                        {toolsNav.map((item) => (
+                                            <button
+                                                key={item.key}
+                                                onClick={() => handleNav(item.key)}
+                                                className={`w-full text-left px-4 py-2 text-sm rounded hover:bg-slate-50 ${view === item.key ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-700'}`}
+                                            >
+                                                {item.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="relative">
+                                <button
+                                    onClick={() => setOpenSubmenu((v) => (v === 'habit' ? null : 'habit'))}
+                                    className={`px-3 py-1.5 xl:px-4 xl:py-2 rounded-lg text-sm font-medium transition whitespace-nowrap flex items-center gap-1 ${isViewInHabit ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-white'}`}
+                                >
+                                    Habitude
+                                    <ChevronDown className={`w-4 h-4 ${openSubmenu === 'habit' ? 'rotate-180' : ''}`} />
+                                </button>
+                                {openSubmenu === 'habit' && (
+                                    <div className="absolute left-0 top-full mt-1 py-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-50">
+                                        {habitNav.map((item) => (
+                                            <button
+                                                key={item.key}
+                                                onClick={() => handleNav(item.key)}
+                                                className={`w-full text-left px-4 py-2 text-sm rounded hover:bg-slate-50 ${view === item.key ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-700'}`}
+                                            >
+                                                {item.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
 
                             {/* User menu desktop */}
                             <div className="relative" ref={menuRef}>
@@ -108,6 +173,12 @@ const Header: React.FC = () => {
                                                 <span>{gamification.points} pts</span>
                                             </div>
                                         </div>
+                                        <button
+                                            onClick={() => handleNav('accountSettings')}
+                                            className="w-full text-left px-3 py-2 rounded hover:bg-slate-50 text-slate-700"
+                                        >
+                                            Paramètres
+                                        </button>
                                         <button
                                             onClick={async () => {
                                                 try {
@@ -172,18 +243,59 @@ const Header: React.FC = () => {
 
                         {/* Navigation */}
                         <nav className="flex flex-col p-2">
-                            {navItems.map((item) => (
+                            {directNav.map((item) => (
                                 <button
                                     key={item.key}
-                                    onClick={() => handleMobileNav(item.key)}
-                                    className={`w-full text-left px-4 py-3 rounded-lg font-medium transition text-sm ${view === item.key
-                                        ? 'bg-indigo-600 text-white'
-                                        : 'text-slate-700 hover:bg-slate-100 active:bg-slate-200'
-                                        }`}
+                                    onClick={() => handleNav(item.key)}
+                                    className={`w-full text-left px-4 py-3 rounded-lg font-medium transition text-sm ${view === item.key ? 'bg-indigo-600 text-white' : 'text-slate-700 hover:bg-slate-100 active:bg-slate-200'}`}
                                 >
                                     {item.label}
                                 </button>
                             ))}
+                            <div className="border-t border-slate-100 mt-1 pt-1">
+                                <button
+                                    onClick={() => setMobileToolsOpen((v) => !v)}
+                                    className="w-full text-left px-4 py-3 rounded-lg font-medium text-sm text-slate-700 hover:bg-slate-100 flex items-center justify-between"
+                                >
+                                    Tools
+                                    <ChevronDown className={`w-4 h-4 transition-transform ${mobileToolsOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                                {mobileToolsOpen && (
+                                    <div className="pl-4 pb-2 flex flex-col gap-0.5">
+                                        {toolsNav.map((item) => (
+                                            <button
+                                                key={item.key}
+                                                onClick={() => handleNav(item.key)}
+                                                className={`w-full text-left px-4 py-2 rounded-lg text-sm ${view === item.key ? 'bg-indigo-100 text-indigo-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
+                                            >
+                                                {item.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="border-t border-slate-100 mt-1 pt-1">
+                                <button
+                                    onClick={() => setMobileHabitOpen((v) => !v)}
+                                    className="w-full text-left px-4 py-3 rounded-lg font-medium text-sm text-slate-700 hover:bg-slate-100 flex items-center justify-between"
+                                >
+                                    Habitude
+                                    <ChevronDown className={`w-4 h-4 transition-transform ${mobileHabitOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                                {mobileHabitOpen && (
+                                    <div className="pl-4 pb-2 flex flex-col gap-0.5">
+                                        {habitNav.map((item) => (
+                                            <button
+                                                key={item.key}
+                                                onClick={() => handleNav(item.key)}
+                                                className={`w-full text-left px-4 py-2 rounded-lg text-sm ${view === item.key ? 'bg-indigo-100 text-indigo-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
+                                            >
+                                                {item.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </nav>
 
                         {/* User info + deconnexion */}
@@ -202,6 +314,12 @@ const Header: React.FC = () => {
                                     <span>{gamification.points} pts</span>
                                 </div>
                             </div>
+                            <button
+                                onClick={() => handleNav('accountSettings')}
+                                className="w-full text-left px-4 py-3 rounded-lg text-sm text-slate-700 hover:bg-slate-50 font-medium transition"
+                            >
+                                Paramètres
+                            </button>
                             <button
                                 onClick={async () => {
                                     try {
