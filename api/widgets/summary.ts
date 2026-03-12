@@ -1,8 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { addDays } from 'date-fns';
 import { getServiceSupabase } from '../push/_supabase';
-import { getDateForDay, startDate } from '@/utils/dateUtils';
-import { getCurrentDayIndex } from '@/utils/habitUtils';
 import { generatePsychologicalInsight, getDefaultPsychology } from './psychologyEngine';
+
+// Duplicated from app dateUtils/habitUtils to avoid @/ resolution issues in Vercel serverless
+const startDate = new Date(2025, 9, 1); // October 1, 2025
+const getDateForDay = (dayIndex: number): Date => addDays(startDate, dayIndex);
+const getCurrentDayIndex = (): number => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+  const diffTime = today.getTime() - start.getTime();
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+};
 import { generateFutureSelf, getDefaultFutureSelf } from './futureSelfEngine';
 import { generateDopamineReward, getDefaultReward } from './dopamineRewardEngine';
 import { generateLockScreenTrigger, getDefaultTrigger } from './lockScreenTriggerEngine';
@@ -173,7 +184,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(buildEmptySummary(today));
   }
 
-  const supabase = getServiceSupabase();
+  let supabase;
+  try {
+    supabase = getServiceSupabase();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Supabase configuration error';
+    return res.status(503).json({
+      error: 'Service unavailable',
+      detail: msg.includes('Missing') ? 'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in Vercel environment.' : msg,
+    });
+  }
 
   // 1) Associer device -> user (ou créer entrée anonyme)
   const { data: existingDevice, error: deviceError } = await supabase
