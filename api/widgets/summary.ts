@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getServiceSupabase } from './_supabase-client';
-import { generatePsychologicalInsight, getDefaultPsychology } from './psychologyEngine';
-import { generateFutureSelf, getDefaultFutureSelf } from './futureSelfEngine';
-import { generateDopamineReward, getDefaultReward } from './dopamineRewardEngine';
-import { generateLockScreenTrigger, getDefaultTrigger } from './lockScreenTriggerEngine';
+import { generatePsychologicalInsight, getDefaultPsychology } from './_psychologyEngine';
+import { generateFutureSelf, getDefaultFutureSelf } from './_futureSelfEngine';
+import { generateDopamineReward, getDefaultReward } from './_dopamineRewardEngine';
+import { generateLockScreenTrigger, getDefaultTrigger } from './_lockScreenTriggerEngine';
 
 const startDate = new Date(2025, 9, 1); // October 1, 2025
 const getDateForDay = (dayIndex: number): Date => {
