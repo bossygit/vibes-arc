@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getServiceSupabase, requireUserFromBearer } from './supabase-client';
+import { getServiceSupabase, requireUserFromBearer } from './_supabase-client';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
