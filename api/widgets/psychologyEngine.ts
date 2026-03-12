@@ -33,7 +33,7 @@ export interface PsychologyResult {
 }
 
 function getLevelFromLongestStreak(longestStreak: number): { number: number; name: string } {
-  let chosen = DISCIPLINE_LEVELS[0];
+  let chosen: { readonly level: number; readonly name: string; readonly minStreak: number } = DISCIPLINE_LEVELS[0];
   for (const lvl of DISCIPLINE_LEVELS) {
     if (longestStreak >= lvl.minStreak) chosen = lvl;
   }

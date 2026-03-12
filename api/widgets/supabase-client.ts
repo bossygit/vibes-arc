@@ -1,5 +1,5 @@
 /**
- * Mini Supabase REST client — fetch() direct, no class fields, no SDK.
+ * Mini Supabase REST client — fetch() direct, no SDK dependency.
  */
 
 function getEnv(): { url: string; key: string } {
@@ -18,74 +18,79 @@ function restHeaders(key: string): Record<string, string> {
   };
 }
 
-function buildQS(select: string, filters: string[]): string {
-  const parts = ['select=' + encodeURIComponent(select)].concat(filters);
-  return parts.join('&');
-}
-
 type Row = Record<string, unknown>;
 type QueryResult = { data: Row[] | null; error: Error | null };
 type SingleResult = { data: Row | null; error: Error | null };
+type Mode = 'select' | 'insert' | 'update' | 'upsert' | 'delete';
 
 function makeBuilder(baseUrl: string, key: string, table: string) {
   let _select = '*';
   const _filters: string[] = [];
-  let _insertData: Row | Row[] | null = null;
-  let _updateData: Row | null = null;
+  let _mode: Mode = 'select';
+  let _mutateData: Row | Row[] | null = null;
+  let _upsertOpts: Record<string, string> = {};
+  let _limitN: number | null = null;
 
   const hdrs = restHeaders(key);
   const tableUrl = baseUrl + '/rest/v1/' + table;
 
-  async function runGet(): Promise<QueryResult> {
+  function buildFilterQS(): string {
+    return _filters.join('&');
+  }
+
+  async function run(): Promise<QueryResult> {
     try {
-      const qs = buildQS(_select, _filters);
+      if (_mode === 'insert') {
+        const r = await fetch(tableUrl, {
+          method: 'POST',
+          headers: Object.assign({}, hdrs, { Prefer: 'return=minimal' }),
+          body: JSON.stringify(_mutateData),
+        });
+        if (!r.ok) return { data: null, error: new Error(await r.text()) };
+        return { data: [], error: null };
+      }
+
+      if (_mode === 'upsert') {
+        const prefer = 'resolution=merge-duplicates' +
+          (_upsertOpts.onConflict ? ',on_conflict=' + _upsertOpts.onConflict : '');
+        const r = await fetch(tableUrl, {
+          method: 'POST',
+          headers: Object.assign({}, hdrs, { Prefer: prefer }),
+          body: JSON.stringify(_mutateData),
+        });
+        if (!r.ok) return { data: null, error: new Error(await r.text()) };
+        return { data: [], error: null };
+      }
+
+      if (_mode === 'update') {
+        const qs = buildFilterQS();
+        const r = await fetch(tableUrl + (qs ? '?' + qs : ''), {
+          method: 'PATCH',
+          headers: Object.assign({}, hdrs, { Prefer: 'return=minimal' }),
+          body: JSON.stringify(_mutateData),
+        });
+        if (!r.ok) return { data: null, error: new Error(await r.text()) };
+        return { data: [], error: null };
+      }
+
+      if (_mode === 'delete') {
+        const qs = buildFilterQS();
+        const r = await fetch(tableUrl + (qs ? '?' + qs : ''), {
+          method: 'DELETE',
+          headers: Object.assign({}, hdrs, { Prefer: 'return=minimal' }),
+        });
+        if (!r.ok) return { data: null, error: new Error(await r.text()) };
+        return { data: [], error: null };
+      }
+
+      // select (GET)
+      const parts: string[] = ['select=' + encodeURIComponent(_select)];
+      if (_filters.length) parts.push(..._filters);
+      if (_limitN !== null) parts.push('limit=' + _limitN);
+      const qs = parts.join('&');
       const r = await fetch(tableUrl + '?' + qs, { headers: hdrs });
       if (!r.ok) return { data: null, error: new Error(await r.text()) };
       return { data: (await r.json()) as Row[], error: null };
-    } catch (e) {
-      return { data: null, error: e instanceof Error ? e : new Error(String(e)) };
-    }
-  }
-
-  async function runInsert(): Promise<QueryResult> {
-    try {
-      const r = await fetch(tableUrl, {
-        method: 'POST',
-        headers: Object.assign({}, hdrs, { Prefer: 'return=minimal' }),
-        body: JSON.stringify(_insertData),
-      });
-      if (!r.ok) return { data: null, error: new Error(await r.text()) };
-      return { data: [], error: null };
-    } catch (e) {
-      return { data: null, error: e instanceof Error ? e : new Error(String(e)) };
-    }
-  }
-
-  async function runUpdate(): Promise<QueryResult> {
-    try {
-      const qs = _filters.join('&');
-      const r = await fetch(tableUrl + (qs ? '?' + qs : ''), {
-        method: 'PATCH',
-        headers: Object.assign({}, hdrs, { Prefer: 'return=minimal' }),
-        body: JSON.stringify(_updateData),
-      });
-      if (!r.ok) return { data: null, error: new Error(await r.text()) };
-      return { data: [], error: null };
-    } catch (e) {
-      return { data: null, error: e instanceof Error ? e : new Error(String(e)) };
-    }
-  }
-
-  async function runUpsert(upsertData: Row | Row[], opts: Record<string, string>): Promise<QueryResult> {
-    try {
-      const prefer = 'resolution=merge-duplicates' + (opts.onConflict ? ',on_conflict=' + opts.onConflict : '');
-      const r = await fetch(tableUrl, {
-        method: 'POST',
-        headers: Object.assign({}, hdrs, { Prefer: prefer }),
-        body: JSON.stringify(upsertData),
-      });
-      if (!r.ok) return { data: null, error: new Error(await r.text()) };
-      return { data: [], error: null };
     } catch (e) {
       return { data: null, error: e instanceof Error ? e : new Error(String(e)) };
     }
@@ -98,14 +103,16 @@ function makeBuilder(baseUrl: string, key: string, table: string) {
     in(col: string, vals: unknown[]) { _filters.push(col + '=in.(' + vals.join(',') + ')'); return builder; },
     gte(col: string, val: unknown) { _filters.push(col + '=gte.' + String(val)); return builder; },
     lte(col: string, val: unknown) { _filters.push(col + '=lte.' + String(val)); return builder; },
-    insert(data: Row | Row[]) { _insertData = data; return builder; },
-    update(data: Row) { _updateData = data; return builder; },
+    limit(n: number) { _limitN = n; return builder; },
+    insert(data: Row | Row[]) { _mode = 'insert'; _mutateData = data; return builder; },
+    update(data: Row) { _mode = 'update'; _mutateData = data; return builder; },
+    delete() { _mode = 'delete'; return builder; },
     upsert(data: Row | Row[], opts: Record<string, string> = {}) {
-      return runUpsert(data, opts);
+      _mode = 'upsert'; _mutateData = data; _upsertOpts = opts; return builder;
     },
 
     async maybeSingle(): Promise<SingleResult> {
-      const res = await runGet();
+      const res = await run();
       if (res.error) return { data: null, error: res.error };
       const rows = res.data || [];
       return { data: rows.length > 0 ? rows[0] : null, error: null };
@@ -115,11 +122,8 @@ function makeBuilder(baseUrl: string, key: string, table: string) {
       return builder.maybeSingle();
     },
 
-    // Make awaitable without a class then() — return a real Promise via .get()
     get(): Promise<QueryResult> {
-      if (_insertData !== null) return runInsert();
-      if (_updateData !== null) return runUpdate();
-      return runGet();
+      return run();
     },
 
     // Thenable — allows `await builder` syntax
@@ -127,7 +131,7 @@ function makeBuilder(baseUrl: string, key: string, table: string) {
       resolve: ((v: QueryResult) => unknown) | null | undefined,
       reject: ((e: unknown) => unknown) | null | undefined
     ) {
-      return builder.get().then(resolve as never, reject as never);
+      return run().then(resolve as never, reject as never);
     },
   };
 
