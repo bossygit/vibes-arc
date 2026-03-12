@@ -19,7 +19,8 @@ private enum WidgetAppGroup {
     }
 }
 
-private let apiBaseURL = "https://app-opal-mu.vercel.app"
+private let apiBaseURL = "https://vibes-arc.vercel.app"
+private let widgetSummaryPath = "/api/widgets/v2"
 
 // MARK: - Provider
 
@@ -43,7 +44,7 @@ struct Provider: TimelineProvider {
         }
 
         guard let id = deviceId,
-              let url = URL(string: "\(apiBaseURL)/api/widgets/summary?deviceId=\(id.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? id)") else {
+              let url = URL(string: "\(apiBaseURL)\(widgetSummaryPath)?deviceId=\(id.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? id)") else {
             let entry = VibesEntry(date: Date(), summary: nil)
             completion(Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(15 * 60))))
             return
