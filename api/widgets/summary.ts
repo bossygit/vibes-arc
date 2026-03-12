@@ -1,14 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { addDays } from 'date-fns';
 import { getServiceSupabase } from '../push/_supabase';
 import { generatePsychologicalInsight, getDefaultPsychology } from './psychologyEngine';
 import { generateFutureSelf, getDefaultFutureSelf } from './futureSelfEngine';
 import { generateDopamineReward, getDefaultReward } from './dopamineRewardEngine';
 import { generateLockScreenTrigger, getDefaultTrigger } from './lockScreenTriggerEngine';
 
-// Duplicated from app dateUtils/habitUtils to avoid @/ resolution issues in Vercel serverless
 const startDate = new Date(2025, 9, 1); // October 1, 2025
-const getDateForDay = (dayIndex: number): Date => addDays(startDate, dayIndex);
+const getDateForDay = (dayIndex: number): Date => {
+  const d = new Date(startDate);
+  d.setDate(d.getDate() + dayIndex);
+  return d;
+};
 const getCurrentDayIndex = (): number => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
