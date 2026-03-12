@@ -1,206 +1,151 @@
 /**
- * Mini Supabase REST client using fetch() — no @supabase/supabase-js dependency.
- * Exposes the same interface used by the existing API handlers.
+ * Mini Supabase REST client — fetch() direct, no class fields, no SDK.
  */
 
-function getEnv() {
+function getEnv(): { url: string; key: string } {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
   return { url, key };
 }
 
-function baseHeaders(key: string) {
+function restHeaders(key: string): Record<string, string> {
   return {
     apikey: key,
-    Authorization: `Bearer ${key}`,
+    Authorization: 'Bearer ' + key,
     'Content-Type': 'application/json',
+    Accept: 'application/json',
   };
 }
 
-type FilterOp = 'eq' | 'in' | 'gte' | 'lte' | 'neq';
-
-interface Filter {
-  col: string;
-  op: FilterOp;
-  val: unknown;
+function buildQS(select: string, filters: string[]): string {
+  const parts = ['select=' + encodeURIComponent(select)].concat(filters);
+  return parts.join('&');
 }
 
-class SupabaseQueryBuilder {
-  private _table: string;
-  private _url: string;
-  private _key: string;
-  private _select: string | null = null;
-  private _filters: Filter[] = [];
-  private _updateData: Record<string, unknown> | null = null;
-  private _insertData: Record<string, unknown> | Record<string, unknown>[] | null = null;
+type Row = Record<string, unknown>;
+type QueryResult = { data: Row[] | null; error: Error | null };
+type SingleResult = { data: Row | null; error: Error | null };
 
-  constructor(url: string, key: string, table: string) {
-    this._url = url;
-    this._key = key;
-    this._table = table;
-  }
+function makeBuilder(baseUrl: string, key: string, table: string) {
+  let _select = '*';
+  const _filters: string[] = [];
+  let _insertData: Row | Row[] | null = null;
+  let _updateData: Row | null = null;
 
-  select(cols: string): this {
-    this._select = cols;
-    return this;
-  }
+  const hdrs = restHeaders(key);
+  const tableUrl = baseUrl + '/rest/v1/' + table;
 
-  eq(col: string, val: unknown): this {
-    this._filters.push({ col, op: 'eq', val });
-    return this;
-  }
-
-  in(col: string, vals: unknown[]): this {
-    this._filters.push({ col, op: 'in', val: vals });
-    return this;
-  }
-
-  gte(col: string, val: unknown): this {
-    this._filters.push({ col, op: 'gte', val });
-    return this;
-  }
-
-  lte(col: string, val: unknown): this {
-    this._filters.push({ col, op: 'lte', val });
-    return this;
-  }
-
-  insert(data: Record<string, unknown> | Record<string, unknown>[]): this {
-    this._insertData = data;
-    return this;
-  }
-
-  update(data: Record<string, unknown>): this {
-    this._updateData = data;
-    return this;
-  }
-
-  private buildUrl(extra?: Record<string, string>): string {
-    const params = new URLSearchParams();
-    if (this._select) params.set('select', this._select);
-    for (const f of this._filters) {
-      if (f.op === 'in') {
-        params.set(f.col, `in.(${(f.val as unknown[]).join(',')})`);
-      } else {
-        params.set(f.col, `${f.op}.${f.val}`);
-      }
-    }
-    if (extra) {
-      for (const [k, v] of Object.entries(extra)) params.set(k, v);
-    }
-    const qs = params.toString();
-    return `${this._url}/rest/v1/${this._table}${qs ? '?' + qs : ''}`;
-  }
-
-  async maybeSingle(): Promise<{ data: Record<string, unknown> | null; error: Error | null }> {
+  async function runGet(): Promise<QueryResult> {
     try {
-      const res = await fetch(this.buildUrl(), {
-        headers: {
-          ...baseHeaders(this._key),
-          Accept: 'application/json',
-        },
+      const qs = buildQS(_select, _filters);
+      const r = await fetch(tableUrl + '?' + qs, { headers: hdrs });
+      if (!r.ok) return { data: null, error: new Error(await r.text()) };
+      return { data: (await r.json()) as Row[], error: null };
+    } catch (e) {
+      return { data: null, error: e instanceof Error ? e : new Error(String(e)) };
+    }
+  }
+
+  async function runInsert(): Promise<QueryResult> {
+    try {
+      const r = await fetch(tableUrl, {
+        method: 'POST',
+        headers: Object.assign({}, hdrs, { Prefer: 'return=minimal' }),
+        body: JSON.stringify(_insertData),
       });
-      if (!res.ok) {
-        const body = await res.text();
-        return { data: null, error: new Error(body) };
-      }
-      const rows: Record<string, unknown>[] = await res.json();
+      if (!r.ok) return { data: null, error: new Error(await r.text()) };
+      return { data: [], error: null };
+    } catch (e) {
+      return { data: null, error: e instanceof Error ? e : new Error(String(e)) };
+    }
+  }
+
+  async function runUpdate(): Promise<QueryResult> {
+    try {
+      const qs = _filters.join('&');
+      const r = await fetch(tableUrl + (qs ? '?' + qs : ''), {
+        method: 'PATCH',
+        headers: Object.assign({}, hdrs, { Prefer: 'return=minimal' }),
+        body: JSON.stringify(_updateData),
+      });
+      if (!r.ok) return { data: null, error: new Error(await r.text()) };
+      return { data: [], error: null };
+    } catch (e) {
+      return { data: null, error: e instanceof Error ? e : new Error(String(e)) };
+    }
+  }
+
+  async function runUpsert(upsertData: Row | Row[], opts: Record<string, string>): Promise<QueryResult> {
+    try {
+      const prefer = 'resolution=merge-duplicates' + (opts.onConflict ? ',on_conflict=' + opts.onConflict : '');
+      const r = await fetch(tableUrl, {
+        method: 'POST',
+        headers: Object.assign({}, hdrs, { Prefer: prefer }),
+        body: JSON.stringify(upsertData),
+      });
+      if (!r.ok) return { data: null, error: new Error(await r.text()) };
+      return { data: [], error: null };
+    } catch (e) {
+      return { data: null, error: e instanceof Error ? e : new Error(String(e)) };
+    }
+  }
+
+  const builder = {
+    select(cols: string) { _select = cols; return builder; },
+    eq(col: string, val: unknown) { _filters.push(col + '=eq.' + String(val)); return builder; },
+    neq(col: string, val: unknown) { _filters.push(col + '=neq.' + String(val)); return builder; },
+    in(col: string, vals: unknown[]) { _filters.push(col + '=in.(' + vals.join(',') + ')'); return builder; },
+    gte(col: string, val: unknown) { _filters.push(col + '=gte.' + String(val)); return builder; },
+    lte(col: string, val: unknown) { _filters.push(col + '=lte.' + String(val)); return builder; },
+    insert(data: Row | Row[]) { _insertData = data; return builder; },
+    update(data: Row) { _updateData = data; return builder; },
+    upsert(data: Row | Row[], opts: Record<string, string> = {}) {
+      return runUpsert(data, opts);
+    },
+
+    async maybeSingle(): Promise<SingleResult> {
+      const res = await runGet();
+      if (res.error) return { data: null, error: res.error };
+      const rows = res.data || [];
       return { data: rows.length > 0 ? rows[0] : null, error: null };
-    } catch (e) {
-      return { data: null, error: e instanceof Error ? e : new Error(String(e)) };
-    }
-  }
+    },
 
-  async execute(): Promise<{ data: Record<string, unknown>[] | null; error: Error | null }> {
-    try {
-      let method = 'GET';
-      let body: string | undefined;
-      let url = this.buildUrl();
-
-      if (this._insertData !== null) {
-        method = 'POST';
-        body = JSON.stringify(this._insertData);
-      } else if (this._updateData !== null) {
-        method = 'PATCH';
-        body = JSON.stringify(this._updateData);
-      }
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          ...baseHeaders(this._key),
-          Accept: 'application/json',
-          Prefer: 'return=minimal',
-        },
-        body,
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        return { data: null, error: new Error(text) };
-      }
-
-      // For mutating operations, return empty data array (Prefer: return=minimal)
-      if (method !== 'GET') {
-        return { data: [], error: null };
-      }
-
-      const rows: Record<string, unknown>[] = await res.json();
-      return { data: rows, error: null };
-    } catch (e) {
-      return { data: null, error: e instanceof Error ? e : new Error(String(e)) };
-    }
-  }
-
-  // Make the builder thenable so `await supabase.from(...).select(...).eq(...)` works
-  then<TResult1 = { data: Record<string, unknown>[] | null; error: Error | null }, TResult2 = never>(
-    onfulfilled?: ((value: { data: Record<string, unknown>[] | null; error: Error | null }) => TResult1 | PromiseLike<TResult1>) | null,
-    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
-  ): Promise<TResult1 | TResult2> {
-    return this.execute().then(onfulfilled, onrejected);
-  }
-}
-
-// Wraps a SupabaseQueryBuilder to give it an .error property once resolved
-// and adds single()/maybeSingle() returning promises directly.
-function makeProxy(builder: SupabaseQueryBuilder): SupabaseQueryBuilder & {
-  single(): Promise<{ data: Record<string, unknown> | null; error: Error | null }>;
-} {
-  return Object.assign(builder, {
-    single() {
+    single(): Promise<SingleResult> {
       return builder.maybeSingle();
     },
-  });
-}
 
-interface MiniSupabaseClient {
-  from(table: string): ReturnType<typeof makeProxy>;
-  auth: {
-    getUser(token: string): Promise<{
-      data: { user: { id: string; email?: string } } | null;
-      error: Error | null;
-    }>;
+    // Make awaitable without a class then() — return a real Promise via .get()
+    get(): Promise<QueryResult> {
+      if (_insertData !== null) return runInsert();
+      if (_updateData !== null) return runUpdate();
+      return runGet();
+    },
+
+    // Thenable — allows `await builder` syntax
+    then(
+      resolve: ((v: QueryResult) => unknown) | null | undefined,
+      reject: ((e: unknown) => unknown) | null | undefined
+    ) {
+      return builder.get().then(resolve as never, reject as never);
+    },
   };
+
+  return builder;
 }
 
-export function getServiceSupabase(): MiniSupabaseClient {
+export function getServiceSupabase() {
   const { url, key } = getEnv();
   return {
-    from: (table: string) => makeProxy(new SupabaseQueryBuilder(url, key, table)),
+    from: (table: string) => makeBuilder(url, key, table),
     auth: {
-      async getUser(token: string) {
+      getUser: async (token: string): Promise<{ data: { user: { id: string } } | null; error: Error | null }> => {
         try {
-          const res = await fetch(`${url}/auth/v1/user`, {
-            headers: {
-              apikey: key,
-              Authorization: `Bearer ${token}`,
-            },
+          const r = await fetch(url + '/auth/v1/user', {
+            headers: { apikey: key, Authorization: 'Bearer ' + token },
           });
-          if (!res.ok) {
-            return { data: null, error: new Error('Invalid token') };
-          }
-          const user = await res.json();
+          if (!r.ok) return { data: null, error: new Error('Invalid token') };
+          const user = await r.json() as { id: string };
           return { data: { user }, error: null };
         } catch (e) {
           return { data: null, error: e instanceof Error ? e : new Error(String(e)) };
