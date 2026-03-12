@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-private let vibesArcSiteURL = URL(string: "https://vibes-arc.vercel.app")!
+private let vibesArcSiteURL = URL(string: "https://app-opal-mu.vercel.app")!
 
 struct ContentView: View {
     private var deviceId: String {

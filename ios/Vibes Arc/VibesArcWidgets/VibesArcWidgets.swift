@@ -19,7 +19,7 @@ private enum WidgetAppGroup {
     }
 }
 
-private let apiBaseURL = "https://vibes-arc.vercel.app"
+private let apiBaseURL = "https://app-opal-mu.vercel.app"
 
 // MARK: - Provider
 
