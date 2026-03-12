@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import webpush from 'web-push';
-import { requireUserFromBearer } from './_supabase';
+import { requireUserFromBearer } from './supabase-client';
 
 function configureWebPush() {
   const publicKey = process.env.VAPID_PUBLIC_KEY;

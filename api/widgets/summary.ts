@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getServiceSupabase } from './_supabase';
+import { getServiceSupabase } from './supabase-client';
 import { generatePsychologicalInsight, getDefaultPsychology } from './psychologyEngine';
 import { generateFutureSelf, getDefaultFutureSelf } from './futureSelfEngine';
 import { generateDopamineReward, getDefaultReward } from './dopamineRewardEngine';

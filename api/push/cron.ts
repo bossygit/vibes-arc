@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import webpush from 'web-push';
-import { getServiceSupabase } from './_supabase';
+import { getServiceSupabase } from './supabase-client';
 
 function configureWebPush() {
   const publicKey = process.env.VAPID_PUBLIC_KEY;
