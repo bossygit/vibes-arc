@@ -57,7 +57,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!subs || subs.length === 0) return res.status(200).json({ ok: true, sent: 0 });
 
     let sent = 0;
-    const now = new Date();
 
     // Group by user
     const byUser = new Map<string, any[]>();
