@@ -7,7 +7,11 @@
 
 import SwiftUI
 
-private let vibesArcSiteURL = URL(string: "https://app-opal-mu.vercel.app")!
+private let vibesArcSiteURL = URL(string: "https://vibes-arc.vercel.app/")!
+
+private let vibesArcSiteURL2 = URL(string: "https://vibes-arc.vercel.app/api/widgets/summary?deviceId=D2C969A4-5B96-4339-8620-38EF3DA4CA94")!
+
+
 
 struct ContentView: View {
     private var deviceId: String {
@@ -39,7 +43,7 @@ struct ContentView: View {
                 .buttonStyle(.borderedProminent)
 
                 Button {
-                    UIApplication.shared.open(vibesArcSiteURL)
+                    UIApplication.shared.open(vibesArcSiteURL2)
                 } label: {
                     Label("Ouvrir le site Vibes Arc", systemImage: "safari")
                 }
