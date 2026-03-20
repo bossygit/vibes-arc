@@ -14,11 +14,19 @@ const AccountSettingsView: React.FC = () => {
         setLinkStatus('loading');
         setLinkMessage('');
         try {
-            const supabase = SupabaseDatabaseClient.getInstance();
-            const token = await supabase.getAccessToken();
+            const client = SupabaseDatabaseClient.getInstance();
+            const { data, error: sessionError } = await client.getSession();
+            if (sessionError) {
+                setLinkStatus('error');
+                setLinkMessage(sessionError.message || 'Impossible de lire la session Supabase.');
+                return;
+            }
+            const token = data.session?.access_token;
             if (!token) {
                 setLinkStatus('error');
-                setLinkMessage('Connecte-toi pour lier un appareil.');
+                setLinkMessage(
+                    'Connecte-toi pour lier un appareil. Si tu es déjà connecté, recharge la page pour rafraîchir la session.'
+                );
                 return;
             }
             const res = await fetch('/api/widgets/link-device', {

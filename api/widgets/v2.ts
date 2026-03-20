@@ -21,13 +21,30 @@ function sbHeaders() {
   };
 }
 
+/**
+ * Construit une query PostgREST sans URLSearchParams sur les valeurs de filtre :
+ * les opérateurs `in.(...)` doivent garder parenthèses / virgules non encodées.
+ */
+function buildPostgrestQueryString(params: Record<string, string>): string {
+  const parts: string[] = [];
+  for (const [key, rawValue] of Object.entries(params)) {
+    const encKey = encodeURIComponent(key);
+    if (key === 'select') {
+      parts.push(`${encKey}=${encodeURIComponent(rawValue)}`);
+    } else {
+      parts.push(`${encKey}=${rawValue}`);
+    }
+  }
+  return parts.join('&');
+}
+
 async function sbGet<T = Record<string, unknown>[]>(
   table: string,
   params: Record<string, string>
 ): Promise<{ data: T | null; error: string | null }> {
   try {
     const { url, headers } = sbHeaders();
-    const qs = new URLSearchParams(params).toString();
+    const qs = buildPostgrestQueryString(params);
     const r = await fetch(`${url}/rest/v1/${table}?${qs}`, { headers });
     if (!r.ok) return { data: null, error: await r.text() };
     return { data: (await r.json()) as T, error: null };
@@ -38,13 +55,14 @@ async function sbGet<T = Record<string, unknown>[]>(
 
 async function sbPost(
   table: string,
-  body: unknown
+  body: unknown,
+  prefer = 'return=minimal'
 ): Promise<{ error: string | null }> {
   try {
     const { url, headers } = sbHeaders();
     const r = await fetch(`${url}/rest/v1/${table}`, {
       method: 'POST',
-      headers: { ...headers, Prefer: 'return=minimal' },
+      headers: { ...headers, Prefer: prefer },
       body: JSON.stringify(body),
     });
     if (!r.ok) return { error: await r.text() };
@@ -194,7 +212,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : null;
 
     if (!devRows || devRows.length === 0) {
-      await sbPost('device_widgets', { device_id: deviceId });
+      await sbPost(
+        'device_widgets',
+        { device_id: deviceId },
+        'return=minimal,resolution=ignore-duplicates'
+      );
     }
 
     if (!userId) return res.status(200).json(emptySummary(todayISO));

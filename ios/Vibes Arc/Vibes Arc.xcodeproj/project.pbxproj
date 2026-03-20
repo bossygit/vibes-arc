@@ -10,6 +10,7 @@
 		6FC37C142F61A4EB00BF75C5 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FC37C132F61A4EB00BF75C5 /* WidgetKit.framework */; };
 		6FC37C162F61A4EB00BF75C5 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FC37C152F61A4EB00BF75C5 /* SwiftUI.framework */; };
 		6FC37C272F61A4ED00BF75C5 /* VibesArcWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6FC37C112F61A4EB00BF75C5 /* VibesArcWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		6FC37C512F61B30000BF75C5 /* WidgetSharedStorage.swift in VibesArcWidgetsExtension */ = {isa = PBXBuildFile; fileRef = 6FC37C502F61B30000BF75C5 /* WidgetSharedStorage.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -58,6 +59,7 @@
 		6FC37C132F61A4EB00BF75C5 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		6FC37C152F61A4EB00BF75C5 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		6FC37C2E2F61A6A200BF75C5 /* VibesArcWidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = VibesArcWidgetsExtension.entitlements; sourceTree = "<group>"; };
+		6FC37C502F61B30000BF75C5 /* WidgetSharedStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSharedStorage.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -130,9 +132,18 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		6FC37C522F61B30000BF75C5 /* SharedAppStorage */ = {
+			isa = PBXGroup;
+			children = (
+				6FC37C502F61B30000BF75C5 /* WidgetSharedStorage.swift */,
+			);
+			path = "Vibes Arc";
+			sourceTree = "<group>";
+		};
 		6F246C912F61A328005BC107 = {
 			isa = PBXGroup;
 			children = (
+				6FC37C522F61B30000BF75C5 /* SharedAppStorage */,
 				6FC37C2E2F61A6A200BF75C5 /* VibesArcWidgetsExtension.entitlements */,
 				6F246C9C2F61A328005BC107 /* Vibes Arc */,
 				6F246CAA2F61A32B005BC107 /* Vibes ArcTests */,
@@ -363,6 +374,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6FC37C512F61B30000BF75C5 /* WidgetSharedStorage.swift in VibesArcWidgetsExtension */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

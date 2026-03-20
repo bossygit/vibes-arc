@@ -26,37 +26,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { supabase, user } = await requireUserFromBearer(req.headers.authorization);
+    const { user } = await requireUserFromBearer(req.headers.authorization);
     const userId = user.id;
 
-    // Lier / mettre à jour le device
-    const svc = supabase ?? getServiceSupabase();
+    // requireUserFromBearer valide le JWT puis utilise déjà getServiceSupabase() (service role, pas RLS utilisateur).
+    const svc = getServiceSupabase();
 
-    const { data: existing, error: readError } = await svc
+    // Un seul upsert (merge sur device_id) : évite course read→insert vs ligne déjà créée par /api/widgets/v2,
+    // et simplifie le flux si RLS / visibilité diffère entre SELECT et PATCH selon la clé utilisée sur Vercel.
+    const linkResult = await svc
       .from('device_widgets')
-      .select('device_id')
-      .eq('device_id', deviceId)
-      .maybeSingle();
+      .upsert(
+        {
+          device_id: deviceId,
+          user_id: userId,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'device_id' }
+      );
 
-    if (readError) {
-      return res.status(500).json({ error: 'Failed to read device mapping' });
-    }
-
-    if (existing) {
-      const { error: updateError } = await svc
-        .from('device_widgets')
-        .update({ user_id: userId })
-        .eq('device_id', deviceId);
-      if (updateError) {
-        return res.status(500).json({ error: 'Failed to update device mapping' });
-      }
-    } else {
-      const { error: insertError } = await svc
-        .from('device_widgets')
-        .insert({ device_id: deviceId, user_id: userId });
-      if (insertError) {
-        return res.status(500).json({ error: 'Failed to create device mapping' });
-      }
+    if (linkResult.error) {
+      return res.status(500).json({
+        error: 'Failed to link device',
+        detail: linkResult.error.message,
+      });
     }
 
     return res.status(200).json({ ok: true });

@@ -7,17 +7,9 @@
 
 import WidgetKit
 import SwiftUI
+import OSLog
 
-// MARK: - App Group (must match main app)
-
-private enum WidgetAppGroup {
-    static let suiteName = "group.com.vibesarc.shared"
-    static let deviceIdKey = "widgetDeviceId"
-
-    static var deviceId: String? {
-        UserDefaults(suiteName: suiteName)?.string(forKey: deviceIdKey)
-    }
-}
+private let log = Logger(subsystem: "com.vibesarc.Vibes-Arc.VibesArcWidgets", category: "timeline")
 
 private let apiBaseURL = "https://vibes-arc.vercel.app"
 private let widgetSummaryPath = "/api/widgets/v2"
@@ -35,10 +27,13 @@ struct Provider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<VibesEntry>) -> Void) {
-        let deviceId = WidgetAppGroup.deviceId
+        let deviceId = WidgetSharedStorage.deviceId
+        let deviceIdLabel = deviceId ?? "NIL"
+        log.info("getTimeline suite=\(WidgetSharedStorage.appGroupSuiteName, privacy: .public) deviceId=\(deviceIdLabel, privacy: .public)")
 
         if deviceId == nil || deviceId?.isEmpty == true {
             let entry = VibesEntry(date: Date(), summary: nil)
+            log.warning("getTimeline deviceId missing -> no API call")
             completion(Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(15 * 60))))
             return
         }
@@ -46,10 +41,12 @@ struct Provider: TimelineProvider {
         guard let id = deviceId,
               let url = URL(string: "\(apiBaseURL)\(widgetSummaryPath)?deviceId=\(id.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? id)") else {
             let entry = VibesEntry(date: Date(), summary: nil)
+            log.error("getTimeline failed to build URL")
             completion(Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(15 * 60))))
             return
         }
 
+        log.info("getTimeline calling \(url.absoluteString, privacy: .public)")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
 
@@ -58,8 +55,22 @@ struct Provider: TimelineProvider {
             if let data = data,
                let decoded = try? JSONDecoder().decode(WidgetSummaryResponse.self, from: data) {
                 entry = VibesEntry(date: Date(), summary: decoded)
+
+                if let http = response as? HTTPURLResponse {
+                    let bodyPrefix = String(data: data, encoding: .utf8)?.prefix(500) ?? ""
+                    log.info("API ok status=\(http.statusCode) bodyPrefix=\(String(bodyPrefix), privacy: .public)")
+                } else {
+                    log.info("API ok decoded (non-HTTPURLResponse)")
+                }
             } else {
                 entry = VibesEntry(date: Date(), summary: nil)
+
+                if let http = response as? HTTPURLResponse {
+                    let bodyPrefix = String(data: data ?? Data(), encoding: .utf8)?.prefix(500) ?? ""
+                    log.error("API decode failed status=\(http.statusCode) bodyPrefix=\(String(bodyPrefix), privacy: .public)")
+                } else {
+                    log.error("API decode failed (non-HTTPURLResponse)")
+                }
             }
             let nextRefresh = Date().addingTimeInterval(15 * 60)
             completion(Timeline(entries: [entry], policy: .after(nextRefresh)))

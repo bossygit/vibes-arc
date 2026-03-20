@@ -50,6 +50,16 @@ struct ContentView: View {
                 .buttonStyle(.bordered)
             }
             .padding()
+            .onAppear {
+                // Debug: confirmer que le deviceId affiché est bien celui stocké dans le même App Group
+                print(
+                    """
+                    [ContentView] AppGroup suiteName=\(WidgetSharedStorage.appGroupSuiteName)
+                    [ContentView] deviceId (current)=\(deviceId)
+                    [ContentView] deviceId (from UserDefaults)=\(WidgetSharedStorage.deviceId ?? "NIL")
+                    """
+                )
+            }
         }
     }
 }
