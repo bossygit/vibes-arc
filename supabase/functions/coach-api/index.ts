@@ -44,7 +44,6 @@ interface UserStats {
 }
 
 serve(async (req) => {
-  // Gérer les requêtes OPTIONS (preflight CORS)
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -52,7 +51,6 @@ serve(async (req) => {
   const url = new URL(req.url);
   const path = url.pathname;
 
-  // Authentification par API key
   const apiKey = req.headers.get("x-api-key") || url.searchParams.get("api_key");
   const validApiKey = Deno.env.get("COACH_API_KEY");
 
@@ -64,13 +62,11 @@ serve(async (req) => {
     return jsonResponse({ error: "Unauthorized - Invalid API key" }, 401);
   }
 
-  // Récupérer le user_id depuis le query parameter
   const userId = url.searchParams.get("user_id");
   if (!userId) {
     return jsonResponse({ error: "user_id parameter is required" }, 400);
   }
 
-  // Initialiser le client Supabase admin
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -82,7 +78,6 @@ serve(async (req) => {
     auth: { persistSession: false },
   });
 
-  // Router basé sur le path
   try {
     if (path.endsWith("/habits")) {
       return await handleGetHabits(adminClient, userId);
@@ -92,10 +87,14 @@ serve(async (req) => {
       return await handleGetToday(adminClient, userId);
     } else if (path.endsWith("/motivation")) {
       return await handleGetMotivation(adminClient, userId);
+    } else if (path.endsWith("/profile")) {
+      return await handleGetProfile(adminClient, userId);
+    } else if (path.endsWith("/insights") && req.method === "POST") {
+      return await handlePostInsight(adminClient, userId, req);
     } else {
       return jsonResponse({
         error: "Unknown endpoint",
-        availableEndpoints: ["/habits", "/stats", "/today", "/motivation"],
+        availableEndpoints: ["/habits", "/stats", "/today", "/motivation", "/profile", "/insights (POST)"],
       }, 404);
     }
   } catch (error) {
@@ -104,7 +103,170 @@ serve(async (req) => {
   }
 });
 
-// GET /habits - Récupérer toutes les habitudes avec progression détaillée
+// ============================================================
+// GET /profile — Profil complet + system prompt pour le coach
+// ============================================================
+async function handleGetProfile(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<Response> {
+  const { data: profile, error } = await adminClient
+    .from("coach_full_context")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
+
+  if (error || !profile) {
+    return jsonResponse({
+      error: "Profile not found. Make sure user_knowledge_base has an entry for this user.",
+      detail: error?.message,
+    }, 404);
+  }
+
+  const systemPrompt = buildSystemPrompt(profile);
+  return jsonResponse({ profile, system_prompt: systemPrompt });
+}
+
+function buildSystemPrompt(profile: Record<string, any>): string {
+  const ps = profile.psychological_profile || {};
+  const cs = profile.coaching_style || {};
+  const pr = profile.practices || {};
+  const goals = (profile.life_goals || []) as Array<{ horizon: string; label: string }>;
+  const insights = (profile.recent_insights || []) as Array<{ content: string; insight_type: string }>;
+  const anxietyEvents = (profile.active_anxiety_events || []) as Array<{ trigger_label: string; intensity: number }>;
+
+  const shortTermGoals = goals
+    .filter((g) => g.horizon === "court_terme")
+    .map((g) => `• ${g.label}`)
+    .join("\n");
+
+  const recentInsightsText = insights.length > 0
+    ? insights.map((i) => `• [${i.insight_type}] ${i.content}`).join("\n")
+    : "Aucun insight enregistré encore.";
+
+  const activeAnxiety = anxietyEvents.length > 0
+    ? anxietyEvents.map((e) => `• ${e.trigger_label} (intensité: ${e.intensity}/10)`).join("\n")
+    : "Aucun événement actif.";
+
+  return `Tu es le coach personnel de ${profile.full_name} — son allié dans la durée, jamais son juge.
+Tu combines une connaissance profonde de qui il est avec ses données réelles du moment.
+Tu réponds TOUJOURS en français. Tu es direct, chaleureux, ancré dans le réel.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## QUI EST-IL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${profile.full_name}, ${profile.profession}.
+Localisation : ${profile.location}.
+Il a construit Vibes Arc lui-même — il sait comment le système fonctionne.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## SES DÉFIS PROFONDS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Défis principaux : ${(ps.challenges || []).join(", ")}
+
+Triggers d'anxiété :
+${(ps.anxiety_triggers || []).map((t: string) => `• ${t}`).join("\n")}
+
+Patterns d'auto-sabotage :
+${(ps.self_sabotage_patterns || []).map((p: string) => `• ${p}`).join("\n")}
+
+Événements d'anxiété actuellement actifs :
+${activeAnxiety}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## SES FORCES (à rappeler quand l'anxiété parle)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${(ps.strengths || []).map((s: string) => `• ${s}`).join("\n")}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## SES PRATIQUES ET RESSOURCES INTERNES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Routine matinale : ${(pr.morning_routine || []).join(" → ")}
+Frameworks : ${(pr.frameworks || []).join(", ")}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## COMMENT LUI PARLER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Ton : ${cs.tone || "bienveillant_mais_direct"}
+
+Approches à privilégier :
+${(cs.preferred_approach || []).map((a: string) => `✅ ${a}`).join("\n")}
+
+À éviter absolument :
+${(cs.avoid || []).map((a: string) => `❌ ${a}`).join("\n")}
+
+Protocole décrochage (si taux < ${cs.relapse_protocol?.threshold_completion_rate || 40}%) :
+${(cs.relapse_protocol?.steps || []).map((s: string, i: number) => `${i + 1}. ${s}`).join("\n")}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## SES OBJECTIFS (court terme)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${shortTermGoals}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## INSIGHTS RÉCENTS DU COACH
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${recentInsightsText}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## NOTES DU COACH
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${profile.coach_notes}
+
+Combine toujours ce profil avec les données d'habitudes du moment pour des conseils ancrés et précis.`;
+}
+
+// ============================================================
+// POST /insights — Sauvegarder un insight de session
+// ============================================================
+async function handlePostInsight(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+  req: Request,
+): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return jsonResponse({ error: "Invalid JSON body" }, 400);
+  }
+
+  const { insight_type, content, completion_rate, related_habit_id } = body as {
+    insight_type: string;
+    content: string;
+    completion_rate?: number;
+    related_habit_id?: number;
+  };
+
+  if (!insight_type || !content) {
+    return jsonResponse({ error: "insight_type and content are required" }, 400);
+  }
+
+  const validTypes = ["pattern_detected", "breakthrough", "relapse_note", "identity_shift", "coaching_note"];
+  if (!validTypes.includes(insight_type)) {
+    return jsonResponse({ error: `insight_type must be one of: ${validTypes.join(", ")}` }, 400);
+  }
+
+  const { error } = await adminClient
+    .from("coach_insights")
+    .insert({
+      user_id: userId,
+      insight_type,
+      content,
+      completion_rate_at_time: completion_rate ?? null,
+      related_habit_id: related_habit_id ?? null,
+    });
+
+  if (error) {
+    return jsonResponse({ error: error.message }, 500);
+  }
+
+  return jsonResponse({ success: true, message: "Insight saved successfully" });
+}
+
+// ============================================================
+// GET /habits
+// ============================================================
 async function handleGetHabits(
   adminClient: ReturnType<typeof createClient>,
   userId: string,
@@ -120,13 +282,11 @@ async function handleGetHabits(
   const result: HabitData[] = [];
 
   for (const habit of habits || []) {
-    // Récupérer les identités liées
     const { data: linkedIdentities } = await adminClient
       .from("habit_identities")
       .select("identity_id, identities(name)")
       .eq("habit_id", habit.id);
 
-    // Récupérer la progression
     const { data: progressData } = await adminClient
       .from("habit_progress")
       .select("day_index, completed")
@@ -138,21 +298,14 @@ async function handleGetHabits(
       progress[item.day_index] = item.completed;
     });
 
-    // Calculer le streak actuel
     let currentStreak = 0;
     for (let i = progress.length - 1; i >= 0; i--) {
-      if (progress[i]) {
-        currentStreak++;
-      } else {
-        break;
-      }
+      if (progress[i]) currentStreak++;
+      else break;
     }
 
-    // Taux de complétion
     const completed = progress.filter((p) => p).length;
-    const completionRate = habit.total_days > 0
-      ? (completed / habit.total_days) * 100
-      : 0;
+    const completionRate = habit.total_days > 0 ? (completed / habit.total_days) * 100 : 0;
 
     result.push({
       id: habit.id,
@@ -170,12 +323,13 @@ async function handleGetHabits(
   return jsonResponse({ habits: result });
 }
 
-// GET /stats - Statistiques globales de l'utilisateur
+// ============================================================
+// GET /stats
+// ============================================================
 async function handleGetStats(
   adminClient: ReturnType<typeof createClient>,
   userId: string,
 ): Promise<Response> {
-  // Récupérer les habitudes
   const { data: habits, error: habitsError } = await adminClient
     .from("habits")
     .select("id, name, total_days")
@@ -185,7 +339,6 @@ async function handleGetStats(
 
   const habitIds = habits?.map((h) => h.id) || [];
 
-  // Calculer la progression totale
   let totalProgress = 0;
   if (habitIds.length > 0) {
     const { count } = await adminClient
@@ -196,13 +349,9 @@ async function handleGetStats(
     totalProgress = count || 0;
   }
 
-  // Calculer le taux de complétion global
   const totalPossible = habits?.reduce((sum, h) => sum + h.total_days, 0) || 0;
-  const overallCompletionRate = totalPossible > 0
-    ? (totalProgress / totalPossible) * 100
-    : 0;
+  const overallCompletionRate = totalPossible > 0 ? (totalProgress / totalPossible) * 100 : 0;
 
-  // Récupérer les identités
   const { data: identities } = await adminClient
     .from("identities")
     .select("id, name, description")
@@ -220,7 +369,9 @@ async function handleGetStats(
   return jsonResponse({ stats });
 }
 
-// GET /today - Habitudes du jour (dernière case de chaque habitude)
+// ============================================================
+// GET /today
+// ============================================================
 async function handleGetToday(
   adminClient: ReturnType<typeof createClient>,
   userId: string,
@@ -235,7 +386,6 @@ async function handleGetToday(
   const todayHabits = [];
 
   for (const habit of habits || []) {
-    // Récupérer la dernière case (jour actuel)
     const lastDayIndex = habit.total_days - 1;
     const { data: progressData } = await adminClient
       .from("habit_progress")
@@ -253,9 +403,7 @@ async function handleGetToday(
   }
 
   const habitsCompleted = todayHabits.filter((h) => h.completed).length;
-  const completionRate = todayHabits.length > 0
-    ? (habitsCompleted / todayHabits.length) * 100
-    : 0;
+  const completionRate = todayHabits.length > 0 ? (habitsCompleted / todayHabits.length) * 100 : 0;
 
   const dailyStats: DailyStats = {
     date: new Date().toISOString().split("T")[0],
@@ -268,35 +416,28 @@ async function handleGetToday(
   return jsonResponse({ today: dailyStats });
 }
 
-// GET /motivation - Générer un message de motivation basé sur les progrès
+// ============================================================
+// GET /motivation
+// ============================================================
 async function handleGetMotivation(
   adminClient: ReturnType<typeof createClient>,
   userId: string,
 ): Promise<Response> {
-  // Récupérer les stats du jour
   const todayResponse = await handleGetToday(adminClient, userId);
   const todayData = await todayResponse.json();
   const today = todayData.today;
 
-  // Récupérer les habitudes complètes pour le contexte
   const habitsResponse = await handleGetHabits(adminClient, userId);
   const habitsData = await habitsResponse.json();
   const habits = habitsData.habits;
 
-  // Générer le message de motivation
   let message = "🌟 Vibes Arc Coach\n\n";
 
-  // Salutation selon l'heure
   const hour = new Date().getHours();
-  if (hour < 12) {
-    message += "☀️ Bonjour ! ";
-  } else if (hour < 18) {
-    message += "🌤️ Bon après-midi ! ";
-  } else {
-    message += "🌙 Bonsoir ! ";
-  }
+  if (hour < 12) message += "☀️ Bonjour ! ";
+  else if (hour < 18) message += "🌤️ Bon après-midi ! ";
+  else message += "🌙 Bonsoir ! ";
 
-  // Message principal basé sur le taux de complétion
   if (today.completionRate === 100) {
     message += "Incroyable ! Tu as complété toutes tes habitudes aujourd'hui ! 🎉\n\n";
   } else if (today.completionRate >= 70) {
@@ -309,7 +450,6 @@ async function handleGetMotivation(
     message += "La journée vient de commencer ! Allons-y ensemble ! 💫\n\n";
   }
 
-  // Habitudes à compléter
   const incompleteHabits = today.todayHabits.filter((h: any) => !h.completed);
   if (incompleteHabits.length > 0) {
     message += "📋 Habitudes du jour :\n";
@@ -320,7 +460,6 @@ async function handleGetMotivation(
     message += "\n";
   }
 
-  // Highlight des meilleures séries
   const topStreaks = habits
     .sort((a: HabitData, b: HabitData) => b.currentStreak - a.currentStreak)
     .slice(0, 3)
@@ -334,7 +473,6 @@ async function handleGetMotivation(
     message += "\n";
   }
 
-  // Citation motivante
   const quotes = [
     "💭 'Le succès est la somme de petits efforts répétés jour après jour.' - Robert Collier",
     "💭 'Tu n'as pas à être parfait pour commencer, mais tu dois commencer pour être parfait.'",
@@ -350,14 +488,14 @@ async function handleGetMotivation(
       completionRate: today.completionRate,
       habitsCompleted: today.habitsCompleted,
       habitsTotal: today.habitsTotal,
-      topStreaks: topStreaks.map((h: HabitData) => ({
-        name: h.name,
-        streak: h.currentStreak,
-      })),
+      topStreaks: topStreaks.map((h: HabitData) => ({ name: h.name, streak: h.currentStreak })),
     },
   });
 }
 
+// ============================================================
+// Helper
+// ============================================================
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -368,4 +506,3 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
     },
   });
 }
-
