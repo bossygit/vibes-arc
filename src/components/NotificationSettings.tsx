@@ -10,6 +10,11 @@ const HOURS = Array.from({ length: 24 }, (_, i) => ({
 }));
 
 const TIMEZONES = [
+    'Africa/Brazzaville',
+    'Africa/Kinshasa',
+    'Africa/Lagos',
+    'Africa/Casablanca',
+    'Africa/Nairobi',
     'Europe/Paris',
     'Europe/Brussels',
     'Europe/London',
@@ -17,7 +22,6 @@ const TIMEZONES = [
     'America/New_York',
     'America/Los_Angeles',
     'America/Sao_Paulo',
-    'Africa/Casablanca',
     'Asia/Dubai',
     'Asia/Singapore',
 ];
@@ -108,17 +112,28 @@ const NotificationSettings: React.FC = () => {
     const handleSendTest = async () => {
         if (!canSendTest) return;
         setTestStatus('loading');
-        setTestMessage('');
-        const result = await triggerNotificationTest();
-        if (result.status === 'sent') {
-            setTestStatus('success');
-            setTestMessage(result.message ?? `Message envoye sur ${channelLabel}`);
-        } else if (result.status === 'skipped') {
+        setTestMessage('Envoi en cours...');
+        try {
+            const result = await triggerNotificationTest();
+            if (result.status === 'sent') {
+                setTestStatus('success');
+                setTestMessage(result.message ?? `✅ Message envoyé sur ${channelLabel} !`);
+            } else if (result.status === 'skipped') {
+                setTestStatus('error');
+                setTestMessage(`⏭ Skipped : ${result.reason ?? 'Configuration incomplète.'}`);
+            } else {
+                setTestStatus('error');
+                // Afficher le détail de l'erreur pour diagnostiquer
+                const detail = result.reason ?? 'Erreur inconnue';
+                if (detail.includes('TELEGRAM_BOT_TOKEN')) {
+                    setTestMessage(`❌ Token Telegram manquant — va dans Supabase Dashboard → Settings → Edge Functions → Secrets et ajoute TELEGRAM_BOT_TOKEN = ${userPrefs.notifChannel === 'telegram' ? '(ton token bot)' : ''}`);
+                } else {
+                    setTestMessage(`❌ ${detail}`);
+                }
+            }
+        } catch (e: any) {
             setTestStatus('error');
-            setTestMessage(result.reason ?? 'Configuration incomplete.');
-        } else {
-            setTestStatus('error');
-            setTestMessage(result.reason ?? 'Une erreur est survenue.');
+            setTestMessage(`❌ Erreur réseau : ${e?.message || 'Impossible de contacter le serveur'}`);
         }
     };
 
