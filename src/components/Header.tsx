@@ -3,7 +3,7 @@ import { useAppStore } from '@/store/useAppStore';
 import SupabaseDatabaseClient from '@/database/supabase-client';
 import { Trophy, User, ChevronDown, Menu, X } from 'lucide-react';
 
-type NavKey = 'dashboard' | 'coachChat' | 'priming' | 'environment' | 'identities' | 'addHabit' | 'templates' | 'rewards' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'manifestation';
+type NavKey = 'dashboard' | 'coachChat' | 'priming' | 'environment' | 'identities' | 'addHabit' | 'templates' | 'rewards' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'manifestation' | 'innerChild';
 
 const directNav: { key: NavKey; label: string }[] = [
     { key: 'dashboard', label: 'Tableau de bord' },
@@ -11,6 +11,7 @@ const directNav: { key: NavKey; label: string }[] = [
 ];
 
 const toolsNav: { key: NavKey; label: string }[] = [
+    { key: 'innerChild', label: '🫀 Inner Child' },
     { key: 'priming', label: 'Priming' },
     { key: 'environment', label: 'Environnement' },
     { key: 'magicGratitude', label: 'Gratitude' },

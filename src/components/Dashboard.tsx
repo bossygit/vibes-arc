@@ -1,5 +1,5 @@
 import React from 'react';
-import { Target, TrendingUp, Calendar, BarChart3, Flame, Trophy, Award, Copy, CheckCircle2 } from 'lucide-react';
+import { Target, TrendingUp, Calendar, BarChart3, Flame, Trophy, Award, Copy, CheckCircle2, Heart } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { calculateIdentityScore, calculateHabitStats, getHabitStartDayIndex } from '@/utils/habitUtils';
 import IdentityCard from './IdentityCard';
@@ -95,6 +95,9 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="space-y-8">
+            {/* Inner Child Check-in — ancre émotionnelle quotidienne */}
+            <InnerChildWidget onNavigate={() => setView('innerChild')} />
+
             {/* Today Status — premier bloc */}
             {habits.length > 0 && (
                 <section>
@@ -554,3 +557,85 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
+
+// ─── Inner Child Widget (affiché en haut du Dashboard) ───────────────────────
+
+const EMOTIONS_MAP: Record<string, { emoji: string; label: string; color: string }> = {
+    honte:     { emoji: '😶', label: 'Honte / Indignité',    color: 'text-purple-600' },
+    peur:      { emoji: '😰', label: 'Peur / Anxiété',       color: 'text-blue-600' },
+    colere:    { emoji: '😤', label: 'Colère / Frustration',  color: 'text-red-600' },
+    tristesse: { emoji: '😢', label: 'Tristesse / Abandon',  color: 'text-slate-600' },
+    vide:      { emoji: '😑', label: 'Vide / Déconnexion',   color: 'text-gray-600' },
+    calme:     { emoji: '😌', label: 'Calme / Neutre',       color: 'text-green-600' },
+    joie:      { emoji: '😊', label: 'Joie / Légèreté',      color: 'text-yellow-600' },
+    confiance: { emoji: '💪', label: 'Confiance / Force',    color: 'text-indigo-600' },
+};
+
+const InnerChildWidget: React.FC<{ onNavigate: () => void }> = ({ onNavigate }) => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    let todayEntry: any = null;
+    let totalCheckins = 0;
+
+    try {
+        const raw = localStorage.getItem('vibes-arc-inner-child');
+        if (raw) {
+            const ic = JSON.parse(raw);
+            todayEntry = (ic.entries || []).find((e: any) => e.date === todayStr);
+            totalCheckins = (ic.entries || []).length;
+        }
+    } catch { /* ignore */ }
+
+    const ed = todayEntry ? EMOTIONS_MAP[todayEntry.emotion] : null;
+
+    return (
+        <section>
+            <button
+                onClick={onNavigate}
+                className="w-full text-left"
+            >
+                <div className={`rounded-2xl border-2 p-4 transition-all hover:shadow-md ${
+                    todayEntry
+                        ? 'bg-gradient-to-r from-rose-50 to-pink-50 border-rose-200 hover:border-rose-300'
+                        : 'bg-white border-dashed border-rose-200 hover:border-rose-400 hover:bg-rose-50/30'
+                }`}>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${
+                                todayEntry ? 'bg-rose-100' : 'bg-rose-50 border border-rose-200'
+                            }`}>
+                                {todayEntry && ed
+                                    ? <span className="text-xl">{ed.emoji}</span>
+                                    : <Heart className="w-5 h-5 text-rose-400" />
+                                }
+                            </div>
+                            <div>
+                                <p className="font-semibold text-slate-800 text-sm">
+                                    {todayEntry ? 'Inner Child Check-in du jour ✓' : 'Inner Child Check-in'}
+                                </p>
+                                {todayEntry && ed ? (
+                                    <p className={`text-xs font-medium ${ed.color}`}>
+                                        {ed.label} — {todayEntry.intensity}/5
+                                    </p>
+                                ) : (
+                                    <p className="text-xs text-slate-400">
+                                        {totalCheckins > 0
+                                            ? `${totalCheckins} check-ins enregistrés · Non fait aujourd'hui`
+                                            : 'Reconnecte-toi à toi avant d\'avancer · 2 min'}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        <div className="text-rose-400 text-sm font-medium">
+                            {todayEntry ? 'Voir →' : 'Commencer →'}
+                        </div>
+                    </div>
+                    {todayEntry && (
+                        <p className="mt-2 text-xs text-slate-500 italic border-l-2 border-rose-200 pl-2 line-clamp-1">
+                            "{todayEntry.selfCompassionMessage?.slice(0, 80)}…"
+                        </p>
+                    )}
+                </div>
+            </button>
+        </section>
+    );
+};

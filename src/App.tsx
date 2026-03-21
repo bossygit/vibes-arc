@@ -18,6 +18,7 @@ import PrimingView from '@/components/PrimingView';
 import EnvironmentDesignView from '@/components/EnvironmentDesignView';
 import ManifestationView from '@/components/ManifestationView';
 import CoachChat from '@/components/CoachChat';
+import InnerChildCheckin from '@/components/InnerChildCheckin';
 import { getCurrentDayIndex, isHabitActiveOnDay, getHabitStartDayIndex } from '@/utils/habitUtils';
 import { useGameHabitSync } from '@/hooks/useGameHabitSync';
 import { Download, X, Share } from 'lucide-react';
@@ -77,6 +78,8 @@ function App() {
                 return <ManifestationView />;
             case 'coachChat':
                 return <CoachChat />;
+            case 'innerChild':
+                return <InnerChildCheckin />;
             case 'accountSettings':
                 return <AccountSettingsView />;
             default:
