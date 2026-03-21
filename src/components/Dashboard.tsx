@@ -95,8 +95,8 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="space-y-8">
-            {/* Inner Child Check-in — ancre émotionnelle quotidienne */}
-            <InnerChildWidget onNavigate={() => setView('innerChild')} />
+            {/* Inner Child Check-in — bloquant doux si non fait aujourd'hui */}
+            <InnerChildGate onStart={() => setView('innerChild')} />
 
             {/* Today Status — premier bloc */}
             {habits.length > 0 && (
@@ -558,84 +558,174 @@ const Dashboard: React.FC = () => {
 
 export default Dashboard;
 
-// ─── Inner Child Widget (affiché en haut du Dashboard) ───────────────────────
+// ─── Données émotionnelles ────────────────────────────────────────────────────
 
-const EMOTIONS_MAP: Record<string, { emoji: string; label: string; color: string }> = {
-    honte:     { emoji: '😶', label: 'Honte / Indignité',    color: 'text-purple-600' },
-    peur:      { emoji: '😰', label: 'Peur / Anxiété',       color: 'text-blue-600' },
-    colere:    { emoji: '😤', label: 'Colère / Frustration',  color: 'text-red-600' },
-    tristesse: { emoji: '😢', label: 'Tristesse / Abandon',  color: 'text-slate-600' },
-    vide:      { emoji: '😑', label: 'Vide / Déconnexion',   color: 'text-gray-600' },
-    calme:     { emoji: '😌', label: 'Calme / Neutre',       color: 'text-green-600' },
-    joie:      { emoji: '😊', label: 'Joie / Légèreté',      color: 'text-yellow-600' },
-    confiance: { emoji: '💪', label: 'Confiance / Force',    color: 'text-indigo-600' },
+const EMOTIONS_MAP: Record<string, { emoji: string; label: string; color: string; bg: string }> = {
+    honte:     { emoji: '😶', label: 'Honte / Indignité',   color: 'text-purple-700', bg: 'bg-purple-50 border-purple-200' },
+    peur:      { emoji: '😰', label: 'Peur / Anxiété',      color: 'text-blue-700',   bg: 'bg-blue-50 border-blue-200' },
+    colere:    { emoji: '😤', label: 'Colère / Frustration', color: 'text-red-700',    bg: 'bg-red-50 border-red-200' },
+    tristesse: { emoji: '😢', label: 'Tristesse / Abandon', color: 'text-slate-700',  bg: 'bg-slate-50 border-slate-200' },
+    vide:      { emoji: '😑', label: 'Vide / Déconnexion',  color: 'text-gray-700',   bg: 'bg-gray-50 border-gray-200' },
+    calme:     { emoji: '😌', label: 'Calme / Neutre',      color: 'text-green-700',  bg: 'bg-green-50 border-green-200' },
+    joie:      { emoji: '😊', label: 'Joie / Légèreté',     color: 'text-yellow-700', bg: 'bg-yellow-50 border-yellow-200' },
+    confiance: { emoji: '💪', label: 'Confiance / Force',   color: 'text-indigo-700', bg: 'bg-indigo-50 border-indigo-200' },
 };
 
-const InnerChildWidget: React.FC<{ onNavigate: () => void }> = ({ onNavigate }) => {
+// Messages d'encouragement selon l'heure
+function getGreeting(): string {
+    const h = new Date().getHours();
+    if (h < 12) return 'Bonjour Bienvenu';
+    if (h < 18) return 'Bon après-midi Bienvenu';
+    return 'Bonsoir Bienvenu';
+}
+
+// ─── InnerChildGate — bloquant doux ──────────────────────────────────────────
+//
+// Si le check-in n'a PAS été fait aujourd'hui :
+//   → Affiche une carte d'invitation plein-cadre AVANT tout le reste.
+//   → Bouton principal "Commencer le check-in" (→ vue innerChild).
+//   → Lien discret "Passer pour aujourd'hui →" qui dismiss jusqu'au lendemain.
+//
+// Si le check-in a ÉTÉ fait :
+//   → Affiche un petit badge de confirmation compact (non bloquant).
+
+const DISMISSED_KEY = 'vibes-arc-checkin-dismissed';
+
+const InnerChildGate: React.FC<{ onStart: () => void }> = ({ onStart }) => {
+    const [dismissed, setDismissed] = React.useState<boolean>(() => {
+        try {
+            return localStorage.getItem(DISMISSED_KEY) === new Date().toISOString().slice(0, 10);
+        } catch { return false; }
+    });
+
     const todayStr = new Date().toISOString().slice(0, 10);
     let todayEntry: any = null;
-    let totalCheckins = 0;
-
     try {
         const raw = localStorage.getItem('vibes-arc-inner-child');
         if (raw) {
             const ic = JSON.parse(raw);
             todayEntry = (ic.entries || []).find((e: any) => e.date === todayStr);
-            totalCheckins = (ic.entries || []).length;
         }
     } catch { /* ignore */ }
 
-    const ed = todayEntry ? EMOTIONS_MAP[todayEntry.emotion] : null;
+    const handleDismiss = () => {
+        try { localStorage.setItem(DISMISSED_KEY, todayStr); } catch { /* ignore */ }
+        setDismissed(true);
+    };
 
+    // ── Check-in déjà fait → badge compact ──
+    if (todayEntry) {
+        const ed = EMOTIONS_MAP[todayEntry.emotion];
+        return (
+            <section>
+                <div className={`rounded-2xl border p-4 flex items-center gap-3 ${ed?.bg ?? 'bg-rose-50 border-rose-200'}`}>
+                    <span className="text-2xl">{ed?.emoji ?? '🫀'}</span>
+                    <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-semibold ${ed?.color ?? 'text-rose-700'}`}>
+                            Check-in du jour fait ✓ — {ed?.label}
+                        </p>
+                        <p className="text-xs text-slate-500 truncate mt-0.5 italic">
+                            "{todayEntry.selfCompassionMessage?.slice(0, 70)}…"
+                        </p>
+                    </div>
+                    <button
+                        onClick={onStart}
+                        className="text-xs text-slate-400 hover:text-slate-600 whitespace-nowrap transition"
+                    >
+                        Revoir →
+                    </button>
+                </div>
+            </section>
+        );
+    }
+
+    // ── Déjà passé aujourd'hui → petit rappel discret ──
+    if (dismissed) {
+        return (
+            <section>
+                <button
+                    onClick={onStart}
+                    className="w-full text-left rounded-2xl border border-dashed border-rose-200 bg-white px-4 py-3 flex items-center gap-3 hover:bg-rose-50/40 transition group"
+                >
+                    <Heart className="w-4 h-4 text-rose-300 group-hover:text-rose-400 transition flex-shrink-0" />
+                    <p className="text-xs text-slate-400 group-hover:text-slate-500 transition">
+                        Inner Child Check-in non fait · Cliquer pour commencer
+                    </p>
+                    <span className="ml-auto text-xs text-rose-300 group-hover:text-rose-400 transition">→</span>
+                </button>
+            </section>
+        );
+    }
+
+    // ── Non fait, non passé → CARTE PLEIN CADRE bloquante douce ──
     return (
         <section>
-            <button
-                onClick={onNavigate}
-                className="w-full text-left"
-            >
-                <div className={`rounded-2xl border-2 p-4 transition-all hover:shadow-md ${
-                    todayEntry
-                        ? 'bg-gradient-to-r from-rose-50 to-pink-50 border-rose-200 hover:border-rose-300'
-                        : 'bg-white border-dashed border-rose-200 hover:border-rose-400 hover:bg-rose-50/30'
-                }`}>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${
-                                todayEntry ? 'bg-rose-100' : 'bg-rose-50 border border-rose-200'
-                            }`}>
-                                {todayEntry && ed
-                                    ? <span className="text-xl">{ed.emoji}</span>
-                                    : <Heart className="w-5 h-5 text-rose-400" />
-                                }
-                            </div>
-                            <div>
-                                <p className="font-semibold text-slate-800 text-sm">
-                                    {todayEntry ? 'Inner Child Check-in du jour ✓' : 'Inner Child Check-in'}
-                                </p>
-                                {todayEntry && ed ? (
-                                    <p className={`text-xs font-medium ${ed.color}`}>
-                                        {ed.label} — {todayEntry.intensity}/5
-                                    </p>
-                                ) : (
-                                    <p className="text-xs text-slate-400">
-                                        {totalCheckins > 0
-                                            ? `${totalCheckins} check-ins enregistrés · Non fait aujourd'hui`
-                                            : 'Reconnecte-toi à toi avant d\'avancer · 2 min'}
-                                    </p>
-                                )}
-                            </div>
+            <div className="rounded-2xl border-2 border-rose-200 bg-gradient-to-br from-rose-50 via-white to-pink-50 overflow-hidden">
+                {/* En-tête */}
+                <div className="px-6 pt-6 pb-4">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-rose-100 flex items-center justify-center flex-shrink-0">
+                            <Heart className="w-6 h-6 text-rose-500" />
                         </div>
-                        <div className="text-rose-400 text-sm font-medium">
-                            {todayEntry ? 'Voir →' : 'Commencer →'}
+                        <div>
+                            <p className="text-xs text-rose-400 font-medium uppercase tracking-wider">Avant de commencer</p>
+                            <h2 className="text-lg font-bold text-slate-800">{getGreeting()}</h2>
                         </div>
                     </div>
-                    {todayEntry && (
-                        <p className="mt-2 text-xs text-slate-500 italic border-l-2 border-rose-200 pl-2 line-clamp-1">
-                            "{todayEntry.selfCompassionMessage?.slice(0, 80)}…"
-                        </p>
-                    )}
+
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                        Les habitudes ne tombent pas par manque de volonté — elles tombent quand
+                        l'état intérieur n'est pas aligné. <span className="font-medium text-slate-700">2 minutes</span> pour
+                        reconnaître ce que tu ressens vraiment.
+                    </p>
                 </div>
-            </button>
+
+                {/* Sélection rapide d'émotion — 4 émotions les plus courantes */}
+                <div className="px-6 pb-4">
+                    <p className="text-xs text-slate-400 mb-2 uppercase tracking-wide">Comment tu te sens là, maintenant ?</p>
+                    <div className="grid grid-cols-4 gap-2">
+                        {(['calme', 'peur', 'honte', 'confiance'] as const).map(key => {
+                            const ed = EMOTIONS_MAP[key];
+                            return (
+                                <button
+                                    key={key}
+                                    onClick={onStart}
+                                    className={`flex flex-col items-center gap-1 p-3 rounded-xl border transition hover:scale-105 active:scale-95 ${ed.bg}`}
+                                >
+                                    <span className="text-xl">{ed.emoji}</span>
+                                    <span className={`text-[10px] font-medium text-center leading-tight ${ed.color}`}>
+                                        {ed.label.split(' / ')[0]}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Actions */}
+                <div className="px-6 pb-5 flex flex-col sm:flex-row items-center gap-3">
+                    <button
+                        onClick={onStart}
+                        className="w-full sm:flex-1 py-3 rounded-xl bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white font-semibold text-sm transition flex items-center justify-center gap-2"
+                    >
+                        <Heart className="w-4 h-4" />
+                        Commencer le check-in · 2 min
+                    </button>
+                    <button
+                        onClick={handleDismiss}
+                        className="text-xs text-slate-400 hover:text-slate-500 transition py-2 px-3 rounded-lg hover:bg-slate-100"
+                    >
+                        Passer pour aujourd'hui →
+                    </button>
+                </div>
+
+                {/* Citation d'ancrage */}
+                <div className="border-t border-rose-100 px-6 py-3 bg-rose-50/60">
+                    <p className="text-xs text-slate-400 italic text-center">
+                        "Tu n'es pas seul. Je suis là maintenant."
+                    </p>
+                </div>
+            </div>
         </section>
     );
 };
