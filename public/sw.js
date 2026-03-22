@@ -1,4 +1,4 @@
-/* Web Push Service Worker for Vibes Arc */
+/* Web Push Service Worker for Vibes Arc — v2026.03.22 */
 
 // ─── Activation immediate du SW ─────────────────────────────────────────────
 self.addEventListener('install', () => {
