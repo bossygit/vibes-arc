@@ -11,7 +11,7 @@ import OSLog
 
 private let log = Logger(subsystem: "com.vibesarc.Vibes-Arc.VibesArcWidgets", category: "timeline")
 
-private let apiBaseURL = "https://vibes-arc.vercel.app"
+private let apiBaseURL = "https://app-opal-mu.vercel.app"
 private let widgetSummaryPath = "/api/widgets/v2"
 
 // MARK: - Provider
