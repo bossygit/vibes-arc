@@ -10,6 +10,30 @@ private let appBaseURL = "https://app-opal-mu.vercel.app"
 private let linkDeviceEndpoint = "\(appBaseURL)/api/widgets/link-device"
 
 struct ContentView: View {
+    var body: some View {
+        TabView {
+            // ── Onglet Aujourd'hui ─────────────────────────────────────────
+            NavigationStack {
+                TodayView()
+            }
+            .tabItem {
+                Label("Aujourd'hui", systemImage: "checkmark.circle")
+            }
+
+            // ── Onglet Liaison ─────────────────────────────────────────────
+            NavigationStack {
+                LinkDeviceView()
+            }
+            .tabItem {
+                Label("Liaison", systemImage: "link")
+            }
+        }
+    }
+}
+
+// MARK: - LinkDeviceView (ancienne ContentView déplacée ici)
+
+struct LinkDeviceView: View {
     @State private var linkStatus: LinkStatus = .idle
     @State private var supabaseToken: String = ""
     @State private var showTokenInput: Bool = false
@@ -22,7 +46,6 @@ struct ContentView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
 
-                // ── En-tête ──────────────────────────────────────────
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Widget Vibes Arc")
                         .font(.title2.bold())
@@ -31,7 +54,6 @@ struct ContentView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                // ── Device ID ────────────────────────────────────────
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Ton identifiant appareil")
                         .font(.caption)
@@ -59,7 +81,6 @@ struct ContentView: View {
 
                 Divider()
 
-                // ── Méthode 1 : Token JWT ─────────────────────────────
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Liaison automatique (recommandée)", systemImage: "link")
                         .font(.headline)
@@ -109,7 +130,6 @@ struct ContentView: View {
                         }
                     }
 
-                    // Statut
                     switch linkStatus {
                     case .success:
                         Label("Appareil lié avec succès ! Le widget se met à jour dans quelques minutes.", systemImage: "checkmark.circle.fill")
@@ -126,7 +146,6 @@ struct ContentView: View {
 
                 Divider()
 
-                // ── Méthode 2 : Forcer le refresh ──────────────────────
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Rafraîchir le widget", systemImage: "arrow.clockwise")
                         .font(.headline)
@@ -148,7 +167,6 @@ struct ContentView: View {
 
                 Divider()
 
-                // ── Méthode 3 : Ouvrir l'app web ──────────────────────
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Ouvrir Vibes Arc", systemImage: "safari")
                         .font(.headline)
@@ -163,41 +181,32 @@ struct ContentView: View {
                         }
                     }
                 }
-
             }
             .padding()
         }
+        .navigationTitle("Liaison")
         .onAppear {
-            // Vérifier si déjà lié
             checkLinkStatus()
         }
     }
 
-    // ── Actions ───────────────────────────────────────────────────────
-
     private func linkDevice() async {
         let token = supabaseToken.trimmingCharacters(in: .whitespaces)
         guard !token.isEmpty else { return }
-
         linkStatus = .loading
-
         guard let url = URL(string: linkDeviceEndpoint) else {
-            linkStatus = .error("URL invalide")
-            return
+            linkStatus = .error("URL invalide"); return
         }
-
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.httpBody = try? JSONEncoder().encode(["deviceId": deviceId])
-
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             let http = response as? HTTPURLResponse
             if http?.statusCode == 200 {
                 linkStatus = .success
-                // Recharger le widget immédiatement
                 WidgetCenter.shared.reloadAllTimelines()
             } else {
                 let body = String(data: data, encoding: .utf8) ?? "Erreur inconnue"
@@ -209,7 +218,6 @@ struct ContentView: View {
     }
 
     private func checkLinkStatus() {
-        // Si déjà lié, afficher succès
         let key = "vibesarc_linked_\(deviceId)"
         if UserDefaults.standard.bool(forKey: key) {
             linkStatus = .success
@@ -227,3 +235,4 @@ enum LinkStatus: Equatable {
 #Preview {
     ContentView()
 }
+
