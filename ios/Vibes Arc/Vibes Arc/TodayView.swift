@@ -12,7 +12,44 @@ import WidgetKit
 
 private let appBaseURL = "https://app-opal-mu.vercel.app"
 
-// MARK: - Models
+// MARK: - Local API models (indépendants du target Widget)
+// Ces structs reflètent la réponse JSON de /api/widgets/v2
+// sans dépendre de WidgetSummary.swift qui est dans le target VibesArcWidgets.
+
+private struct SummaryResponse: Decodable {
+    let streaks: SummaryStreaks
+    let todayRemaining: SummaryTodayRemaining
+    let chain: SummaryChain?
+}
+
+private struct SummaryStreaks: Decodable {
+    let byHabit: [SummaryHabitStreak]?
+}
+
+private struct SummaryHabitStreak: Decodable {
+    let habitId: Int
+    let name: String
+    let current: Int
+    let longest: Int
+}
+
+private struct SummaryTodayRemaining: Decodable {
+    let count: Int
+    let habits: [SummaryRemainingHabit]?
+}
+
+private struct SummaryRemainingHabit: Decodable {
+    let habitId: Int
+    let name: String
+    let type: String
+}
+
+private struct SummaryChain: Decodable {
+    let length: Int
+    let status: String
+}
+
+// MARK: - App Models
 
 struct TodayHabit: Identifiable {
     let id: Int
@@ -47,9 +84,8 @@ final class TodayViewModel: ObservableObject {
         }
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
-            let summary = try JSONDecoder().decode(WidgetSummaryResponse.self, from: data)
+            let summary = try JSONDecoder().decode(SummaryResponse.self, from: data)
 
-            // Construire la liste avec les complétées + restantes
             var habits: [TodayHabit] = []
 
             // Restantes (non complétées)
@@ -57,19 +93,21 @@ final class TodayViewModel: ObservableObject {
                 habits.append(TodayHabit(id: h.habitId, name: h.name, type: h.type, completed: false))
             }
 
-            // Complétées (streaks byHabit - restantes)
-            let remainingIds = Set((summary.todayRemaining.habits ?? []).map(\.habitId))
+            // Complétées = byHabit - restantes
+            let remainingIds: Set<Int> = Set(
+                (summary.todayRemaining.habits ?? []).map { $0.habitId }
+            )
             for h in summary.streaks.byHabit ?? [] {
                 if !remainingIds.contains(h.habitId) {
                     habits.append(TodayHabit(id: h.habitId, name: h.name, type: "start", completed: true))
                 }
             }
 
-            // Trier : non faites en premier, puis faites
+            // Trier : non faites en premier
             habits.sort { !$0.completed && $1.completed }
 
             let total = habits.count
-            let done = habits.filter(\.completed).count
+            let done = habits.filter { $0.completed }.count
             let rate = total > 0 ? Double(done) / Double(total) : 0.0
             let chain = summary.chain?.length ?? 0
 
@@ -192,7 +230,7 @@ private struct LoadedView: View {
     let rate: Double
     @ObservedObject var vm: TodayViewModel
 
-    private var done: Int { habits.filter(\.completed).count }
+    private var done: Int { habits.filter { $0.completed }.count }
     private var total: Int { habits.count }
 
     var body: some View {
@@ -261,7 +299,7 @@ private struct LoadedView: View {
                 }
             } else {
                 let pending = habits.filter { !$0.completed }
-                let done_habits = habits.filter(\.completed)
+                let done_habits = habits.filter { $0.completed }
 
                 if !pending.isEmpty {
                     Section("À faire") {
