@@ -12,6 +12,7 @@ import SwiftUI
 struct VibesArcWidgetsBundle: WidgetBundle {
     var body: some Widget {
         VibesArcWidgets()
+        VibesArcLockScreenWidget()
         VibesArcWidgetsControl()
         VibesArcWidgetsLiveActivity()
     }
