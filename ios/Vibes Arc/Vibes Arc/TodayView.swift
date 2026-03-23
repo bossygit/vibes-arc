@@ -9,6 +9,7 @@
 
 import SwiftUI
 import WidgetKit
+internal import Combine
 
 private let appBaseURL = "https://app-opal-mu.vercel.app"
 

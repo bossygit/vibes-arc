@@ -217,7 +217,7 @@ struct LockScreenCircularView: View {
                         .font(.system(size: 11, weight: .bold))
                         .minimumScaleFactor(0.7)
                 } else {
-                    Text(entry.summary?.trigger.emoji ?? "📱")
+                    Text(entry.summary?.trigger?.emoji ?? "📱")
                         .font(.system(size: 18))
                 }
             }
