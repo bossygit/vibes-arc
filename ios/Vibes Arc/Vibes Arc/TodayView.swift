@@ -163,6 +163,8 @@ final class TodayViewModel: ObservableObject {
             }
             // Succès — déclencher le refresh du widget
             WidgetCenter.shared.reloadAllTimelines()
+            // Mettre à jour les notifications locales (skip si journée complète).
+            await NotificationScheduler.refreshSchedule()
         } catch {
             print("[TodayView] check error: \(error)")
             await load()

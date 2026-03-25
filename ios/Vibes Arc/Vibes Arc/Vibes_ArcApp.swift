@@ -11,6 +11,10 @@ import SwiftUI
 struct Vibes_ArcApp: App {
     init() {
         _ = WidgetSharedStorage.ensureDeviceId()
+        Task {
+            // Replanifier tôt au lancement (skip si journée complète).
+            await NotificationScheduler.refreshSchedule()
+        }
     }
 
     var body: some Scene {

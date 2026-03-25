@@ -5,6 +5,7 @@
 
 import SwiftUI
 import WidgetKit
+import UserNotifications
 
 private let appBaseURL = "https://app-opal-mu.vercel.app"
 private let linkDeviceEndpoint = "\(appBaseURL)/api/widgets/link-device"
@@ -20,6 +21,14 @@ struct ContentView: View {
                 Label("Aujourd'hui", systemImage: "checkmark.circle")
             }
 
+            // ── Onglet Rappels ─────────────────────────────────────────────
+            NavigationStack {
+                NotificationSettingsView()
+            }
+            .tabItem {
+                Label("Rappels", systemImage: "bell")
+            }
+
             // ── Onglet Liaison ─────────────────────────────────────────────
             NavigationStack {
                 LinkDeviceView()
@@ -28,6 +37,108 @@ struct ContentView: View {
                 Label("Liaison", systemImage: "link")
             }
         }
+    }
+}
+
+// MARK: - NotificationSettingsView
+
+struct NotificationSettingsView: View {
+    @State private var enabled: Bool = NotificationScheduler.isEnabled
+    @State private var authStatus: UNAuthorizationStatus? = nil
+    @State private var pendingCount: Int? = nil
+    @State private var isWorking: Bool = false
+
+    var body: some View {
+        List {
+            Section {
+                Toggle("Activer les rappels", isOn: $enabled)
+                    .onChange(of: enabled) { _, newValue in
+                        NotificationScheduler.isEnabled = newValue
+                        Task { await refreshAndReschedule() }
+                    }
+            } footer: {
+                Text("Rappels locaux toutes les heures de 06:00 à 22:00. Pas de notification si ta journée est déjà complétée.")
+            }
+
+            Section("Permissions") {
+                HStack {
+                    Text("Statut")
+                    Spacer()
+                    Text(statusLabel)
+                        .foregroundStyle(.secondary)
+                }
+
+                Button {
+                    Task { await requestPermission() }
+                } label: {
+                    HStack {
+                        if isWorking { ProgressView() }
+                        Text("Autoriser les notifications")
+                    }
+                }
+            }
+
+            Section("Diagnostic") {
+                HStack {
+                    Text("Notifs planifiées")
+                    Spacer()
+                    Text(pendingCount.map(String.init) ?? "—")
+                        .foregroundStyle(.secondary)
+                }
+
+                Button("Rafraîchir maintenant") {
+                    Task { await refreshAndReschedule() }
+                }
+
+                Button(role: .destructive) {
+                    Task {
+                        isWorking = true
+                        await NotificationScheduler.cancelReminders()
+                        await refreshCounts()
+                        isWorking = false
+                    }
+                } label: {
+                    Text("Annuler les rappels")
+                }
+            }
+        }
+        .navigationTitle("Rappels")
+        .onAppear {
+            enabled = NotificationScheduler.isEnabled
+            Task { await refreshCounts() }
+        }
+    }
+
+    private var statusLabel: String {
+        guard let authStatus else { return "—" }
+        switch authStatus {
+        case .notDetermined: return "À demander"
+        case .denied: return "Refusé"
+        case .authorized: return "Autorisé"
+        case .provisional: return "Provisoire"
+        case .ephemeral: return "Éphémère"
+        @unknown default: return "Inconnu"
+        }
+    }
+
+    private func requestPermission() async {
+        isWorking = true
+        _ = await NotificationScheduler.requestAuthorization()
+        await refreshAndReschedule()
+        isWorking = false
+    }
+
+    private func refreshAndReschedule() async {
+        isWorking = true
+        await NotificationScheduler.refreshSchedule()
+        await refreshCounts()
+        isWorking = false
+    }
+
+    private func refreshCounts() async {
+        authStatus = await NotificationScheduler.authorizationStatus()
+        let pending = await NotificationScheduler.debugListPending()
+        pendingCount = pending.filter { $0.hasPrefix("vibes-arc-reminder-") }.count
     }
 }
 
