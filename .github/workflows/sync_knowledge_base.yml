@@ -1,19 +1,26 @@
 name: 🧠 Sync Knowledge Base → Supabase
 
 # Se déclenche à chaque push sur main qui touche COACH_KNOWLEDGE_BASE.md
+# ou les scripts de synchronisation.
 on:
   push:
     branches:
       - main
     paths:
       - 'COACH_KNOWLEDGE_BASE.md'
+      - 'scripts/sync_knowledge_base.mjs'
+      - 'scripts/export_knowledge_base.mjs'
 
   # Permet aussi de lancer manuellement depuis l'onglet Actions
   workflow_dispatch:
 
+# Lecture seule : on ne modifie rien dans le dépôt depuis ce job.
+permissions:
+  contents: read
+
 jobs:
   sync:
-    name: Sync .md → Supabase raw_markdown
+    name: Sync .md → Supabase (frontmatter + raw_markdown)
     runs-on: ubuntu-latest
 
     steps:

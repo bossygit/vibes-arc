@@ -29,6 +29,14 @@ struct ContentView: View {
                 Label("Rappels", systemImage: "bell")
             }
 
+            // ── Onglet Coach ───────────────────────────────────────────────
+            NavigationStack {
+                CoachTabRoot()
+            }
+            .tabItem {
+                Label("Coach", systemImage: "sparkles")
+            }
+
             // ── Onglet Liaison ─────────────────────────────────────────────
             NavigationStack {
                 LinkDeviceView()
@@ -37,6 +45,72 @@ struct ContentView: View {
                 Label("Liaison", systemImage: "link")
             }
         }
+    }
+}
+
+// MARK: - CoachTabRoot
+
+/// Wrapper de l'onglet Coach : affiche un placeholder uniquement si on détecte
+/// via l'API que le device n'est pas encore lié. Sinon affiche le chat directement.
+struct CoachTabRoot: View {
+    enum LinkState: Equatable { case unknown, linked, notLinked }
+    @State private var state: LinkState = .unknown
+
+    var body: some View {
+        Group {
+            switch state {
+            case .unknown:
+                ProgressView("…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .navigationTitle("Coach")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .task { await probe() }
+            case .notLinked:
+                notLinkedPlaceholder
+            case .linked:
+                CoachChatView()
+            }
+        }
+    }
+
+    private func probe() async {
+        do {
+            _ = try await CoachService.shared.loadHistory(limit: 1)
+            state = .linked
+        } catch let err as CoachError {
+            if case .notLinked = err {
+                state = .notLinked
+            } else {
+                state = .linked
+            }
+        } catch {
+            state = .linked
+        }
+    }
+
+    private var notLinkedPlaceholder: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 48))
+                .foregroundStyle(.purple)
+            Text("Coach Vibes")
+                .font(.title2.bold())
+            Text("Lie ton appareil depuis l'onglet **Liaison** pour ouvrir la conversation avec ton coach personnel.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button("Réessayer") {
+                Task {
+                    state = .unknown
+                    await probe()
+                }
+            }
+            .padding(.top, 12)
+        }
+        .padding()
+        .navigationTitle("Coach")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -318,6 +392,7 @@ struct LinkDeviceView: View {
             let http = response as? HTTPURLResponse
             if http?.statusCode == 200 {
                 linkStatus = .success
+                UserDefaults.standard.set(true, forKey: "vibesarc_linked_\(deviceId)")
                 WidgetCenter.shared.reloadAllTimelines()
             } else {
                 let body = String(data: data, encoding: .utf8) ?? "Erreur inconnue"

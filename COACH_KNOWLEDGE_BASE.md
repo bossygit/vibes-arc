@@ -1,5 +1,108 @@
+---
+user_id: 6d3b3bc4-36aa-416e-b291-8c46eae035f1
+full_name: Bienvenu KITUTU OLEONTWA
+birth_date: 1987-05-08
+location: Brazzaville, République du Congo
+primary_language: fr
+profession: Consultant digital & développeur web full-stack
+
+psychological_profile:
+  challenges:
+    - anxiety
+    - self_sabotage
+  anxiety_triggers:
+    - surcharge de travail et deadlines multiples
+    - incertitude financière
+    - sentiment de ne pas être à la hauteur
+    - manque de structure ou routine stable
+    - perfectionnisme bloquant
+  self_sabotage_patterns:
+    - abandon des habitudes après 2-3 semaines
+    - procrastination sur les projets personnels importants
+    - minimisation des propres réussites
+    - surcharge volontaire pour éviter l'essentiel
+  strengths:
+    - intelligence technique élevée
+    - grande créativité dans la résolution de problèmes
+    - capacité à construire des systèmes complexes
+    - curiosité intellectuelle profonde
+    - engagement sincère dans le développement personnel
+    - vision claire de qui il veut devenir
+
+practices:
+  morning_routine:
+    - Joe Dispenza meditation
+    - Wim Hof breathwork
+    - cold exposure
+    - journaling
+  frameworks:
+    - Joe Dispenza
+    - Wim Hof
+    - Abraham-Hicks
+    - chakras Anodea Judith
+    - Jim Kwik
+    - manifestation 60 jours
+  interests:
+    - healthy living
+    - tech et programmation
+    - React TypeScript Supabase n8n
+    - développement personnel
+
+coaching_style:
+  tone: bienveillant_mais_direct
+  language: fr
+  persona: allié jamais juge
+  preferred_approach:
+    - rappels identitaires positifs
+    - ancrage corporel et somatique
+    - références aux pratiques Dispenza et Wim Hof
+    - questions Socratiques plutôt que jugements
+    - célébration explicite des petites victoires
+    - métaphores corporelles et kinesthésiques
+  avoid:
+    - culpabilisation
+    - pression excessive après un décrochage
+    - comparaisons négatives
+    - clichés motivationnels vides
+    - minimiser anxiété ou défis
+  relapse_protocol:
+    threshold_completion_rate: 40
+    steps:
+      - Ne pas pointer le manque — demander ce qui s'est passé
+      - Réduire à UNE seule habitude prioritaire
+      - Rappeler le pourquoi profond
+      - Proposer un reset doux plutôt qu'un recommencement
+
+life_goals:
+  - horizon: court_terme
+    label: Stabiliser une routine matinale sur 90 jours consécutifs
+  - horizon: court_terme
+    label: Livrer les projets CESE, AMC et État-Major avec excellence
+  - horizon: court_terme
+    label: Développer Vibes Arc en produit fonctionnel
+  - horizon: moyen_terme
+    label: Devenir une référence du consulting digital en Afrique centrale
+  - horizon: moyen_terme
+    label: Générer des revenus stables et prévisibles
+  - horizon: long_terme
+    label: Construire une vie alignée entre travail, santé et sens
+  - horizon: long_terme
+    label: Transformer ses outils de croissance en produits pour aider d'autres
+
+motivation_anchors:
+  - label: Kia Sportage
+    type: manifestation
+    note: Manifestation personnelle — peut servir d'ancre motivationnelle
+
+coach_notes: |
+  Bienvenu a créé Vibes Arc lui-même — il sait comment le système fonctionne.
+  Il est plus réceptif le matin après sa méditation.
+  Quand il parle de ses clients institutionnels, surveiller les signes de surcharge.
+  Il est kinesthésique — les métaphores corporelles résonnent plus que les abstractions.
+---
+
 # 🧠 Base de Connaissance — Coach Vibes Arc
-> Fichier de référence statique. La version dynamique est stockée dans Supabase (table `user_knowledge_base`).
+> Fichier de référence. Le frontmatter ci-dessus alimente les colonnes structurées de `user_knowledge_base` ; le corps markdown ci-dessous est stocké dans la colonne `raw_markdown`.
 > Dernière mise à jour : 2026-04-21
 
 ---
