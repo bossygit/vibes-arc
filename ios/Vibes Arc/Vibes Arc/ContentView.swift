@@ -21,12 +21,12 @@ struct ContentView: View {
                 Label("Aujourd'hui", systemImage: "checkmark.circle")
             }
 
-            // ── Onglet Rappels ─────────────────────────────────────────────
+            // ── Onglet Notifications coach ─────────────────────────────
             NavigationStack {
                 NotificationSettingsView()
             }
             .tabItem {
-                Label("Rappels", systemImage: "bell")
+                Label("Notifs", systemImage: "bell")
             }
 
             // ── Onglet Coach ───────────────────────────────────────────────
@@ -121,17 +121,48 @@ struct NotificationSettingsView: View {
     @State private var authStatus: UNAuthorizationStatus? = nil
     @State private var pendingCount: Int? = nil
     @State private var isWorking: Bool = false
+    @State private var intensityMode: NudgeIntensityMode = CoachNudgeEscalation.userMode
+    @State private var antiRelapse: Bool = CoachNudgeEscalation.antiRelapseEveningEnabled
+    @State private var useAI: Bool = CoachNudgeEscalation.useAINotificationLine
 
     var body: some View {
         List {
             Section {
-                Toggle("Activer les rappels", isOn: $enabled)
+                Toggle("Activer les notifications coach", isOn: $enabled)
                     .onChange(of: enabled) { _, newValue in
                         NotificationScheduler.isEnabled = newValue
                         Task { await refreshAndReschedule() }
                     }
             } footer: {
-                Text("Rappels locaux toutes les heures de 06:00 à 22:00. Pas de notification si ta journée est déjà complétée.")
+                Text("Messages type coach (identité, tension contrôlée), adaptés à ta semaine et aux habitudes restantes. Créneaux environ 7h, 13h, 19h et 22h30. Aucune notif si la journée est déjà complétée. Le texte se met à jour quand tu ouvres l’app.")
+            }
+
+            Section {
+                Picker("Intensité", selection: $intensityMode) {
+                    Text("Douce").tag(NudgeIntensityMode.soft)
+                    Text("Auto").tag(NudgeIntensityMode.auto)
+                    Text("Ferme").tag(NudgeIntensityMode.firm)
+                }
+                .onChange(of: intensityMode) { _, v in
+                    CoachNudgeEscalation.userMode = v
+                    Task { await refreshAndReschedule() }
+                }
+
+                Toggle("Soir / nuit anti-relaps", isOn: $antiRelapse)
+                    .onChange(of: antiRelapse) { _, v in
+                        CoachNudgeEscalation.antiRelapseEveningEnabled = v
+                        Task { await refreshAndReschedule() }
+                    }
+
+                Toggle("Ligne générée par l’IA (Gemini)", isOn: $useAI)
+                    .onChange(of: useAI) { _, v in
+                        CoachNudgeEscalation.useAINotificationLine = v
+                        Task { await refreshAndReschedule() }
+                    }
+            } header: {
+                Text("Style")
+            } footer: {
+                Text("Sans anti-relaps, le créneau 22h30 est désactivé. L’IA appelle le serveur une fois par créneau et par jour (cache local).")
             }
 
             Section("Permissions") {
@@ -176,9 +207,12 @@ struct NotificationSettingsView: View {
                 }
             }
         }
-        .navigationTitle("Rappels")
+        .navigationTitle("Notifications")
         .onAppear {
             enabled = NotificationScheduler.isEnabled
+            intensityMode = CoachNudgeEscalation.userMode
+            antiRelapse = CoachNudgeEscalation.antiRelapseEveningEnabled
+            useAI = CoachNudgeEscalation.useAINotificationLine
             Task { await refreshCounts() }
         }
     }

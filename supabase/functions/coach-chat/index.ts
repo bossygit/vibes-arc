@@ -70,13 +70,23 @@ serve(async (req) => {
       return await handleSaveInsight(admin, req);
     }
 
+    if (req.method === "POST" && path.endsWith("/notification-line")) {
+      return await handleNotificationLine(admin, req);
+    }
+
     if (req.method === "POST") {
       return await handleChat(admin, req);
     }
 
     return jsonResponse({
       error: "Unknown endpoint",
-      availableEndpoints: ["POST /", "GET /history", "DELETE /history", "POST /insights"],
+      availableEndpoints: [
+        "POST /",
+        "GET /history",
+        "DELETE /history",
+        "POST /insights",
+        "POST /notification-line",
+      ],
     }, 404);
   } catch (error) {
     console.error("coach-chat error:", error);
@@ -285,6 +295,53 @@ async function handleSaveInsight(
 }
 
 // ============================================================
+// POST /notification-line : une ligne de notification (app iOS)
+// ============================================================
+
+async function handleNotificationLine(
+  admin: ReturnType<typeof createClient>,
+  req: Request,
+): Promise<Response> {
+  let body: {
+    device_id?: string;
+    state?: string;
+    time_of_day?: string;
+    habits_status?: string;
+    risk?: string;
+    intensity?: string;
+    slot?: string;
+  };
+  try {
+    body = await req.json();
+  } catch {
+    return jsonResponse({ error: "Invalid JSON body" }, 400);
+  }
+  const deviceId = (body.device_id ?? "").trim();
+  if (!deviceId) return jsonResponse({ error: "device_id is required" }, 400);
+  const userId = await resolveUserId(admin, deviceId);
+  if (!userId) return jsonResponse({ error: "Device not linked" }, 403);
+
+  const system = `Tu écris UNE notification iOS en français. 1 à 2 phrases maximum. ` +
+    `Style : coach, direct, ancrage identité, légère pression si l'intensité est "forte" ou "intervention". ` +
+    `Interdits : "n'oublie pas", "rappel", ton passif, emojis, plus de 2 phrases. ` +
+    `Sortie : uniquement le texte de la notification, rien d'autre (pas de guillemets).`;
+
+  const user = `État: ${body.state ?? ""}
+Moment: ${body.time_of_day ?? ""}
+Habitudes: ${body.habits_status ?? ""}
+Risque: ${body.risk ?? ""}
+Intensité: ${body.intensity ?? "moyenne"}
+Créneau: ${body.slot ?? ""}`;
+
+  try {
+    const line = await callGeminiNotificationLine(system, user);
+    return jsonResponse({ line: line.trim() });
+  } catch (e) {
+    return jsonResponse({ error: (e as Error).message }, 502);
+  }
+}
+
+// ============================================================
 // User context (habits + today + memory)
 // ============================================================
 
@@ -453,6 +510,37 @@ async function callGemini(
     },
   };
 
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Gemini error ${res.status}: ${errText}`);
+  }
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("Gemini empty response");
+  return text;
+}
+
+async function callGeminiNotificationLine(
+  systemText: string,
+  userText: string,
+): Promise<string> {
+  const apiKey = Deno.env.get("GEMINI_API_KEY");
+  if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
+  const body = {
+    system_instruction: { parts: [{ text: systemText }] },
+    contents: [{ role: "user", parts: [{ text: userText }] }],
+    generationConfig: {
+      temperature: 0.9,
+      maxOutputTokens: 200,
+      topP: 0.9,
+    },
+  };
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
   const res = await fetch(url, {
     method: "POST",
