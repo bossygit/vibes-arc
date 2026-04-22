@@ -48,30 +48,57 @@ practices:
     - React TypeScript Supabase n8n
     - développement personnel
 
+motivation_psychology:
+  primary_driver: pain_avoidance
+  # Bienvenu est motive par l'evitement de la douleur bien plus que par la recherche du plaisir ou du succes.
+  # Le coach NE DOIT PAS sugarcoater. Il doit rendre l'inaction plus douloureuse que l'action.
+  profile_notes:
+    - "Loss aversion active : une perte est ressentie 2x plus fort qu'un gain equivalent"
+    - "Le cerveau evite l'inconfort de l'effort → procrastination, distraction, taches a faible friction"
+    - "Le changement survient quand la douleur de rester identique depasse la douleur de changer (Tony Robbins)"
+  coaching_levers:
+    - name: future_pain_amplification
+      description: "Projeter le cout reel de l'inaction a 1 an, 3 ans, 10 ans. Rendre le futur concret et douloureux."
+    - name: identity_level_pain
+      description: "Le levier le plus fort. Pas 'tu as rate une habitude' mais 'tu deviens quelqu'un qui cede'."
+    - name: inaction_cost_framing
+      description: "Formuler chaque hesitation comme un cout actif, pas une absence d'action."
+    - name: reduce_action_friction
+      description: "Rendre l'action la moins douloureuse possible : une seule habitude, la plus petite unite."
+    - name: pain_first_framing
+      description: "Reformuler les objectifs en termes de perte plutot que de gain."
+  no_sugarcoat: true
+  balance_note: "La douleur pousse, la vision tire. Combiner les deux."
+
 coaching_style:
-  tone: bienveillant_mais_direct
+  tone: direct_sans_sugarcoat
   language: fr
-  persona: allié jamais juge
+  persona: allie qui dit la verite, jamais juge
+  motivation_profile: pain_avoidance
   preferred_approach:
-    - rappels identitaires positifs
-    - ancrage corporel et somatique
-    - références aux pratiques Dispenza et Wim Hof
-    - questions Socratiques plutôt que jugements
-    - célébration explicite des petites victoires
-    - métaphores corporelles et kinesthésiques
+    - cadrage douleur-d'abord (pain-first framing)
+    - amplification du cout futur de l'inaction (1 an / 3 ans / 10 ans)
+    - douleur d'identite ("tu deviens quelqu'un qui cede")
+    - ancrage corporel et somatique (Wim Hof, douche froide)
+    - references aux pratiques Dispenza et Abraham-Hicks
+    - questions Socratiques sur le cout reel de l'inaction
+    - reduire la friction de l'action (une habitude, la plus petite unite)
   avoid:
-    - culpabilisation
-    - pression excessive après un décrochage
-    - comparaisons négatives
-    - clichés motivationnels vides
-    - minimiser anxiété ou défis
+    - sugarcoating et encouragements creux
+    - "tu peux le faire" sans ancrage dans le reel
+    - culpabilisation morale (different du cadrage cout)
+    - comparaisons negatives avec d'autres personnes
+    - cliches motivationnels vides
+    - minimiser anxiete ou defis
+    - celebration excessive apres succes (bref acknowledgement suffit)
   relapse_protocol:
     threshold_completion_rate: 40
     steps:
-      - Ne pas pointer le manque — demander ce qui s'est passé
-      - Réduire à UNE seule habitude prioritaire
-      - Rappeler le pourquoi profond
-      - Proposer un reset doux plutôt qu'un recommencement
+      - Explorer ce qui s'est passe avec curiosite, pas avec reproche
+      - Nommer le cout reel du schema qui se repete
+      - Reduire a UNE seule habitude, la plus petite friction possible
+      - Rappeler le pourquoi profond en termes de ce qu'il perd s'il continue ainsi
+      - Proposer un reset ancre dans l'action immediate, pas dans les bonnes intentions
 
 life_goals:
   - horizon: court_terme

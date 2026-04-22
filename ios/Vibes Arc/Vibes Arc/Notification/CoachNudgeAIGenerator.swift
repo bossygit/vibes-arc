@@ -44,6 +44,8 @@ enum CoachNudgeAIGenerator {
             "risk": risk.rawValue,
             "intensity": intensityLabel(intensity),
             "slot": slot.rawValue,
+            "motivation_profile": "pain_avoidance",
+            "no_sugarcoat": "true",
         ]
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
 

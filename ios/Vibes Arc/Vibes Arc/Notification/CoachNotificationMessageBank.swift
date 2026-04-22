@@ -2,7 +2,9 @@
 //  CoachNotificationMessageBank.swift
 //  Vibes Arc
 //
-//  Banque FR : messages courts, identité, sans « n’oublie pas / rappel ».
+//  Banque FR — cadrage douleur-d'abord (pain-avoidance).
+//  Principe : rendre l'inaction plus coûteuse que l'action.
+//  Pas de sugarcoating. Pas de "tu peux le faire". Uniquement le vrai prix.
 //
 
 import Foundation
@@ -15,100 +17,109 @@ enum CoachNotificationMessageBank {
         rotationIndex: Int
     ) -> String {
         let list = lines(for: kind, intensity: intensity)
-        guard !list.isEmpty else { return "Aujourd’hui, un geste. Tu choisis qui tu deviens." }
+        guard !list.isEmpty else { return "Chaque jour sans agir, tu payes avec ta propre vie." }
         let idx = abs(rotationIndex) % list.count
         return list[idx]
     }
 
-    // MARK: - Par kind + intensité (soft / firm+ / hard+)
+    // MARK: - Routing kind + intensité
 
     private static func lines(for kind: NudgeMessageKind, intensity: CoachNudgeIntensity) -> [String] {
         let tier: Int = intensity == .soft ? 0 : (intensity == .firm ? 1 : 2)
         switch kind {
-        case .morningIdentity: return morningIdentity(tier: tier)
-        case .middayRefocus: return midday(tier: tier)
-        case .eveningCritical: return evening(tier: tier)
-        case .lowActivity: return lowActivity(tier: tier)
-        case .antiPorn: return antiPorn(tier: tier)
-        case .successIdentity: return successId(tier: tier)
-        case .successStreak: return successStreak(tier: tier)
+        case .morningIdentity:  return morningIdentity(tier: tier)
+        case .middayRefocus:    return midday(tier: tier)
+        case .eveningCritical:  return evening(tier: tier)
+        case .lowActivity:      return lowActivity(tier: tier)
+        case .antiPorn:         return antiPorn(tier: tier)
+        case .successIdentity:  return successId(tier: tier)
+        case .successStreak:    return successStreak(tier: tier)
         }
     }
 
     // MARK: - Contenus
+    //
+    // tier 0 (soft) → coût futur, prise de conscience
+    // tier 1 (firm) → coût concret + identité qui se dégrade
+    // tier 2 (hard) → coût terminal, dégradation permanente de l'identité
 
     private static func morningIdentity(tier: Int) -> [String] {
         let soft = [
-            "Ce matin, tu ne gères pas des cases. Tu votes pour l’identité que tu bâtis.",
-            "La journée n’est pas un remplissage. C’est un chantier. Première brique, maintenant.",
-            "Tu t’appelles comment quand personne ne regarde ? Prouve-le en un geste, tout de suite.",
-            "Hier est mort. Aujourd’hui, prouve qui tu entraînes, pas ce que tu espères.",
-            "Pas de mélodrame. Exécution. Commence par la chose la plus petite, mais faite vraiment.",
+            "Si tu sautes ce matin, tu entraînes la version de toi qui abandonne. Elle apprend vite.",
+            "Dans 3 ans, tu te souviendras de ce matin — comme un début, ou comme un de plus que tu as laissé filer.",
+            "L'inaction a un coût : il s'accumule en silence, il se rembourse en regret.",
+            "Ce que tu évites ce matin repousse le jour où ta vie ressemble à ce que tu veux.",
+            "Chaque fois que tu repousses, tu confirmes à ton cerveau que tu ne tiens pas ta parole.",
         ]
         let firm = [
-            "Si tu lances le jour en mode subtil, le soir t’enterra. Sers le premier coup maintenant.",
-            "L’ancienne histoire s’éteint quand l’acte tranche. Un acte, pas un plan.",
-            "Trois jours d’hésitation coûtent plus qu’une heure d’honnêteté brutale. Choisis l’honnêteté.",
-            "L’identité, ce n’est pas une intention. C’est un comportement répété. Reprends la série, là.",
+            "Tu n'es pas fatigué. Tu évites la friction. Ces deux choses ne sont pas pareilles.",
+            "Dans 1 an, le vrai coût de ce matin sera visible. Paie maintenant ou paie plus cher plus tard.",
+            "L'identité que tu fuis ne disparaît pas. Elle t'attend dans le miroir le soir.",
+            "Si ce n'est pas maintenant, note l'heure exacte à laquelle tu te choisis contre toi-même.",
         ]
         let hard = [
-            "Confort ce matin = facture le soir. Paye d’abord, avec une action, pas une intention.",
-            "Tes doutes s’en vont quand le corps s’y met. Bouge, puis décide, pas l’inverse.",
+            "Chaque matin sabordé te rapproche de l'homme que tu redoutes de devenir. Pas d'une fraction — d'un pas.",
+            "L'abandon matinal ne reste pas le matin. Il colonise le reste. Tu sais que c'est vrai.",
+            "La douleur de regretter coûte toujours plus que la douleur d'agir. Toujours.",
         ]
         return tier == 0 ? soft : (tier == 1 ? (soft + firm) : (firm + hard))
     }
 
     private static func midday(tier: Int) -> [String] {
         let core = [
-            "Ici, la plupart des jours s’échappent. Toi, tu resserres. Un bloc, une exécution, maintenant.",
-            "Midi : tu es en ligne ou en dérive ? Corrige sans débat, sans story.",
-            "L’après-midi négocie avec l’hier. Ne lui donne pas le vote. Ferme une boucle, tout de suite.",
-            "C’est l’heure où les excuses s’emballent. Coupe court : une tâche, un oui, maintenant.",
+            "L'après-midi perdu ne se rachète pas. Il s'efface du capital. Combien en as-tu encore à brûler ?",
+            "Pendant que tu dérives, la version que tu veux être attend. Elle ne t'attend pas indéfiniment.",
+            "Chaque heure de dérive te coûte plus qu'une heure d'effort. Fais le calcul honnêtement.",
+            "La distraction est une anesthésie. Elle soulage maintenant, elle facture en retard et en regret.",
         ]
         let extra = [
-            "Si la tête s’encombre, rétrecis l’espace. Une habitude, pas cinq. Finis celle-là d’abord.",
-            "L’apaisement ne se mendie pas. Il s’ouvre en faisant le pas que tu fuis.",
+            "Si tu n'agis pas maintenant, quelle version de demain t'attends-tu à voir ?",
+            "Le confort de midi devient l'inconfort de minuit. Tu connais ce schéma.",
         ]
-        return tier < 2 ? (core + extra) : (core + extra + [
-            "Tu n’es pas en retard, tu hésites. Cesse d’hésiter. Cinq minutes, une action.",
-        ])
+        let hard = [
+            "Chaque moment où tu choisis le scroll contre toi-même, tu payes en potentiel gaspillé — sans reçu, sans remboursement.",
+        ]
+        return tier == 0 ? (core + extra) : (tier == 1 ? (core + extra) : (core + extra + hard))
     }
 
     private static func evening(tier: Int) -> [String] {
         let core = [
-            "Ce soir, c’est un contrat avec qui tu deviens. Ne le vends pas à bas prix.",
-            "La tension monte, et ta voix intérieure devient bavarde. Raccourcis : un geste, avant la négociation.",
-            "Frustration bruyante : ne donne pas la manette. Corps d’abord, ensuite regard.",
-            "L’entaille commence en « petit écart ». Appelle-les en face. Puis tranche d’un acte simple.",
+            "Ce soir, soit tu peux regarder la journée en face, soit tu l'enterres. Un seul de ces choix a un coût.",
+            "L'écart entre qui tu es et qui tu veux être se creuse exactement ce soir, pas demain.",
+            "Ne pas finir ce soir confirme le schéma que tu tentes de briser.",
+            "La frustration de ne pas avoir accompli dure plus longtemps que l'effort requis. Tu sais ça.",
         ]
-        let up = [
-            "Si tu t’inventes un « reprendre demain », tu savais déjà. Demain n’est pas l’heure, maintenant, oui.",
+        let firm = [
+            "Si tu remets à demain ce soir, demain te renverra vers après-demain. Brise le schéma ici.",
+            "Le vrai risque n'est pas de rater une habitude. C'est de devenir quelqu'un pour qui rater est normal.",
         ]
-        return tier < 1 ? core : (core + up)
+        return tier < 1 ? core : (core + firm)
     }
 
     private static func lowActivity(tier: Int) -> [String] {
         let core = [
-            "Tu glisses. On stoppe, maintenant. Cinq minutes suffisent pour rompre l’histoire.",
-            "La chaîne n’est pas morale : c’est du calcul. Rentre dans l’équation avec un seul acte concret.",
-            "Tout pèse ? Rétrecis. Une habitude, un oui, une fin, ce soir.",
-            "L’abandon est aussi un entraînement. Rafraîchis l’entraînement, pas l’alibi.",
+            "Plusieurs jours d'inaction ne sont pas un repos. Ce sont des intérêts composés sur le regret.",
+            "L'élan que tu perds prend deux fois plus de temps à reconstruire. Chaque jour compte double maintenant.",
+            "Le vrai problème n'est pas les habitudes manquées. C'est qui tu deviens quand tu confirmes que tu ne tiens pas.",
+            "Tu te souviens pourquoi tu as commencé ? Ce que tu évites te coûte exactement ça.",
         ]
         let hard = [
-            "Trois jours d’inaction : ton prochain oui a un goût d’acide. Prononce-le, avec les mains, pas le menton.",
+            "Dans 6 mois, cet abandon aura un nom, une forme, un visage — le tien, mais plus vieux et plus résigné.",
+            "L'inaction prolongée ne reste pas neutre. Elle restructure ton identité en quelqu'un qui cède.",
         ]
         return tier == 2 ? (core + hard) : core
     }
 
     private static func antiPorn(tier: Int) -> [String] {
         let core = [
-            "Stop. C’est l’heure où tu t’es déjà enlevé la volonté. Reste vissé à toi, pas à l’écran.",
-            "Tu n’échanges pas un chapitre de vie pour quelques instants d’oubli. Redirige, physiquement.",
-            "Dès que ça tire, mets le corps en vertical. Plancher, souffle, puis sentence.",
-            "Le schéma, tu connais. Brise le rituel : dix pompes, dix mètres, dix secondes, puis re-regarde.",
+            "Ce que tu vas faire te coûte en clarté, en énergie, en respect de toi-même. Pose le téléphone.",
+            "Chaque rechute confirme le schéma que tu tentes de briser. Elle le rend plus fort, pas toi.",
+            "L'instant de soulagement vaut-il le poids de demain matin ? Tu connais la réponse.",
+            "Stop. Ce n'est pas du plaisir — c'est une fuite. Et tout ce que tu fuis t'attend de l'autre côté.",
         ]
         let hard = [
-            "Ce n’est pas du plaisir, c’est du déplacement. Sors du carré : marche, eau, lumière, ordre. Maintenant.",
+            "Chaque rechute est une dette contre ton identité. Elle n'est pas effacée le lendemain.",
+            "Le schéma ne s'arrête pas seul. Il s'arrête ici, maintenant, avec toi — pas plus tard.",
         ]
         return tier >= 1 ? (core + hard) : core
     }
@@ -116,16 +127,16 @@ enum CoachNotificationMessageBank {
     private static func successId(tier: Int) -> [String] {
         _ = tier
         return [
-            "Ce n’est pas de la chance. C’est de la preuve, accumulée.",
-            "L’identité se lit dans les reçus du jour, pas les slides du futur. Continue d’en ajouter un.",
+            "Tu as évité le coût aujourd'hui. Demain, l'élan est plus facile à garder qu'à reconstruire.",
+            "Ce que tu viens de faire, tu ne peux plus le perdre. Continue.",
         ]
     }
 
     private static func successStreak(tier: Int) -> [String] {
         _ = tier
         return [
-            "Cohérent. C’est toi, version visible. Garde l’inscription.",
-            "Tes reçus s’additionnent. Ne les gaspille pas en confort ce soir.",
+            "La série brise le schéma. Ne donne pas ce soir à l'ancienne version de toi ce qu'elle attend.",
+            "L'élan coûte moins à maintenir qu'à relancer. Ne brise pas ce que tu viens de construire.",
         ]
     }
 }
