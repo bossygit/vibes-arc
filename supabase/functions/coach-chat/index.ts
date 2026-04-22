@@ -298,21 +298,75 @@ async function handleSaveInsight(
 // POST /notification-line : une ligne de notification (app iOS)
 // ============================================================
 
+/** Accepte "true" / "false" (iOS) ou booléen JSON. */
+function parseNoSugarcoat(value: unknown): boolean {
+  if (value === true) return true;
+  if (value === false || value == null) return false;
+  if (typeof value === "string") {
+    const s = value.trim().toLowerCase();
+    return s === "true" || s === "1" || s === "yes";
+  }
+  return false;
+}
+
+/**
+ * Construit le system prompt pour /notification-line.
+ * Seul le profil `pain_avoidance` a un cadrage détaillé ; les autres profils
+ * (ou l’absence) gardent le style coach/identité par défaut.
+ */
+function buildNotificationLineSystemPrompt(input: {
+  motivation_profile?: string;
+  no_sugarcoat?: string | boolean;
+}): string {
+  const noSugar = parseNoSugarcoat(input.no_sugarcoat);
+
+  let system =
+    `Tu écris UNE notification iOS en français. 1 à 2 phrases maximum. ` +
+    `Interdits : "n'oublie pas", "rappel", ton passif, emojis, plus de 2 phrases. ` +
+    `Sortie : uniquement le texte de la notification, rien d'autre (pas de guillemets). `;
+
+  const profile = (input.motivation_profile ?? "").trim().toLowerCase();
+  if (profile === "pain_avoidance") {
+    system +=
+      `Style : profil motivation pain_avoidance. Cadrage douleur-d'abord : ` +
+      `éviter la douleur future en nommant le coût concret de l'inaction (identité, regret, 1 an / 3 ans si pertinent). ` +
+      `L'inaction doit sembler plus coûteuse qu'un minuscule acte. ` +
+      `Pas d'encouragement creux, pas de "tu peux le faire" sans ancrage dans un prix réel. ` +
+      `Tu peux poser la tension, pas la nier. ` +
+      `Si l'intensité indiquée par le contexte est "ferme" ou "intervention", resserre sans encouragements vides. `;
+  } else {
+    system +=
+      `Style : coach, direct, ancrage identité, légère pression si l'intensité indiquée est "ferme" ou "intervention". `;
+  }
+
+  if (noSugar) {
+    system +=
+      `Exigence no_sugarcoat : zéro adoucissement, pas d'euphémismes, pas de ton paternaliste ni de positivité toxique. ` +
+      `Appelle le coût ou la réalité sans fioriture. `;
+  }
+
+  return system.trim();
+}
+
+interface NotificationLineRequestBody {
+  device_id?: string;
+  state?: string;
+  time_of_day?: string;
+  habits_status?: string;
+  risk?: string;
+  intensity?: string;
+  slot?: string;
+  motivation_profile?: string;
+  no_sugarcoat?: string | boolean;
+}
+
 async function handleNotificationLine(
   admin: ReturnType<typeof createClient>,
   req: Request,
 ): Promise<Response> {
-  let body: {
-    device_id?: string;
-    state?: string;
-    time_of_day?: string;
-    habits_status?: string;
-    risk?: string;
-    intensity?: string;
-    slot?: string;
-  };
+  let body: NotificationLineRequestBody;
   try {
-    body = await req.json();
+    body = await req.json() as NotificationLineRequestBody;
   } catch {
     return jsonResponse({ error: "Invalid JSON body" }, 400);
   }
@@ -321,10 +375,10 @@ async function handleNotificationLine(
   const userId = await resolveUserId(admin, deviceId);
   if (!userId) return jsonResponse({ error: "Device not linked" }, 403);
 
-  const system = `Tu écris UNE notification iOS en français. 1 à 2 phrases maximum. ` +
-    `Style : coach, direct, ancrage identité, légère pression si l'intensité est "forte" ou "intervention". ` +
-    `Interdits : "n'oublie pas", "rappel", ton passif, emojis, plus de 2 phrases. ` +
-    `Sortie : uniquement le texte de la notification, rien d'autre (pas de guillemets).`;
+  const system = buildNotificationLineSystemPrompt({
+    motivation_profile: body.motivation_profile,
+    no_sugarcoat: body.no_sugarcoat,
+  });
 
   const user = `État: ${body.state ?? ""}
 Moment: ${body.time_of_day ?? ""}
