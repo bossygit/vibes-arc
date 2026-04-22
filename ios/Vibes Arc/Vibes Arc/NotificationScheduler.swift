@@ -1,7 +1,9 @@
 import Foundation
 import UserNotifications
 
-// Planificateur de notifications « coach » : créneaux + messages adaptatifs
+// Planificateur de notifications « coach » (app iOS uniquement) : quatre créneaux
+// récurrents par jour (~7h, 13h, 19h, 22h30) — pas une notification « à chaque heure ».
+// Les rappels / push du produit web (autre code) sont un flux séparé.
 // (replanif à l’ouverture app, texte basé sur le dernier état connu v2).
 
 enum NotificationScheduler {
@@ -16,6 +18,9 @@ enum NotificationScheduler {
         get { defaults.bool(forKey: enabledKey) }
         set { defaults.set(newValue, forKey: enabledKey) }
     }
+
+    /// Dernière explication d’écran (réglages Notifs) après `refreshSchedule()`.
+    private(set) static var lastRescheduleStatus: String = ""
 
     static func requestAuthorization() async -> Bool {
         do {
@@ -37,8 +42,11 @@ enum NotificationScheduler {
     }
 
     static func refreshSchedule() async {
+        lastRescheduleStatus = ""
+
         guard isEnabled else {
             print("[Notifications] disabled -> cancel")
+            lastRescheduleStatus = "Notifications coach désactivées."
             await cancelReminders()
             return
         }
@@ -46,20 +54,24 @@ enum NotificationScheduler {
         let status = await authorizationStatus()
         if status != .authorized && status != .provisional {
             print("[Notifications] not authorized -> cancel")
+            lastRescheduleStatus = "Permission iOS : autorise les alertes pour cette app."
             await cancelReminders()
             return
         }
 
-        guard let input = await WidgetV2NotificationLoader.loadContext() else {
-            print("[Notifications] v2 load failed -> cancel")
-            await cancelReminders()
-            return
+        let usedV2Fallback: Bool
+        let input: NudgeContextInput
+        if let loaded = await WidgetV2NotificationLoader.loadContext() {
+            input = loaded
+            usedV2Fallback = false
+        } else {
+            print("[Notifications] v2 load failed -> fallback context (4 créneaux quand même, messages génériques)")
+            input = NudgeContextInput.fallbackWhenV2Unavailable()
+            usedV2Fallback = true
         }
 
         if input.todayRemainingCount == 0, input.todayTotalHabits > 0 {
-            print("[Notifications] day complete -> cancel")
-            await cancelReminders()
-            return
+            print("[Notifications] day complete -> replan success-style lines; slots stay active for tomorrow")
         }
 
         let prevWeekly = CoachNudgeEscalation.lastSavedWeeklyRate()
@@ -82,6 +94,18 @@ enum NotificationScheduler {
             computed: computed,
             intensity: intensity
         )
+        let after = await UNUserNotificationCenter.current().pendingNotificationRequests()
+        let coachIds = after.filter { $0.identifier.hasPrefix(CoachNotificationPlanner.identifierPrefix) }
+        print("[Notifications] replanif OK — coach pending: \(coachIds.count) [\(coachIds.map(\.identifier).sorted().joined(separator: ", "))]")
+
+        if usedV2Fallback {
+            lastRescheduleStatus = "Planification OK (hors-ligne) : l’API widgets n’a pas répondu — messages génériques. Ouvre l’app avec le réseau pour resynchroniser."
+        } else {
+            lastRescheduleStatus = "Planification OK, données du jour reçues (widgets v2)."
+        }
+        if coachIds.isEmpty {
+            lastRescheduleStatus += " Aucun créneau en file : vérifie la console (erreur add) ou un bug iOS."
+        }
     }
 
     static func cancelReminders() async {

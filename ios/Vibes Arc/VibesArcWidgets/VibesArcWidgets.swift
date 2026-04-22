@@ -106,7 +106,15 @@ struct HomeScreenWidgetView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(trigger.title)
                         .font(.subheadline.bold())
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
+                    if !trigger.message.isEmpty, progress != nil {
+                        Text(trigger.message)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(family == .systemSmall ? 2 : 3)
+                            .minimumScaleFactor(0.9)
+                    }
                     if chainLength > 0 {
                         Text("Chaîne · \(chainLength) j")
                             .font(.caption2)

@@ -120,6 +120,7 @@ struct NotificationSettingsView: View {
     @State private var enabled: Bool = NotificationScheduler.isEnabled
     @State private var authStatus: UNAuthorizationStatus? = nil
     @State private var pendingCount: Int? = nil
+    @State private var rescheduleStatus: String = ""
     @State private var isWorking: Bool = false
     @State private var intensityMode: NudgeIntensityMode = CoachNudgeEscalation.userMode
     @State private var antiRelapse: Bool = CoachNudgeEscalation.antiRelapseEveningEnabled
@@ -134,7 +135,7 @@ struct NotificationSettingsView: View {
                         Task { await refreshAndReschedule() }
                     }
             } footer: {
-                Text("Messages type coach (identité, tension contrôlée), adaptés à ta semaine et aux habitudes restantes. Créneaux environ 7h, 13h, 19h et 22h30. Aucune notif si la journée est déjà complétée. Le texte se met à jour quand tu ouvres l’app.")
+                Text("Messages type coach (identité, tension contrôlée), adaptés à ta semaine et aux habitudes restantes. Quatre créneaux fixes par jour (environ 7h, 13h, 19h, 22h30) — pas une alerte chaque heure. Quand la journée est déjà complétée, les messages passent en encouragement / félicitations et les créneaux restent planifiés pour le lendemain. Le texte se met à jour quand tu ouvres l’app.")
             }
 
             Section {
@@ -188,6 +189,12 @@ struct NotificationSettingsView: View {
                     Text("Notifs planifiées")
                     Spacer()
                     Text(pendingCount.map(String.init) ?? "—")
+                        .foregroundStyle(.secondary)
+                }
+
+                if !rescheduleStatus.isEmpty {
+                    Text(rescheduleStatus)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
@@ -246,7 +253,11 @@ struct NotificationSettingsView: View {
     private func refreshCounts() async {
         authStatus = await NotificationScheduler.authorizationStatus()
         let pending = await NotificationScheduler.debugListPending()
-        pendingCount = pending.filter { $0.hasPrefix("vibes-arc-reminder-") }.count
+        let coachPrefix = CoachNotificationPlanner.identifierPrefix
+        pendingCount = pending.filter {
+            $0.hasPrefix("vibes-arc-reminder-") || $0.hasPrefix(coachPrefix)
+        }.count
+        rescheduleStatus = NotificationScheduler.lastRescheduleStatus
     }
 }
 

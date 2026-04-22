@@ -134,23 +134,46 @@ function computeStreaks(
   return { current, longest };
 }
 
-// ─── Trigger generation (inline, minimal) ────────────────────────────────────
+// ─── Trigger generation (inline, pain-avoidance / coût de l’inaction) ─────────
+// Titre court pour le header widget ; message = 1–2 phrases (affiché sous le titre côté iOS).
 
 function makeTrigger(chainLen: number, todayDone: number, todayTotal: number) {
   const allDone = todayDone >= todayTotal && todayTotal > 0;
   if (allDone && chainLen >= 7) {
-    return { title: 'Légendaire', message: `${chainLen} jours de suite. Continue.`, emoji: '🏆', strength: 'strong' };
+    return {
+      title: 'Légendaire',
+      message: 'Vision : tu accumules des preuves que tu te tiens. Demain, même ligne.',
+      emoji: '🏆',
+      strength: 'strong',
+    };
   }
   if (allDone) {
-    return { title: 'Journée complète', message: 'Toutes tes habitudes sont faites.', emoji: '✅', strength: 'medium' };
+    return { title: 'Journée complète', message: 'Respire, tu as tenu. Pas de pression, juste de la clarté.', emoji: '✅', strength: 'medium' };
   }
   if (chainLen >= 3 && todayDone < todayTotal) {
-    return { title: 'Ne la casse pas', message: `Ta chaîne de ${chainLen} jours a besoin d'aujourd'hui.`, emoji: '🔥', strength: 'strong' };
+    return {
+      title: 'Casser coûte plus cher',
+      message: `Ta chaîne de ${chainLen} jours : rater aujourd’hui, c’est repartir de zéro émotionnellement. Deux minutes d’action pèsent moins qu’un soir de regret.`,
+      emoji: '🔥',
+      strength: 'strong',
+    };
   }
   if (chainLen === 0) {
-    return { title: 'Nouveau départ', message: 'Lance-toi. Commence une habitude aujourd\'hui.', emoji: '🌱', strength: 'light' };
+    return {
+      title: 'L’inaction a un prix',
+      message:
+        'Rester figé, c’est t’entraîner à ne pas te faire confiance. Un passage ridiculement petit aujourd’hui coûte moins qu’un jour de plus sur la pente facile (distraction, report).',
+      emoji: '⚡',
+      strength: 'light',
+    };
   }
-  return { title: `Jour ${chainLen + 1}`, message: 'Construis la chaîne, une habitude à la fois.', emoji: '💪', strength: 'medium' };
+  return {
+    title: `Jour ${chainLen + 1} : ne pas rater le fil`,
+    message:
+      'L’inaction d’hier s’appelle moins « repos » que « dérive ». Un tout petit geste maintenant vaut mieux qu’une spirale d’impuissance ce soir.',
+    emoji: '💪',
+    strength: 'medium',
+  };
 }
 
 function makeReward(chainLen: number, currentStreak: number, longestStreak: number) {
@@ -172,9 +195,17 @@ function emptySummary(todayISO: string) {
     todayRemaining: { count: 0, habits: [] },
     monthlyScore: { month: todayISO.slice(0, 7), score: 0, completedDays: 0, totalDaysWithHabits: 0 },
     weeklyStats: { weekStart: todayISO, completionRate: 0, days: [] },
-    insight: { title: 'Bienvenue', message: 'Crée tes premières habitudes.' },
+    insight: {
+      title: 'Pas de données',
+      message: 'Tant que ce n’est pas lié, ton cerveau choisit la facilité ailleurs. Branche l’app pour verrouiller l’intention.',
+    },
     chain: { length: 0, status: 'broken', pressure: false, calendar: [] },
-    trigger: { title: 'Ouvre l\'app', message: 'Lie ton compte dans Vibes Arc.', emoji: '📱', strength: 'light' },
+    trigger: {
+      title: 'Lier, sinon ça s’érode',
+      message: 'Sans lien, pas de miroir : facile d’oublier le coût d’inaction. Ouvre Vibes Arc et connecte l’appareil.',
+      emoji: '📱',
+      strength: 'light',
+    },
     reward: null,
   };
 }

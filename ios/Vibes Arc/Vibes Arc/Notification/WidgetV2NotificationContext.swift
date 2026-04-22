@@ -95,6 +95,20 @@ struct NudgeContextInput: Sendable {
         return .notStarted
     }
 
+    /// Quand GET `/api/widgets/v2` est indisponible : permet quand même de poser les 4 créneaux (messages banque / coach génériques).
+    static func fallbackWhenV2Unavailable() -> NudgeContextInput {
+        NudgeContextInput(
+            todayISODate: nil,
+            todayRemainingCount: 1,
+            todayTotalHabits: 1,
+            remainingHabits: [],
+            weeklyCompletionRate: 0.5,
+            chainStatus: .fragile,
+            chainLength: 0,
+            calendar14: nil
+        )
+    }
+
     static func from(response: WidgetV2NotificationResponse) -> NudgeContextInput {
         let rem = response.todayRemaining
         let byH = response.streaks?.byHabit ?? []
@@ -130,11 +144,16 @@ enum WidgetV2NotificationLoader {
             return nil
         }
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.data(from: url)
+            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                let snippet = String(data: data, encoding: .utf8).map { String($0.prefix(120)) } ?? ""
+                print("[Nudge] v2 HTTP \(http.statusCode) \(snippet)")
+                return nil
+            }
             let decoded = try JSONDecoder().decode(WidgetV2NotificationResponse.self, from: data)
             return NudgeContextInput.from(response: decoded)
         } catch {
-            print("[Nudge] v2 decode failed: \(error)")
+            print("[Nudge] v2 request/decode failed: \(error)")
             return nil
         }
     }

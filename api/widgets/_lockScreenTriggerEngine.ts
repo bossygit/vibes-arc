@@ -19,15 +19,20 @@ export interface LockScreenTriggerResult {
   strength: TriggerStrength;
 }
 
+/** Pain-first : coût de l’inaction + micro-action (aligné api/widgets/v2 makeTrigger). */
 const ACTION_PROMPTS = [
-  "2 minutes pour une habitude.",
-  "Une petite action maintenant.",
-  "Fais une habitude maintenant.",
-  "Protège ta streak aujourd'hui.",
-  "Commence par un pas.",
+  "Ruminer coûte plus cher qu’agir 2 minutes. Fais une habitude.",
+  "Un jour de plus sans = un jour de plus à te décevoir. Coupe court : un pas maintenant.",
+  "L’écran te soulage 10 secondes ; ne pas tenir ta parole te suit toute la soirée.",
+  "Petit pas ou spirale : à toi de choisir laquelle te pèse demain.",
+  "L’effort minuscule bat l’angoisse prolongée. Une habitude, tout de suite.",
 ];
 
-const ACTION_TITLES = ["Action maintenant", "Petit pas", "Une habitude"];
+const ACTION_TITLES = [
+  "Le prix de la pause",
+  "Inaction ou preuve",
+  "Coût du report",
+];
 
 function getStrength(input: LockScreenTriggerInput): TriggerStrength {
   if (input.chainPressure) return 'strong';
@@ -39,21 +44,21 @@ export function generateLockScreenTrigger(input: LockScreenTriggerInput): LockSc
   const { todayRemaining, chainLength, chainPressure, currentStreak = 0 } = input;
   const strength = getStrength(input);
 
-  // 1. todayRemaining === 0 : trigger doux
+  // 1. todayRemaining === 0 : validation (pas de pain inutile après victoire)
   if (todayRemaining === 0) {
     return {
       title: "Bien joué",
-      message: "À demain pour la suite.",
+      message: "Journée bouclée — la vision tire, la preuve reste.",
       emoji: "✅",
       strength: 'light',
     };
   }
 
-  // 2. chainPressure === true : trigger fort
+  // 2. chainPressure === true : coût de rompre la chaîne
   if (chainPressure) {
     return {
-      title: "Ne la casse pas",
-      message: `Ta chaîne de ${chainLength} jours a besoin d'aujourd'hui.`,
+      title: "Casser coûte plus cher",
+      message: `Ta chaîne de ${chainLength} jours : rater aujourd’hui, c’est repartir de zéro émotionnellement. Deux minutes d’action pèsent moins qu’un soir de regret.`,
       emoji: "🔥",
       strength: 'strong',
     };
@@ -73,8 +78,8 @@ export function generateLockScreenTrigger(input: LockScreenTriggerInput): LockSc
 
 export function getDefaultTrigger(): LockScreenTriggerResult {
   return {
-    title: "Bienvenue",
-    message: "Crée une habitude pour commencer.",
+    title: "Lier, sinon ça s’érode",
+    message: "Sans habitude suivie, ton cerveau va chercher la facilité ailleurs. Commence par une seule.",
     emoji: "🌱",
     strength: 'light',
   };

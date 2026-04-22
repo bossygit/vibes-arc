@@ -49,8 +49,8 @@ export function generatePsychologicalInsight(input: PsychologyInput): Psychology
     return {
       level,
       insight: {
-        title: 'Ne la casse pas',
-        message: `Ta chaîne de ${chainLength} jours a besoin d’aujourd’hui.`,
+        title: 'Casser coûte plus cher',
+        message: `Ta chaîne de ${chainLength} jours : rater aujourd’hui, c’est repartir de zéro émotionnellement. Deux minutes d’action pèsent moins qu’un soir de regret.`,
         tone: 'protect_chain',
         emoji: '🔥',
       },
@@ -63,8 +63,8 @@ export function generatePsychologicalInsight(input: PsychologyInput): Psychology
     return {
       level,
       insight: {
-        title: 'Protège ta streak',
-        message: `${currentStreak} jours d’affilée. Ne la casse pas aujourd’hui.`,
+        title: 'Rompant = douleur x2',
+        message: `${currentStreak} jours d’affilée : aujourd’hui tu choisis entre un micro-effort et le twist au ventre de « j’ai encore lâché ».`,
         tone: 'protect_streak',
         emoji: '🔥',
       },
@@ -72,15 +72,28 @@ export function generatePsychologicalInsight(input: PsychologyInput): Psychology
     };
   }
 
-  // 2. Recovery: streak = 0
+  // 2. Recovery: streak = 0 (pain-first seulement s’il reste du travail aujourd’hui)
+  if (currentStreak === 0 && todayRemaining > 0) {
+    return {
+      level,
+      insight: {
+        title: 'L’inaction a un prix',
+        message:
+          'Rester figé, c’est t’entraîner à ne pas te faire confiance. Un passage ridiculement petit aujourd’hui coûte moins qu’un jour de plus sur la pente facile.',
+        tone: 'restart_pain',
+        emoji: '⚡',
+      },
+      streakPressure: false,
+    };
+  }
   if (currentStreak === 0) {
     return {
       level,
       insight: {
-        title: 'Nouveau départ',
-        message: 'Chaque bonne habitude commence par un premier jour.',
+        title: 'Alignement',
+        message: 'Aujourd’hui, ton futur s’appuie sur des preuves, pas des intentions.',
         tone: 'restart',
-        emoji: '🌱',
+        emoji: '✨',
       },
       streakPressure: false,
     };
@@ -111,6 +124,19 @@ export function generatePsychologicalInsight(input: PsychologyInput): Psychology
 
   // 4. Identity: streak >= 7 (not already milestone)
   if (currentStreak >= 7) {
+    if (todayRemaining > 0) {
+      return {
+        level,
+        insight: {
+          title: 'Identité en jeu',
+          message:
+            'Chaque report dit « je n’en suis pas le genre ». Un passage maintenant, c’est moins pénible que d’alimenter l’histoire du « pas encore ».',
+          tone: 'identity_pain',
+          emoji: '⭐',
+        },
+        streakPressure: false,
+      };
+    }
     const identityMessages = [
       'Tu deviens quelqu’un qui tient ses promesses.',
       'Cette régularité change des vies.',
@@ -131,6 +157,18 @@ export function generatePsychologicalInsight(input: PsychologyInput): Psychology
 
   // 5. Momentum: streak 3–6
   if (currentStreak >= 3) {
+    if (todayRemaining > 0) {
+      return {
+        level,
+        insight: {
+          title: 'Ne pas gâcher l’élan',
+          message: `${currentStreak} jours d’affilée : aujourd’hui c’est l’inaction, pas l’effort, qui fera le plus mal au réveil.`,
+          tone: 'momentum_pain',
+          emoji: '💪',
+        },
+        streakPressure: false,
+      };
+    }
     const title = currentStreak >= 5 ? 'Momentum puissant' : 'Momentum en cours';
     const msg =
       currentStreak === 5
@@ -150,12 +188,16 @@ export function generatePsychologicalInsight(input: PsychologyInput): Psychology
 
   // 6. Strong week
   if (completionRate >= 70) {
+    const msg =
+      todayRemaining > 0
+        ? `La semaine est bonne (${Math.round(completionRate)} %), mais ce qui compte, c’est le prochain choix. Ne paye pas le soir le confort d’alors.`
+        : `Tu as complété ${Math.round(completionRate)}% de tes habitudes cette semaine.`;
     return {
       level,
       insight: {
-        title: 'Bonne semaine',
-        message: `Tu as complété ${completionRate}% de tes habitudes cette semaine.`,
-        tone: 'celebrate_progress',
+        title: todayRemaining > 0 ? 'Bonne moyenne, risque aujourd’hui' : 'Bonne semaine',
+        message: msg,
+        tone: todayRemaining > 0 ? 'week_tension' : 'celebrate_progress',
         emoji: '📈',
       },
       streakPressure: false,
@@ -185,9 +227,12 @@ export function generatePsychologicalInsight(input: PsychologyInput): Psychology
   return {
     level,
     insight: {
-      title: 'Aujourd’hui compte',
-      message: 'C’est le bon jour pour avancer. Une habitude suffit.',
-      tone: 'momentum',
+      title: 'Payer maintenant ou plus tard',
+      message:
+        todayRemaining > 0
+          ? 'L’inaction a un coût (tension, image de toi, report). Un pas minuscule maintenant pèse moins que l’inquiétude ce soir.'
+          : 'Quand c’est coché, c’est moins le plaisir que le soulagement d’avoir tenu la barre.',
+      tone: 'pain_default',
       emoji: '✨',
     },
     streakPressure: false,
@@ -199,10 +244,10 @@ export function getDefaultPsychology(): PsychologyResult {
   return {
     level: { number: 1, name: 'Starter' },
     insight: {
-      title: 'Nouveau départ',
-      message: 'Aujourd’hui est le bon jour pour commencer.',
-      tone: 'restart',
-      emoji: '🌱',
+      title: 'Sans preuve, c’est l’inconfort',
+      message: 'Sans habitude, ton cerveau fuit vers la facilité. La première preuve, même ridicule, vaut toutes les listes d’intentions.',
+      tone: 'restart_pain',
+      emoji: '⚡',
     },
     streakPressure: false,
   };
