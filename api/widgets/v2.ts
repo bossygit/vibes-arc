@@ -1,9 +1,13 @@
 /**
- * /api/widgets/v2 — endpoint auto-contenu, zéro import runtime.
- * Même structure JSON que /api/widgets/summary.
- * Pattern identique à api/health.ts et api/chat.ts (import type uniquement).
+ * /api/widgets/v2 — même structure JSON que /api/widgets/summary.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { WIDGET_APP_START, dayIndexToDate, todayDayIndex } from './_dayIndex';
+import {
+  dayQualifiesForNeverBreak,
+  habitEligibleOnSummaryDay,
+  type HabitForChain,
+} from './_neverBreakChain';
 
 // ─── Supabase REST helpers ──────────────────────────────────────────────────
 
@@ -74,29 +78,13 @@ async function sbPost(
 
 // ─── Date utilities ─────────────────────────────────────────────────────────
 
-const START_DATE = new Date(2025, 9, 1); // 1er octobre 2025
-
-function todayDayIndex(): number {
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const base = new Date(START_DATE);
-  base.setHours(0, 0, 0, 0);
-  return Math.floor((now.getTime() - base.getTime()) / 86_400_000);
-}
-
-function dayIndexToDate(idx: number): Date {
-  const d = new Date(START_DATE);
-  d.setDate(d.getDate() + idx);
-  return d;
-}
-
 function dateToISO(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
 function monthStartIdx(today: Date): number {
   const m = new Date(today.getFullYear(), today.getMonth(), 1);
-  return Math.max(0, Math.floor((m.getTime() - START_DATE.getTime()) / 86_400_000));
+  return Math.max(0, Math.floor((m.getTime() - WIDGET_APP_START.getTime()) / 86_400_000));
 }
 
 function weekStartIdx(today: Date): number {
@@ -104,7 +92,7 @@ function weekStartIdx(today: Date): number {
   const dow = d.getDay();
   d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
   d.setHours(0, 0, 0, 0);
-  return Math.max(0, Math.floor((d.getTime() - START_DATE.getTime()) / 86_400_000));
+  return Math.max(0, Math.floor((d.getTime() - WIDGET_APP_START.getTime()) / 86_400_000));
 }
 
 // ─── Streak computation ──────────────────────────────────────────────────────
@@ -137,7 +125,12 @@ function computeStreaks(
 // ─── Trigger generation (inline, pain-avoidance / coût de l’inaction) ─────────
 // Titre court pour le header widget ; message = 1–2 phrases (affiché sous le titre côté iOS).
 
-function makeTrigger(chainLen: number, todayDone: number, todayTotal: number) {
+function makeTrigger(
+  chainLen: number,
+  todayDone: number,
+  todayTotal: number,
+  todayChainQualifies: boolean,
+) {
   const allDone = todayDone >= todayTotal && todayTotal > 0;
   if (allDone && chainLen >= 7) {
     return {
@@ -150,7 +143,7 @@ function makeTrigger(chainLen: number, todayDone: number, todayTotal: number) {
   if (allDone) {
     return { title: 'Journée complète', message: 'Respire, tu as tenu. Pas de pression, juste de la clarté.', emoji: '✅', strength: 'medium' };
   }
-  if (chainLen >= 3 && todayDone < todayTotal) {
+  if (chainLen >= 3 && !todayChainQualifies) {
     return {
       title: 'Casser coûte plus cher',
       message: `Ta chaîne de ${chainLen} jours : rater aujourd’hui, c’est repartir de zéro émotionnellement. Deux minutes d’action pèsent moins qu’un soir de regret.`,
@@ -226,7 +219,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const today = new Date();
-    const todayIdx = todayDayIndex();
+    const todayIdx = todayDayIndex(); // même base que `_dayIndex` / summary
     const todayISO = dateToISO(today);
 
     if (todayIdx < 0) return res.status(200).json(emptySummary(todayISO));
@@ -255,7 +248,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 2) Habitudes
     const { data: habits, error: hErr } = await sbGet<Record<string, unknown>[]>(
       'habits',
-      { select: 'id,name,type,total_days', user_id: `eq.${userId}` }
+      { select: 'id,name,type,total_days,created_at', user_id: `eq.${userId}` }
     );
     if (hErr) return res.status(500).json({ error: 'habits failed', detail: hErr });
     if (!habits || habits.length === 0) return res.status(200).json(emptySummary(todayISO));
@@ -297,34 +290,65 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       byHabit.push({ habitId: hid, name: h.name as string, current, longest });
     }
 
-    // 5) Habitudes restantes aujourd'hui
+    const habitsForChain: HabitForChain[] = habits.map((h) => ({
+      id: h.id as number,
+      created_at: (h.created_at as string | null | undefined) ?? null,
+      total_days: h.total_days != null ? (h.total_days as number) : null,
+    }));
+
+    const progressForNeverBreak = progressRows.map((r) => ({
+      habit_id: r.habit_id as number,
+      day_index: r.day_index as number,
+    }));
+
+    // 5) Habitudes restantes aujourd'hui (éligibles au jour, comme summary)
     const completedTodayIds = new Set(
-      progressRows.filter((r) => r.day_index === todayIdx).map((r) => r.habit_id as number)
+      progressRows.filter((r) => r.day_index === todayIdx).map((r) => r.habit_id as number),
     );
-    const remainingHabits = habits
-      .filter((h) => !completedTodayIds.has(h.id as number))
-      .map((h) => ({ habitId: h.id as number, name: h.name as string, type: h.type as string }));
+    const remainingHabits: { habitId: number; name: string; type: string }[] = [];
+    for (let i = 0; i < habits.length; i++) {
+      const h = habits[i];
+      const hf = habitsForChain[i];
+      if (!habitEligibleOnSummaryDay(hf, todayIdx)) continue;
+      if (!completedTodayIds.has(h.id as number)) {
+        remainingHabits.push({
+          habitId: h.id as number,
+          name: h.name as string,
+          type: h.type as string,
+        });
+      }
+    }
 
-    // 6) Chaîne globale (tous les jours où ≥1 habitude complétée)
-    const completedDaySet = new Set(progressRows.map((r) => r.day_index as number));
-    const completedDays = Array.from(completedDaySet).sort((a, b) => a - b);
-    const { current: chainLen } = computeStreaks(completedDays, todayIdx);
+    // 6) Never Break the Chain : jour valide si ≥ 50 % des habitudes éligibles complétées ce jour-là
+    const anyCompletionDaySet = new Set(progressRows.map((r) => r.day_index as number));
+    const chainQualifiedIndices: number[] = [];
+    for (let d = 0; d <= todayIdx; d++) {
+      if (dayQualifiesForNeverBreak(habitsForChain, d, progressForNeverBreak)) {
+        chainQualifiedIndices.push(d);
+      }
+    }
+    const { current: chainLen } = computeStreaks(chainQualifiedIndices, todayIdx);
     const chainStatus = chainLen === 0 ? 'broken' : chainLen <= 3 ? 'fragile' : chainLen <= 10 ? 'stable' : 'strong';
+    const chainQualifySet = new Set(chainQualifiedIndices);
 
-    // Calendrier sur 14 jours
+    const todayChainQualifies = dayQualifiesForNeverBreak(habitsForChain, todayIdx, progressForNeverBreak);
+
+    // Calendrier sur 14 jours (point = jour qualifiant Never Break)
     const calWindow = 14;
     const calendar: { date: string; completed: boolean }[] = [];
     for (let i = calWindow - 1; i >= 0; i--) {
       const idx = todayIdx - i;
-      if (idx >= 0) calendar.push({ date: dateToISO(dayIndexToDate(idx)), completed: completedDaySet.has(idx) });
+      if (idx >= 0) {
+        calendar.push({ date: dateToISO(dayIndexToDate(idx)), completed: chainQualifySet.has(idx) });
+      }
     }
 
-    // 7) Score mensuel
+    // 7) Score mensuel (jour « actif » = au moins une habitude cochée — hors chaîne NB)
     const mStart = monthStartIdx(today);
     const mEnd = todayIdx;
     let mCompleted = 0;
     for (let i = mStart; i <= mEnd; i++) {
-      if (completedDaySet.has(i)) mCompleted++;
+      if (anyCompletionDaySet.has(i)) mCompleted++;
     }
     const mTotal = mEnd - mStart + 1;
     const mScore = mTotal > 0 ? Math.round((mCompleted / mTotal) * 100) : 0;
@@ -335,7 +359,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const wDays: { date: string; rate: number }[] = [];
     let wCompletedCount = 0;
     for (let i = wStart; i <= wEnd; i++) {
-      const done = completedDaySet.has(i) ? 1 : 0;
+      const done = anyCompletionDaySet.has(i) ? 1 : 0;
       wCompletedCount += done;
       wDays.push({ date: dateToISO(dayIndexToDate(i)), rate: done });
     }
@@ -344,7 +368,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 9) Trigger & reward
     const todayDone = completedTodayIds.size;
     const todayTotal = habits.length;
-    const trigger = makeTrigger(chainLen, todayDone, todayTotal);
+    const trigger = makeTrigger(chainLen, todayDone, todayTotal, todayChainQualifies);
     const reward = makeReward(chainLen, overallCurrent, overallLongest);
 
     return res.status(200).json({
@@ -363,7 +387,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         days: wDays,
       },
       insight: { title: trigger.title, message: trigger.message },
-      chain: { length: chainLen, status: chainStatus, pressure: chainLen >= 3 && remainingHabits.length > 0, calendar },
+      chain: {
+        length: chainLen,
+        status: chainStatus,
+        pressure: chainLen >= 3 && !todayChainQualifies,
+        calendar,
+      },
       trigger,
       reward,
     });

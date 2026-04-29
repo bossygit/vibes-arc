@@ -1,24 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getServiceSupabase } from './_supabase-client';
+import { dateToDayIndex, dayIndexToDate as getDateForDay, todayDayIndex } from './_dayIndex';
+import { dayQualifiesForNeverBreak, type HabitForChain } from './_neverBreakChain';
 import { generatePsychologicalInsight, getDefaultPsychology } from './_psychologyEngine';
 import { generateFutureSelf, getDefaultFutureSelf } from './_futureSelfEngine';
 import { generateDopamineReward, getDefaultReward } from './_dopamineRewardEngine';
 import { generateLockScreenTrigger, getDefaultTrigger } from './_lockScreenTriggerEngine';
 
-const startDate = new Date(2025, 9, 1); // October 1, 2025
-const getDateForDay = (dayIndex: number): Date => {
-  const d = new Date(startDate);
-  d.setDate(d.getDate() + dayIndex);
-  return d;
-};
-const getCurrentDayIndex = (): number => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const start = new Date(startDate);
-  start.setHours(0, 0, 0, 0);
-  const diffTime = today.getTime() - start.getTime();
-  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
-};
 
 interface WidgetSummaryResponse {
   today: string;
@@ -75,14 +63,6 @@ interface WidgetSummaryResponse {
     emoji: string;
     strength: 'light' | 'medium' | 'strong';
   };
-}
-
-function dateToDayIndex(d: Date): number {
-  const base = new Date(startDate);
-  base.setHours(0, 0, 0, 0);
-  const copy = new Date(d);
-  copy.setHours(0, 0, 0, 0);
-  return Math.floor((copy.getTime() - base.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 function getWeekStart(date: Date): Date {
@@ -182,7 +162,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const today = new Date();
-    const todayIdx = getCurrentDayIndex();
+    const todayIdx = todayDayIndex();
     if (todayIdx < 0) {
       return res.status(200).json(buildEmptySummary(today));
     }
@@ -355,23 +335,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       days: weekDays,
     };
 
-    // Never Break the Chain: last 14 days
+    const habitsForChain: HabitForChain[] = habits.map((h) => ({
+      id: h.id,
+      created_at: h.created_at ?? null,
+      total_days: h.total_days ?? null,
+    }));
+
+    const progressForNeverBreak = (progressRows || []).map((r) => ({
+      habit_id: r.habit_id as number,
+      day_index: r.day_index as number,
+    }));
+
+    // Never Break the Chain : jour valide si proportion d’habitudes éligibles complétées ≥ 50 %
     const chainCalendar: { date: string; completed: boolean }[] = [];
     for (let i = 0; i < CHAIN_WINDOW_DAYS; i++) {
       const idx = todayIdx - (CHAIN_WINDOW_DAYS - 1) + i;
       const date = getDateForDay(idx).toISOString().slice(0, 10);
-      const completed = (completedByDay.get(idx) ?? 0) >= 1;
+      const completed =
+        idx >= 0 && dayQualifiesForNeverBreak(habitsForChain, idx, progressForNeverBreak);
       chainCalendar.push({ date, completed });
     }
     let chainLength = 0;
     for (let i = 0; i < CHAIN_WINDOW_DAYS; i++) {
       const idx = todayIdx - i;
       if (idx < 0) break;
-      if ((completedByDay.get(idx) ?? 0) < 1) break;
+      if (!dayQualifiesForNeverBreak(habitsForChain, idx, progressForNeverBreak)) break;
       chainLength++;
     }
-    const todayCompleted = (completedByDay.get(todayIdx) ?? 0) >= 1;
-    const chainPressure = chainLength >= 3 && !todayCompleted;
+
+    const todayHasAnyCompletion = (completedByDay.get(todayIdx) ?? 0) >= 1;
+    const todayChainQualifies = dayQualifiesForNeverBreak(habitsForChain, todayIdx, progressForNeverBreak);
+    const chainPressure = chainLength >= 3 && !todayChainQualifies;
     const chain = {
       length: chainLength,
       status: getChainStatus(chainLength),
@@ -415,10 +409,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
     summary.futureSelf = futureSelf;
 
-    const allHabitsCompletedToday = todayCompleted && summary.todayRemaining.count === 0;
-    const chainProtected = todayCompleted && chain.length >= 3;
+    const allHabitsCompletedToday = todayHasAnyCompletion && summary.todayRemaining.count === 0;
+    const chainProtected = todayChainQualifies && chain.length >= 3;
     const reward = generateDopamineReward({
-      habitCompletedToday: todayCompleted,
+      habitCompletedToday: todayHasAnyCompletion,
       allHabitsCompletedToday,
       currentStreak: summary.streaks.current,
       chainLength: chain.length,

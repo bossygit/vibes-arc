@@ -20,21 +20,24 @@ function getChainStatus(length: number): ChainStatus {
   return 'strong';
 }
 
-/**
- * Returns true if at least one habit active on that day has completed it.
- */
-export function isDayCompleted(habits: Habit[], dayIndex: number): boolean {
-  if (dayIndex < 0) return false;
-  return habits.some(
-    (habit) => isHabitActiveOnDay(habit, dayIndex) && !!habit.progress[dayIndex]
-  );
-}
+const CHAIN_MIN_DAY_RATIO = 0.5;
 
+/**
+ * Jour qui compte pour Never Break the Chain : au moins 50 % des habitudes
+ * actives ce jour ont une complétion (aligné widgets v2 / summary).
+ */
+export function isDayEligibleForNeverBreakChain(habits: Habit[], dayIndex: number): boolean {
+  if (dayIndex < 0) return false;
+  const active = habits.filter((h) => isHabitActiveOnDay(h, dayIndex));
+  if (active.length === 0) return false;
+  const done = active.filter((h) => !!h.progress[dayIndex]).length;
+  return done / active.length >= CHAIN_MIN_DAY_RATIO;
+}
 const DEFAULT_LONGEST_STREAK_WINDOW = 60;
 
 /**
- * Longest consecutive "completed" days (at least one habit done) in the given window.
- * O(windowDays). Aligned with widgets API summary.
+ * Longest consecutive NBTC-qualifying days (≥50 % habits actives faites ce jour) in the window.
+ * O(windowDays × habits). Aligné widgets API summary / v2.
  */
 export function getGlobalLongestStreak(
   habits: Habit[],
@@ -45,7 +48,7 @@ export function getGlobalLongestStreak(
   let maxLen = 0;
   let current = 0;
   for (let idx = todayIdx; idx >= start; idx--) {
-    if (isDayCompleted(habits, idx)) {
+    if (isDayEligibleForNeverBreakChain(habits, idx)) {
       current++;
       maxLen = Math.max(maxLen, current);
     } else {
@@ -56,15 +59,14 @@ export function getGlobalLongestStreak(
 }
 
 /**
- * Never Break the Chain: same logic as widgets API.
- * Computes calendar (last 14 days), chain length, status, and pressure from habits + todayIdx.
+ * Never Break the Chain — même seuil ≥ 50 % que les widgets (/api/widgets/v2, summary).
  */
 export function computeChain(habits: Habit[], todayIdx: number): ChainData {
   const calendar: { date: string; completed: boolean }[] = [];
   for (let i = 0; i < CHAIN_WINDOW_DAYS; i++) {
     const idx = todayIdx - (CHAIN_WINDOW_DAYS - 1) + i;
     const date = getDateForDay(idx).toISOString().slice(0, 10);
-    const completed = isDayCompleted(habits, idx);
+    const completed = isDayEligibleForNeverBreakChain(habits, idx);
     calendar.push({ date, completed });
   }
 
@@ -72,12 +74,12 @@ export function computeChain(habits: Habit[], todayIdx: number): ChainData {
   for (let i = 0; i < CHAIN_WINDOW_DAYS; i++) {
     const idx = todayIdx - i;
     if (idx < 0) break;
-    if (!isDayCompleted(habits, idx)) break;
+    if (!isDayEligibleForNeverBreakChain(habits, idx)) break;
     length++;
   }
 
-  const todayCompleted = isDayCompleted(habits, todayIdx);
-  const pressure = length >= 3 && !todayCompleted;
+  const todayEligible = isDayEligibleForNeverBreakChain(habits, todayIdx);
+  const pressure = length >= 3 && !todayEligible;
 
   return {
     calendar,
