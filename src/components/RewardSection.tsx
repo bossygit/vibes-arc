@@ -59,8 +59,8 @@ const RewardSection: React.FC<RewardSectionProps> = ({ habits }) => {
             <Sparkles className="w-5 h-5 text-amber-600" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-800">Ta récompense du jour</h2>
-            <p className="text-sm text-slate-600">Micro-récompense</p>
+            <h2 className="text-xl font-bold text-slate-800">Ton ancrage du jour</h2>
+            <p className="text-sm text-slate-600">Renforcement doux du momentum</p>
           </div>
         </div>
         <span

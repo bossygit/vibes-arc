@@ -33,9 +33,9 @@ const IdentityCard: React.FC<IdentityCardProps> = ({ identity, score, habits = [
             </div>
 
             <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>{linkedHabits.length} habitude{linkedHabits.length > 1 ? 's' : ''}</span>
+                <span>{linkedHabits.length} signal{linkedHabits.length > 1 ? 's' : ''}</span>
                 {totalDays > 0 && (
-                    <span>{totalCompletedDays}/{totalDays} jours complétés</span>
+                    <span>{totalCompletedDays}/{totalDays} signaux émis</span>
                 )}
             </div>
         </div>

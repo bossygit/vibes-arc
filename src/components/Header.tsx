@@ -6,25 +6,25 @@ import { Trophy, User, ChevronDown, Menu, X } from 'lucide-react';
 type NavKey = 'dashboard' | 'coachChat' | 'priming' | 'environment' | 'identities' | 'addHabit' | 'templates' | 'rewards' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'manifestation' | 'innerChild';
 
 const directNav: { key: NavKey; label: string }[] = [
-    { key: 'dashboard', label: 'Tableau de bord' },
-    { key: 'coachChat', label: '🤖 Coach IA' },
+    { key: 'dashboard', label: 'Alignement du jour' },
+    { key: 'coachChat', label: 'Coach Vibes' },
 ];
 
 const toolsNav: { key: NavKey; label: string }[] = [
-    { key: 'innerChild', label: '🫀 Inner Child' },
-    { key: 'priming', label: 'Priming' },
-    { key: 'environment', label: 'Environnement' },
-    { key: 'magicGratitude', label: 'Gratitude' },
+    { key: 'innerChild', label: 'Inner Child' },
+    { key: 'priming', label: 'Priming vibratoire' },
+    { key: 'environment', label: 'Environnement énergétique' },
+    { key: 'magicGratitude', label: 'Campagne d’appréciation' },
     { key: 'moneyMindset', label: 'Abondance' },
     { key: 'focusWheel', label: 'Focus Wheel' },
-    { key: 'manifestation', label: 'Manifestation' },
+    { key: 'manifestation', label: 'Manifestation consciente' },
 ];
 
 const habitNav: { key: NavKey; label: string }[] = [
-    { key: 'identities', label: 'Identités' },
-    { key: 'addHabit', label: 'Ajouter Habitude' },
-    { key: 'templates', label: 'Templates' },
-    { key: 'rewards', label: 'Récompenses' },
+    { key: 'identities', label: 'Identités vibratoires' },
+    { key: 'addHabit', label: 'Créer un signal' },
+    { key: 'templates', label: 'Signaux guidés' },
+    { key: 'rewards', label: 'Ancrages' },
 ];
 
 const Header: React.FC = () => {
@@ -88,7 +88,7 @@ const Header: React.FC = () => {
                             <h1 className="text-xl sm:text-2xl font-bold text-gradient">
                                 Vibes Arc
                             </h1>
-                            <p className="text-xs sm:text-sm text-slate-600 mt-0.5">Deviens qui tu veux etre</p>
+                            <p className="text-xs sm:text-sm text-slate-600 mt-0.5">Observe ce que tu émets</p>
                         </div>
 
                         {/* Desktop nav + user menu */}
@@ -108,7 +108,7 @@ const Header: React.FC = () => {
                                     onClick={() => setOpenSubmenu((v) => (v === 'tools' ? null : 'tools'))}
                                     className={`px-3 py-1.5 xl:px-4 xl:py-2 rounded-lg text-sm font-medium transition whitespace-nowrap flex items-center gap-1 ${isViewInTools ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-white'}`}
                                 >
-                                    Tools
+                                    Pratiques
                                     <ChevronDown className={`w-4 h-4 ${openSubmenu === 'tools' ? 'rotate-180' : ''}`} />
                                 </button>
                                 {openSubmenu === 'tools' && (
@@ -130,7 +130,7 @@ const Header: React.FC = () => {
                                     onClick={() => setOpenSubmenu((v) => (v === 'habit' ? null : 'habit'))}
                                     className={`px-3 py-1.5 xl:px-4 xl:py-2 rounded-lg text-sm font-medium transition whitespace-nowrap flex items-center gap-1 ${isViewInHabit ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-white'}`}
                                 >
-                                    Habitude
+                                    Signaux
                                     <ChevronDown className={`w-4 h-4 ${openSubmenu === 'habit' ? 'rotate-180' : ''}`} />
                                 </button>
                                 {openSubmenu === 'habit' && (
@@ -258,7 +258,7 @@ const Header: React.FC = () => {
                                     onClick={() => setMobileToolsOpen((v) => !v)}
                                     className="w-full text-left px-4 py-3 rounded-lg font-medium text-sm text-slate-700 hover:bg-slate-100 flex items-center justify-between"
                                 >
-                                    Tools
+                                    Pratiques
                                     <ChevronDown className={`w-4 h-4 transition-transform ${mobileToolsOpen ? 'rotate-180' : ''}`} />
                                 </button>
                                 {mobileToolsOpen && (
@@ -280,7 +280,7 @@ const Header: React.FC = () => {
                                     onClick={() => setMobileHabitOpen((v) => !v)}
                                     className="w-full text-left px-4 py-3 rounded-lg font-medium text-sm text-slate-700 hover:bg-slate-100 flex items-center justify-between"
                                 >
-                                    Habitude
+                                    Signaux
                                     <ChevronDown className={`w-4 h-4 transition-transform ${mobileHabitOpen ? 'rotate-180' : ''}`} />
                                 </button>
                                 {mobileHabitOpen && (

@@ -26,8 +26,8 @@ const Dashboard: React.FC = () => {
     const lastNextActionSession = primingSessions.find(s => !!s.nextAction && s.nextAction.trim().length > 0);
     const nextAction = lastNextActionSession?.nextAction?.trim() ?? '';
 
-    // Calculer les statistiques globales (sans rétro‑impacter le passé)
-    // Règle: une habitude n'est comptée qu'à partir de sa date de création.
+    // Calculer les statistiques vibratoires globales (sans rétro-impacter le passé).
+    // Règle: un signal n'est observé qu'à partir de sa date de création.
     const totalHabits = habits.length;
     const todayIdxForStats = getCurrentDayIndex();
     const { totalActiveDays, totalCompletedDays } = habits.reduce(
@@ -51,7 +51,7 @@ const Dashboard: React.FC = () => {
     const currentStreaks = habits.map(h => calculateHabitStats(h).currentStreak);
     const longestCurrentStreak = currentStreaks.length > 0 ? Math.max(...currentStreaks) : 0;
 
-    // Filtrer les habitudes avec un streak d'au moins 21 jours
+    // Filtrer les signaux avec un momentum d'au moins 21 jours
     const milestone21Habits = habits
         .map(habit => ({
             habit,
@@ -60,7 +60,7 @@ const Dashboard: React.FC = () => {
         .filter(({ stats }) => stats.longestStreak >= 21)
         .sort((a, b) => b.stats.longestStreak - a.stats.longestStreak);
 
-    // Tendance hebdo globale: sur l'ensemble des habitudes actives par jour
+    // Tendance hebdo globale: sur l'ensemble des signaux actifs par jour
     const { last7Pct, prev7Pct, deltaPct } = (() => {
         const todayIdx = getCurrentDayIndex();
         const end = todayIdx;
@@ -98,14 +98,14 @@ const Dashboard: React.FC = () => {
             {/* Inner Child Check-in — bloquant doux si non fait aujourd'hui */}
             <InnerChildGate onStart={() => setView('innerChild')} />
 
-            {/* Today Status — premier bloc */}
+            {/* Fréquence du jour — premier bloc */}
             {habits.length > 0 && (
                 <section>
                     <TodayStatus habits={habits} />
                 </section>
             )}
 
-            {/* Next action (2 min) */}            {/* Next action (2 min) */}
+            {/* Micro-pivot (2 min) */}
             {nextAction && (
                 <section>
                     <div className="card bg-white border border-slate-200">
@@ -113,7 +113,7 @@ const Dashboard: React.FC = () => {
                             <div className="flex-1">
                                 <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                                     <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                                    Next action (2 min)
+                                    Micro-pivot (2 min)
                                 </h2>
                                 <p className="text-xs text-slate-500 mt-1">
                                     Dernier priming: {lastNextActionSession ? new Date(lastNextActionSession.createdAt).toLocaleString('fr-FR') : ''}
@@ -122,10 +122,10 @@ const Dashboard: React.FC = () => {
                                 </p>
 
                                 <div className="mt-3 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
-                                    <div className="text-sm text-emerald-900 font-semibold">Action</div>
+                                    <div className="text-sm text-emerald-900 font-semibold">Signal le plus doux maintenant</div>
                                     <div className="text-lg font-bold text-slate-900 mt-1">{nextAction}</div>
                                     <div className="text-xs text-emerald-800 mt-2">
-                                        Règle: une action de 2 minutes doit être “bête et faisable maintenant”.
+                                        Règle: le pivot doit être assez doux pour réduire la résistance, pas pour prouver ta valeur.
                                     </div>
                                 </div>
                             </div>
@@ -146,7 +146,7 @@ const Dashboard: React.FC = () => {
                                     Copier
                                 </button>
                                 <button className="btn-primary" onClick={() => setView('priming')}>
-                                    Nouveau priming
+                                    Recalibrer
                                 </button>
                             </div>
                         </div>
@@ -154,7 +154,7 @@ const Dashboard: React.FC = () => {
                 </section>
             )}
 
-            {/* Never Break the Chain */}
+            {/* Momentum */}
             {habits.length > 0 && (
                 <section>
                     <ChainSection habits={habits} />
@@ -168,7 +168,7 @@ const Dashboard: React.FC = () => {
                 </section>
             )}
 
-            {/* Reward (Dopamine Loop) */}
+            {/* Ancrages */}
             {habits.length > 0 && (
                 <section>
                     <RewardSection habits={habits} />
@@ -189,7 +189,7 @@ const Dashboard: React.FC = () => {
                 </section>
             )}
 
-            {/* Habitudes avec 21+ jours de streak */}
+            {/* Signaux avec 21+ jours de momentum */}
             {milestone21Habits.length > 0 && (
                 <section>
                     <motion.div
@@ -205,10 +205,10 @@ const Dashboard: React.FC = () => {
                                 </div>
                                 <div>
                                     <h2 className="text-2xl font-bold text-amber-900">
-                                        🎉 Objectif 21 Jours Atteint !
+                                        Momentum 21 jours activé
                                     </h2>
                                     <p className="text-sm text-amber-700">
-                                        Félicitations ! {milestone21Habits.length} habitude{milestone21Habits.length > 1 ? 's' : ''} avec un streak de 21+ jours
+                                        {milestone21Habits.length} signal{milestone21Habits.length > 1 ? 's' : ''} porte un momentum de 21+ jours
                                     </p>
                                 </div>
                             </div>
@@ -236,14 +236,14 @@ const Dashboard: React.FC = () => {
                                                     ? 'bg-green-100 text-green-700'
                                                     : 'bg-red-100 text-red-700'
                                                     }`}>
-                                                    {habit.type === 'start' ? '▲ Commencer' : '▼ Arrêter'}
+                                                    {habit.type === 'start' ? 'Émettre' : 'Libérer'}
                                                 </span>
                                             </div>
                                         </div>
 
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-sm text-slate-600">Plus long streak</span>
+                                                <span className="text-sm text-slate-600">Plus fort momentum</span>
                                                 <div className="flex items-center gap-1">
                                                     <Flame className="w-4 h-4 text-orange-500" />
                                                     <span className="font-bold text-orange-600">{stats.longestStreak} jours</span>
@@ -251,7 +251,7 @@ const Dashboard: React.FC = () => {
                                             </div>
 
                                             <div className="flex items-center justify-between">
-                                                <span className="text-sm text-slate-600">Streak actuel</span>
+                                                <span className="text-sm text-slate-600">Momentum actuel</span>
                                                 <div className="flex items-center gap-1">
                                                     <Flame className="w-4 h-4 text-amber-500" />
                                                     <span className="font-bold text-amber-600">{stats.currentStreak} jours</span>
@@ -259,14 +259,14 @@ const Dashboard: React.FC = () => {
                                             </div>
 
                                             <div className="flex items-center justify-between">
-                                                <span className="text-sm text-slate-600">Progression</span>
+                                                <span className="text-sm text-slate-600">Alignement</span>
                                                 <span className="font-bold text-indigo-600">{stats.percentage}%</span>
                                             </div>
 
                                             <div className="mt-3 pt-3 border-t border-amber-200">
                                                 <div className="flex items-center justify-center gap-2 text-amber-700">
                                                     <Trophy className="w-4 h-4" />
-                                                    <span className="text-xs font-semibold">Objectif 21 jours ✓</span>
+                                                    <span className="text-xs font-semibold">Momentum observé</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -277,7 +277,7 @@ const Dashboard: React.FC = () => {
                             {/* Message motivant */}
                             <div className="mt-6 p-4 bg-white/70 rounded-lg border border-amber-200">
                                 <p className="text-sm text-center text-amber-900 font-medium">
-                                    💪 Il faut 21 jours pour former une habitude. Tu l'as fait ! Continue comme ça !
+                                    Ce momentum montre une fréquence que tu as nourrie plusieurs jours d'affilée. Observe ce que cela change dans ton état intérieur.
                                 </p>
                             </div>
                         </div>
@@ -285,12 +285,12 @@ const Dashboard: React.FC = () => {
                 </section>
             )}
 
-            {/* Global Stats */}
+            {/* Global Alignment Stats */}
             {habits.length > 0 && (
                 <section>
                     <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                         <BarChart3 className="w-5 h-5 text-indigo-600" />
-                        Vue d'ensemble
+                        Lecture vibratoire
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <motion.div
@@ -303,7 +303,7 @@ const Dashboard: React.FC = () => {
                                     <TrendingUp className="w-6 h-6 text-indigo-600" />
                                 </div>
                                 <div>
-                                    <p className="text-sm text-slate-600">Progression globale</p>
+                                    <p className="text-sm text-slate-600">Alignement global</p>
                                     <p className="text-2xl font-bold text-indigo-600">{overallProgress}%</p>
                                 </div>
                             </div>
@@ -320,7 +320,7 @@ const Dashboard: React.FC = () => {
                                     <Calendar className="w-6 h-6 text-green-600" />
                                 </div>
                                 <div>
-                                    <p className="text-sm text-slate-600">Jours complétés</p>
+                                    <p className="text-sm text-slate-600">Signaux émis</p>
                                     <p className="text-2xl font-bold text-green-600">{totalCompletedDays}/{totalActiveDays}</p>
                                 </div>
                             </div>
@@ -337,7 +337,7 @@ const Dashboard: React.FC = () => {
                                     <Flame className="w-6 h-6 text-amber-600" />
                                 </div>
                                 <div>
-                                    <p className="text-sm text-slate-600">Plus long streak</p>
+                                    <p className="text-sm text-slate-600">Plus fort momentum</p>
                                     <p className="text-2xl font-bold text-amber-600">{longestCurrentStreak}</p>
                                 </div>
                             </div>
@@ -354,13 +354,13 @@ const Dashboard: React.FC = () => {
                                     <Target className="w-6 h-6 text-blue-600" />
                                 </div>
                                 <div>
-                                    <p className="text-sm text-slate-600">Habitudes actives</p>
+                                    <p className="text-sm text-slate-600">Signaux actifs</p>
                                     <p className="text-2xl font-bold text-blue-600">{totalHabits}</p>
                                 </div>
                             </div>
                         </motion.div>
                     </div>
-                    {/* Tendance hebdo globale */}
+                    {/* Tendance vibratoire hebdo */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
@@ -373,7 +373,7 @@ const Dashboard: React.FC = () => {
                                     <TrendingUp className="w-6 h-6 text-indigo-600" />
                                 </div>
                                 <div>
-                                    <p className="text-sm text-slate-600">7 derniers jours</p>
+                                    <p className="text-sm text-slate-600">Alignement 7 jours</p>
                                     <p className="text-2xl font-bold text-indigo-600">{last7Pct}%</p>
                                 </div>
                                 <div className="ml-auto">
@@ -394,7 +394,7 @@ const Dashboard: React.FC = () => {
                                     <Calendar className="w-6 h-6 text-slate-600" />
                                 </div>
                                 <div>
-                                    <p className="text-sm text-slate-600">7 jours précédents</p>
+                                    <p className="text-sm text-slate-600">Fréquence précédente</p>
                                     <p className="text-xl font-semibold text-slate-700">{prev7Pct}%</p>
                                 </div>
                             </div>
@@ -410,7 +410,7 @@ const Dashboard: React.FC = () => {
                                     <Flame className="w-6 h-6 text-amber-600" />
                                 </div>
                                 <div>
-                                    <p className="text-sm text-slate-600">Plus long streak actuel</p>
+                                    <p className="text-sm text-slate-600">Momentum dominant</p>
                                     <p className="text-2xl font-bold text-amber-600">{longestCurrentStreak}</p>
                                 </div>
                             </div>
@@ -431,7 +431,7 @@ const Dashboard: React.FC = () => {
                 <section>
                     <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                         <Target className="w-5 h-5 text-indigo-600" />
-                        Mes Identités
+                        Identités vibratoires
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {identities.map((identity) => (
@@ -446,21 +446,21 @@ const Dashboard: React.FC = () => {
                 </section>
             )}
 
-            {/* Habits List */}
+            {/* Signals List */}
             <section>
                 <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-indigo-600" />
-                    Mes Habitudes
+                    Mes signaux vibratoires
                 </h2>
                 {habits.length === 0 ? (
                     <div className="card p-12 text-center">
                         <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                        <p className="text-slate-600 mb-4">Aucune habitude pour le moment</p>
+                        <p className="text-slate-600 mb-4">Aucun signal vibratoire pour le moment</p>
                         <button
                             onClick={() => setView('addHabit')}
                             className="btn-primary"
                         >
-                            Créer ma première habitude
+                            Créer mon premier signal
                         </button>
                     </div>
                 ) : (
@@ -477,16 +477,16 @@ const Dashboard: React.FC = () => {
                 )}
             </section>
 
-            {/* Challenge hebdo simple */}
+            {/* Défi hebdo simple */}
             {habits.length > 0 && (
                 <section>
                     <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                         <Flame className="w-5 h-5 text-amber-600" />
-                        Défi hebdo
+                        Momentum hebdo
                     </h2>
                     <div className="card">
-                        <p className="text-slate-700 mb-2">Objectif: 5 jours complétés cette semaine</p>
-                        <p className="text-sm text-slate-500 mb-3">Gagne 100 pts si tu atteins l'objectif</p>
+                        <p className="text-slate-700 mb-2">Intention: émettre au moins un signal sur 5 jours cette semaine</p>
+                        <p className="text-sm text-slate-500 mb-3">Gagne 100 pts comme ancrage symbolique si le momentum est présent.</p>
                         <button
                             onClick={() => {
                                 // calculer complétions sur les 7 derniers jours
@@ -501,14 +501,14 @@ const Dashboard: React.FC = () => {
                                 }, 0);
                                 if (daysCompleted >= 5) {
                                     addPoints(100);
-                                    alert('Défi réussi ! +100 pts');
+                                    alert('Momentum hebdo observé ! +100 pts');
                                 } else {
-                                    alert(`Tu es à ${daysCompleted}/5 jours cette semaine`);
+                                    alert(`Tu as émis un signal ${daysCompleted}/5 jours cette semaine`);
                                 }
                             }}
                             className="btn-primary"
                         >
-                            Vérifier mon défi
+                            Vérifier mon momentum
                         </button>
                     </div>
                 </section>
@@ -525,13 +525,13 @@ const Dashboard: React.FC = () => {
                         </div>
                     </div>
                     <div className="card">
-                        <h3 className="font-semibold text-slate-800 mb-2">Récompenses</h3>
+                        <h3 className="font-semibold text-slate-800 mb-2">Ancrages</h3>
                         <div className="flex gap-2 mb-2">
-                            <button onClick={() => createReward('Café premium', 100)} className="px-3 py-1 rounded border">Ajouter récompense</button>
+                            <button onClick={() => createReward('Café premium', 100)} className="px-3 py-1 rounded border">Ajouter ancrage</button>
                         </div>
                         <div className="space-y-2">
                             {gamification.rewards.length === 0 ? (
-                                <p className="text-sm text-slate-500">Aucune récompense</p>
+                                <p className="text-sm text-slate-500">Aucun ancrage</p>
                             ) : (
                                 gamification.rewards.map((r: any) => (
                                     <div key={r.id} className="flex items-center gap-2 p-2 bg-slate-50 rounded border">
@@ -649,7 +649,7 @@ const InnerChildGate: React.FC<{ onStart: () => void }> = ({ onStart }) => {
                 >
                     <Heart className="w-4 h-4 text-rose-300 group-hover:text-rose-400 transition flex-shrink-0" />
                     <p className="text-xs text-slate-400 group-hover:text-slate-500 transition">
-                        Inner Child Check-in non fait · Cliquer pour commencer
+                        Check-in émotionnel non fait · Cliquer pour commencer
                     </p>
                     <span className="ml-auto text-xs text-rose-300 group-hover:text-rose-400 transition">→</span>
                 </button>
@@ -674,9 +674,9 @@ const InnerChildGate: React.FC<{ onStart: () => void }> = ({ onStart }) => {
                     </div>
 
                     <p className="text-sm text-slate-600 leading-relaxed">
-                        Les habitudes ne tombent pas par manque de volonté — elles tombent quand
+                        Les signaux deviennent difficiles à émettre quand
                         l'état intérieur n'est pas aligné. <span className="font-medium text-slate-700">2 minutes</span> pour
-                        reconnaître ce que tu ressens vraiment.
+                        reconnaître ce que tu ressens vraiment avant de forcer.
                     </p>
                 </div>
 

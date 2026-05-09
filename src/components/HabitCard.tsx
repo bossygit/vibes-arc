@@ -31,7 +31,7 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, identities, stats }) => {
                             ? 'bg-green-100 text-green-700'
                             : 'bg-red-100 text-red-700'
                             }`}>
-                            {habit.type === 'start' ? '▲ Commencer' : '▼ Arrêter'}
+                            {habit.type === 'start' ? 'Émettre' : 'Libérer'}
                         </span>
                         {currentBadge && (
                             <span className={`px-3 py-1 rounded-full text-xs font-bold ${currentBadge.color} border-2 flex items-center gap-1 animate-pulse`}>
@@ -41,12 +41,12 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, identities, stats }) => {
                         )}
                     </div>
                     <div className="flex items-center gap-4 text-sm text-slate-600 mb-3">
-                        <span>🔥 {stats.currentStreak} jours</span>
-                        <span>🏆 {stats.longestStreak} jours</span>
-                        <span>✓ {stats.completed}/{stats.totalDays} jours</span>
+                        <span>Momentum actuel: {stats.currentStreak} jours</span>
+                        <span>Plus fort momentum: {stats.longestStreak} jours</span>
+                        <span>Signaux émis: {stats.completed}/{stats.totalDays}</span>
                     </div>
 
-                    {/* Progress Bar */}
+                    {/* Momentum vibratoire */}
                     <div className="flex items-center gap-3">
                         <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
                             <div
@@ -80,7 +80,7 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, identities, stats }) => {
 
             {/* Click indicator */}
             <div className="mt-3 text-xs text-slate-400 text-right">
-                Cliquez pour voir les détails →
+                Explorer ce signal →
             </div>
         </div>
     );

@@ -18,7 +18,7 @@ const OverallCalendar: React.FC<OverallCalendarProps> = ({ habits }) => {
     const firstDayOfMonth = getFirstDayOfMonth(currentMonth, currentYear);
     const monthName = format(new Date(currentYear, currentMonth), 'MMMM yyyy', { locale: fr });
 
-    // Calculer le pourcentage d'habitudes complétées pour un jour donné
+    // Calculer le pourcentage de signaux émis pour un jour donné
     const getDayCompletion = (day: number): number | null => {
         const currentDate = new Date(currentYear, currentMonth, day);
         currentDate.setHours(0, 0, 0, 0);
@@ -29,7 +29,7 @@ const OverallCalendar: React.FC<OverallCalendarProps> = ({ habits }) => {
         const diffTime = currentDate.getTime() - start.getTime();
         const dayIndex = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-        // Filtrer les habitudes actives pour ce jour
+        // Filtrer les signaux actifs pour ce jour
         const activeHabits = habits.filter(habit =>
             isHabitActiveOnDay(habit, dayIndex)
         );
@@ -54,11 +54,11 @@ const OverallCalendar: React.FC<OverallCalendarProps> = ({ habits }) => {
 
     // Obtenir le label descriptif
     const getLabel = (percentage: number | null): string => {
-        if (percentage === null) return 'Aucune habitude';
-        if (percentage === 100) return 'Parfait !';
-        if (percentage >= 70) return 'Bien';
-        if (percentage >= 50) return 'Moyen';
-        return 'Faible';
+        if (percentage === null) return 'Aucun signal';
+        if (percentage === 100) return 'Aligné';
+        if (percentage >= 70) return 'Fluide';
+        if (percentage >= 50) return 'En pivot';
+        return 'Résistance';
     };
 
     const handlePrevMonth = () => {
@@ -122,19 +122,19 @@ const OverallCalendar: React.FC<OverallCalendarProps> = ({ habits }) => {
             <div className="flex flex-wrap gap-3 mb-4 text-xs">
                 <div className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded bg-gradient-to-br from-yellow-400 to-amber-500"></div>
-                    <span className="text-slate-600">100% (Parfait)</span>
+                    <span className="text-slate-600">100% (Aligné)</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded bg-green-500"></div>
-                    <span className="text-slate-600">≥70% (Bien)</span>
+                    <span className="text-slate-600">≥70% (Fluide)</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded bg-orange-400"></div>
-                    <span className="text-slate-600">50-69% (Moyen)</span>
+                    <span className="text-slate-600">50-69% (En pivot)</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded bg-red-500"></div>
-                    <span className="text-slate-600">&lt;50% (Faible)</span>
+                    <span className="text-slate-600">&lt;50% (Résistance)</span>
                 </div>
             </div>
 
@@ -181,7 +181,7 @@ const OverallCalendar: React.FC<OverallCalendarProps> = ({ habits }) => {
                             {/* Tooltip au survol */}
                             {!future && (
                                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                                    {percentage !== null ? `${percentage}% - ${label}` : 'Aucune habitude'}
+                                    {percentage !== null ? `${percentage}% - ${label}` : 'Aucun signal'}
                                 </div>
                             )}
                         </div>

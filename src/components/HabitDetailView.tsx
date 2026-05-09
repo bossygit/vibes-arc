@@ -17,12 +17,12 @@ const HabitDetailView: React.FC = () => {
     if (!habit) {
         return (
             <div className="card text-center p-12">
-                <p className="text-slate-600 mb-4">Habitude introuvable</p>
+                <p className="text-slate-600 mb-4">Signal introuvable</p>
                 <button
                     onClick={() => setView('dashboard')}
                     className="btn-primary"
                 >
-                    Retour au tableau de bord
+                    Retour à l'alignement du jour
                 </button>
             </div>
         );
@@ -73,7 +73,7 @@ const HabitDetailView: React.FC = () => {
     }, [habit.progress]);
 
     const handleDelete = async () => {
-        if (window.confirm(`Êtes-vous sûr de vouloir supprimer l'habitude "${habit.name}" ?`)) {
+        if (window.confirm(`Êtes-vous sûr de vouloir supprimer le signal "${habit.name}" ?`)) {
             await deleteHabit(habit.id);
             setView('dashboard');
         }
@@ -108,7 +108,7 @@ const HabitDetailView: React.FC = () => {
                 </div>
             </div>
 
-            {/* Habit Title & Type */}
+            {/* Signal Title & Type */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -121,7 +121,7 @@ const HabitDetailView: React.FC = () => {
                             ? 'bg-green-100 text-green-700'
                             : 'bg-red-100 text-red-700'
                             }`}>
-                            {habit.type === 'start' ? '▲ Habitude à commencer' : '▼ Habitude à arrêter'}
+                            {habit.type === 'start' ? 'Émettre ce signal' : 'Libérer cette résistance'}
                         </span>
                     </div>
                 </div>
@@ -140,7 +140,7 @@ const HabitDetailView: React.FC = () => {
                             <TrendingUp className="w-6 h-6 text-indigo-600" />
                         </div>
                         <div>
-                            <p className="text-sm text-slate-600">Progression</p>
+                            <p className="text-sm text-slate-600">Alignement</p>
                             <p className="text-2xl font-bold text-indigo-600">{stats.percentage}%</p>
                         </div>
                     </div>
@@ -157,7 +157,7 @@ const HabitDetailView: React.FC = () => {
                             <span className="text-2xl">🔥</span>
                         </div>
                         <div>
-                            <p className="text-sm text-slate-600">Streak actuel</p>
+                            <p className="text-sm text-slate-600">Momentum actuel</p>
                             <p className="text-2xl font-bold text-green-600">{stats.currentStreak}</p>
                         </div>
                     </div>
@@ -174,7 +174,7 @@ const HabitDetailView: React.FC = () => {
                             <span className="text-2xl">🏆</span>
                         </div>
                         <div>
-                            <p className="text-sm text-slate-600">Meilleur streak</p>
+                            <p className="text-sm text-slate-600">Plus fort momentum</p>
                             <p className="text-2xl font-bold text-amber-600">{stats.longestStreak}</p>
                         </div>
                     </div>
@@ -191,7 +191,7 @@ const HabitDetailView: React.FC = () => {
                             <Calendar className="w-6 h-6 text-blue-600" />
                         </div>
                         <div>
-                            <p className="text-sm text-slate-600">Jours complétés</p>
+                            <p className="text-sm text-slate-600">Signaux émis</p>
                             <p className="text-2xl font-bold text-blue-600">{stats.completed}/{stats.totalDays}</p>
                         </div>
                     </div>
@@ -208,7 +208,7 @@ const HabitDetailView: React.FC = () => {
                 >
                     <h2 className="text-lg font-semibold text-slate-800 mb-3 flex items-center gap-2">
                         <Target className="w-5 h-5 text-indigo-600" />
-                        Identités liées
+                        Identités vibratoires soutenues
                     </h2>
                     <div className="flex flex-wrap gap-3">
                         {linkedIdentityObjects.map(identity => (
@@ -223,7 +223,7 @@ const HabitDetailView: React.FC = () => {
                 </motion.div>
             )}
 
-            {/* Streaks History */}
+            {/* Momentum History */}
             {stats.streaks.length > 0 && (
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -232,7 +232,7 @@ const HabitDetailView: React.FC = () => {
                     className="card"
                 >
                     <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                        📊 Historique des streaks ({stats.streaks.length})
+                        Historique du momentum ({stats.streaks.length})
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {stats.streaks.sort((a, b) => b.length - a.length).map((streak, idx) => (
@@ -261,11 +261,11 @@ const HabitDetailView: React.FC = () => {
             >
                 <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
                     <Calendar className="w-5 h-5 text-indigo-600" />
-                    Calendrier de progression
+                    Calendrier d'émission
                 </h2>
                 <HabitCalendar habit={habit} onToggleDay={handleToggleDayWithCelebration} />
                 <div className="mt-3 flex items-center gap-2 text-sm text-slate-600">
-                    <span>Gérer les jours sautés:</span>
+                    <span>Gérer les jours d'intégration:</span>
                     <button
                         onClick={() => {
                             const todayIdx = getCurrentDayIndex();
@@ -273,7 +273,7 @@ const HabitDetailView: React.FC = () => {
                         }}
                         className="px-3 py-1 rounded border border-slate-300 hover:border-indigo-400"
                     >
-                        Marquer aujourd'hui comme "skip"
+                        Marquer aujourd'hui comme intégration
                     </button>
                 </div>
             </motion.div>
@@ -291,7 +291,7 @@ const HabitDetailView: React.FC = () => {
             <Celebration
                 visible={showCelebration}
                 onClose={() => setShowCelebration(false)}
-                message="Bien joué ! Jour validé ✨"
+                message="Signal émis avec conscience"
             />
 
             {/* Weekly trend */}
@@ -303,7 +303,7 @@ const HabitDetailView: React.FC = () => {
             >
                 <h2 className="text-lg font-semibold text-slate-800 mb-2 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-indigo-600" />
-                    Tendance hebdo
+                    Momentum hebdo
                 </h2>
                 <div className="flex items-center gap-4">
                     <div>

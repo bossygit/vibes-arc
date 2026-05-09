@@ -37,13 +37,13 @@ const AddHabitView: React.FC = () => {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-slate-800">Créer une nouvelle habitude</h2>
+                <h2 className="text-2xl font-bold text-slate-800">Créer un signal vibratoire</h2>
                 <button
                     onClick={() => setView('templates')}
                     className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition"
                 >
                     <Sparkles className="w-4 h-4" />
-                    Templates Detox
+                    Signaux guidés
                 </button>
             </div>
 
@@ -54,9 +54,9 @@ const AddHabitView: React.FC = () => {
                         <Info className="w-6 h-6 text-green-600" />
                     </div>
                     <div>
-                        <h3 className="font-semibold text-green-900 mb-2">Qu'est-ce qu'une habitude ?</h3>
+                        <h3 className="font-semibold text-green-900 mb-2">Qu'est-ce qu'un signal vibratoire ?</h3>
                         <p className="text-slate-700 leading-relaxed">
-                            Une habitude est une routine ou un comportement régulier qui se manifeste automatiquement en réponse à un stimulus spécifique. Il décrit les habitudes comme les "atomes" de la vie, des petites actions qui paraissent insignifiantes à première vue, mais qui s'additionnent sur le temps pour produire des résultats significatifs et puissants. Ces habitudes sont donc des unités fondamentales contribuant à l'amélioration personnelle continue.
+                            Un signal vibratoire est une action, une pensée ou un choix répété qui indique à ton système intérieur ce que tu es en train d'émettre. Ici, l'objectif n'est pas la performance : c'est d'observer l'énergie que tu nourris, le momentum qui se construit et la résistance qui demande de la douceur.
                         </p>
                     </div>
                 </div>
@@ -69,10 +69,10 @@ const AddHabitView: React.FC = () => {
                         <Sparkles className="w-6 h-6 text-purple-600" />
                     </div>
                     <div>
-                        <h3 className="font-semibold text-purple-900 mb-2">Templates Detox Dopamine</h3>
+                        <h3 className="font-semibold text-purple-900 mb-2">Signaux guidés</h3>
                         <p className="text-slate-700 leading-relaxed mb-3">
-                            Découvre nos templates d'habitudes spécialement conçus pour une detox dopamine.
-                            Chaque template inclut des conseils personnalisés et des durées suggérées (21, 30, 66, 90 jours).
+                            Découvre des signaux déjà structurés pour libérer la résistance, calmer le système nerveux et soutenir une fréquence plus choisie.
+                            Chaque signal inclut des conseils et des durées suggérées (21, 30, 66, 90 jours).
                         </p>
                         <div className="flex flex-wrap gap-2">
                             {detoxTemplates.slice(0, 4).map(template => (
@@ -88,11 +88,11 @@ const AddHabitView: React.FC = () => {
             <div className="card space-y-6">
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Nom de l'habitude
+                        Nom du signal
                     </label>
                     <input
                         type="text"
-                        placeholder="Ex: Méditer 10 minutes chaque matin"
+                        placeholder="Ex: Émettre 10 minutes de calme chaque matin"
                         value={newHabit.name}
                         onChange={(e) => setNewHabit({ ...newHabit, name: e.target.value })}
                         className="input-field"
@@ -101,7 +101,7 @@ const AddHabitView: React.FC = () => {
 
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Type d'habitude
+                        Intention vibratoire
                     </label>
                     <div className="grid grid-cols-2 gap-4">
                         <button
@@ -111,7 +111,7 @@ const AddHabitView: React.FC = () => {
                                 : 'border-slate-200 text-slate-600 hover:border-slate-300'
                                 }`}
                         >
-                            ▲ Commencer
+                            Émettre
                         </button>
                         <button
                             onClick={() => setNewHabit({ ...newHabit, type: 'stop' })}
@@ -120,14 +120,14 @@ const AddHabitView: React.FC = () => {
                                 : 'border-slate-200 text-slate-600 hover:border-slate-300'
                                 }`}
                         >
-                            ▼ Arrêter
+                            Libérer
                         </button>
                     </div>
                 </div>
 
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Durée (jours)
+                        Fenêtre de momentum (jours)
                     </label>
                     <input
                         type="number"
@@ -138,22 +138,22 @@ const AddHabitView: React.FC = () => {
                         max="500"
                     />
                     <p className="text-xs text-slate-500 mt-2">
-                        Choisis 21, 30, 66, 90… ou 365 pour l’année (tu peux étendre plus tard)
+                        Choisis 21, 30, 66, 90… ou 365 pour observer le momentum qui se construit.
                     </p>
                 </div>
 
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-3">
-                        Identités liées {newHabit.linkedIdentities.length > 0 && `(${newHabit.linkedIdentities.length})`}
+                        Identités vibratoires soutenues {newHabit.linkedIdentities.length > 0 && `(${newHabit.linkedIdentities.length})`}
                     </label>
                     {identities.length === 0 ? (
                         <div className="text-center py-8 text-slate-500">
-                            <p className="mb-3">Aucune identité créée</p>
+                            <p className="mb-3">Aucune identité vibratoire créée</p>
                             <button
                                 onClick={() => setView('identities')}
                                 className="text-indigo-600 hover:text-indigo-700 font-medium"
                             >
-                                Créer une identité d'abord →
+                                Créer une identité vibratoire d'abord →
                             </button>
                         </div>
                     ) : (
@@ -190,7 +190,7 @@ const AddHabitView: React.FC = () => {
                     className="btn-primary w-full flex items-center justify-center gap-2"
                 >
                     <Plus className="w-5 h-5" />
-                    Créer l'habitude
+                    Créer le signal
                 </button>
             </div>
         </div>

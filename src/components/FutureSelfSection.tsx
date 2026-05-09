@@ -34,14 +34,14 @@ const FutureSelfSection: React.FC<FutureSelfSectionProps> = ({ habits }) => {
           <Rocket className="w-5 h-5 text-indigo-600" />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Ton futur toi</h2>
-          <p className="text-sm text-slate-600">Où tu vas si tu continues</p>
+          <h2 className="text-xl font-bold text-slate-800">Ton futur aligné</h2>
+          <p className="text-sm text-slate-600">La direction que ton momentum est en train de nourrir</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div className="p-4 rounded-xl bg-white/70 border border-indigo-100">
-          <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-1">Prochain niveau</p>
+          <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-1">Prochaine fréquence</p>
           <p className="text-lg font-bold text-slate-800">{futureSelf.nextLevel.name}</p>
           <p className="text-sm text-slate-600">
             {futureSelf.nextLevel.daysRemaining === 0
@@ -50,7 +50,7 @@ const FutureSelfSection: React.FC<FutureSelfSectionProps> = ({ habits }) => {
           </p>
         </div>
         <div className="p-4 rounded-xl bg-white/70 border border-indigo-100">
-          <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-1">Projection</p>
+          <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-1">Momentum projeté</p>
           <p className="text-sm text-slate-700">
             Dans 7 j. : <span className="font-bold text-indigo-600">{futureSelf.projectedStreak.in7days} jours</span>
           </p>

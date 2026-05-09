@@ -223,8 +223,8 @@ const CoachChat: React.FC = () => {
                                 Salut champion ! 🔥
                             </h3>
                             <p className="text-slate-500 text-sm max-w-md mb-8">
-                                Je suis Coach Vibes, ton coach personnel de transformation.
-                                J'ai accès à tes habitudes et tes progrès pour te guider au mieux.
+                                Je suis Coach Vibes, ton guide d'alignement vibratoire.
+                                J'observe tes signaux, ton momentum et tes pratiques pour t'aider à réduire la résistance.
                                 Pose-moi n'importe quelle question !
                             </p>
 

@@ -12,10 +12,10 @@ interface ChainSectionProps {
 }
 
 const STATUS_LABELS: Record<ChainStatus, string> = {
-  broken: 'Cassée',
-  fragile: 'Fragile',
+  broken: 'À recalibrer',
+  fragile: 'Doux',
   stable: 'Stable',
-  strong: 'Solide',
+  strong: 'Puissant',
 };
 
 const STATUS_STYLES: Record<ChainStatus, string> = {
@@ -43,13 +43,13 @@ const ChainSection: React.FC<ChainSectionProps> = ({ habits }) => {
             <Flame className="w-5 h-5 text-amber-600" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-800">Never Break the Chain</h2>
+            <h2 className="text-xl font-bold text-slate-800">Momentum vibratoire</h2>
             <p className="text-sm text-slate-600">
               {chain.length === 0
-                ? 'Aucun jour consécutif'
+                ? 'Aucun momentum consécutif'
                 : chain.length === 1
-                  ? '1 jour d’affilée'
-                  : `${chain.length} jours d’affilée`}
+                  ? '1 jour d’émission consciente'
+                  : `${chain.length} jours d’émission consciente`}
             </p>
           </div>
         </div>
@@ -102,7 +102,7 @@ const ChainSection: React.FC<ChainSectionProps> = ({ habits }) => {
         >
           <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
           <p className="text-sm font-medium text-amber-900">
-            Ta chaîne de {chain.length} jours a besoin d’aujourd’hui. Ne la casse pas.
+            Ton momentum de {chain.length} jours demande un signal doux aujourd’hui. Inutile de forcer.
           </p>
         </motion.div>
       )}

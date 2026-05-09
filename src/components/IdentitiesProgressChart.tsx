@@ -58,8 +58,8 @@ const IdentitiesProgressChart: React.FC<IdentitiesProgressChartProps> = ({ ident
         return (
             <div className="card text-center py-12">
                 <Target className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-600 mb-2">Aucune identité à afficher</p>
-                <p className="text-sm text-slate-500">Créez votre première identité pour voir votre progression</p>
+                <p className="text-slate-600 mb-2">Aucune identité vibratoire à afficher</p>
+                <p className="text-sm text-slate-500">Créez votre première identité pour observer votre alignement</p>
             </div>
         );
     }
@@ -69,7 +69,7 @@ const IdentitiesProgressChart: React.FC<IdentitiesProgressChartProps> = ({ ident
             <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-indigo-600" />
-                    Progression des Identités
+                    Alignement des identités
                 </h3>
                 <div className="text-xs text-slate-500">
                     {identities.length} identité{identities.length > 1 ? 's' : ''}
@@ -96,7 +96,7 @@ const IdentitiesProgressChart: React.FC<IdentitiesProgressChartProps> = ({ ident
                                         {data.identity.name}
                                     </h4>
                                     <p className="text-xs text-slate-500">
-                                        {data.habitCount} habitude{data.habitCount > 1 ? 's' : ''}
+                                        {data.habitCount} signal{data.habitCount > 1 ? 's' : ''}
                                         {data.totalDays > 0 && ` · ${data.completedDays}/${data.totalDays} jours`}
                                     </p>
                                 </div>
@@ -150,7 +150,7 @@ const IdentitiesProgressChart: React.FC<IdentitiesProgressChartProps> = ({ ident
                                     <div className="bg-slate-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm whitespace-nowrap">
                                         <div className="font-semibold mb-1">{data.identity.name}</div>
                                         <div className="text-xs opacity-90">
-                                            {data.score}% de progression
+                                            {data.score}% d'alignement
                                         </div>
                                         {data.identity.description && (
                                             <div className="text-xs opacity-75 mt-1 max-w-xs">

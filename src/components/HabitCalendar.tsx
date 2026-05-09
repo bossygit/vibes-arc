@@ -113,7 +113,7 @@ const HabitCalendar: React.FC<HabitCalendarProps> = ({ habit, onToggleDay }) => 
                                                 ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
                                                 : 'habit-day-pending'
                                         } ${isTodayDate ? 'ring-2 ring-indigo-300' : ''}`}
-                                    title={outOfRange ? 'Hors durée de l’habitude' : `${i + 1} ${month.name.toLowerCase()}`}
+                                    title={outOfRange ? 'Hors fenêtre du signal' : `${i + 1} ${month.name.toLowerCase()}`}
                                 >
                                     {i + 1}
                                 </button>
@@ -123,7 +123,7 @@ const HabitCalendar: React.FC<HabitCalendarProps> = ({ habit, onToggleDay }) => 
                 </div>
             ))}
             <div className="mt-3 text-xs text-slate-500">
-                Astuce: clic pour cocher, Alt+clic pour "skip day".
+                Astuce: clic pour marquer le signal émis.
             </div>
         </div>
     );

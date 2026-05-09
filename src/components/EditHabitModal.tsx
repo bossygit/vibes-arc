@@ -62,7 +62,7 @@ const EditHabitModal: React.FC<EditHabitModalProps> = ({
                 >
                     {/* Header */}
                     <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-                        <h2 className="text-2xl font-bold text-slate-900">Modifier l'habitude</h2>
+                        <h2 className="text-2xl font-bold text-slate-900">Modifier le signal</h2>
                         <button
                             onClick={onClose}
                             className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
@@ -73,10 +73,10 @@ const EditHabitModal: React.FC<EditHabitModalProps> = ({
 
                     {/* Form */}
                     <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                        {/* Habit Name */}
+                        {/* Signal Name */}
                         <div>
                             <label htmlFor="habitName" className="block text-sm font-medium text-slate-700 mb-2">
-                                Nom de l'habitude *
+                                Nom du signal *
                             </label>
                             <input
                                 id="habitName"
@@ -84,15 +84,15 @@ const EditHabitModal: React.FC<EditHabitModalProps> = ({
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                placeholder="Ex: Faire 30 min de sport"
+                                placeholder="Ex: Émettre 10 minutes de calme"
                                 required
                             />
                         </div>
 
-                        {/* Habit Type */}
+                        {/* Signal Type */}
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-3">
-                                Type d'habitude *
+                                Intention vibratoire *
                             </label>
                             <div className="grid grid-cols-2 gap-4">
                                 <button
@@ -104,9 +104,8 @@ const EditHabitModal: React.FC<EditHabitModalProps> = ({
                                             : 'border-slate-200 hover:border-slate-300'
                                     }`}
                                 >
-                                    <div className="text-2xl mb-2">▲</div>
-                                    <div className="font-semibold">Commencer</div>
-                                    <div className="text-xs text-slate-600">Une habitude à adopter</div>
+                                    <div className="font-semibold">Émettre</div>
+                                    <div className="text-xs text-slate-600">Un signal à nourrir</div>
                                 </button>
                                 <button
                                     type="button"
@@ -117,9 +116,8 @@ const EditHabitModal: React.FC<EditHabitModalProps> = ({
                                             : 'border-slate-200 hover:border-slate-300'
                                     }`}
                                 >
-                                    <div className="text-2xl mb-2">▼</div>
-                                    <div className="font-semibold">Arrêter</div>
-                                    <div className="text-xs text-slate-600">Une habitude à perdre</div>
+                                    <div className="font-semibold">Libérer</div>
+                                    <div className="text-xs text-slate-600">Une résistance à dissoudre</div>
                                 </button>
                             </div>
                         </div>
@@ -127,7 +125,7 @@ const EditHabitModal: React.FC<EditHabitModalProps> = ({
                         {/* Linked Identities */}
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-3">
-                                Identités liées (optionnel)
+                                Identités vibratoires soutenues (optionnel)
                             </label>
                             {identities.length === 0 ? (
                                 <p className="text-sm text-slate-500">
@@ -161,7 +159,7 @@ const EditHabitModal: React.FC<EditHabitModalProps> = ({
                         {/* Note */}
                         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                             <p className="text-sm text-amber-800">
-                                <strong>Note :</strong> La durée totale et la progression ne peuvent pas être modifiées pour préserver l'historique.
+                                <strong>Note :</strong> La fenêtre de momentum et l'historique d'émission ne peuvent pas être modifiés pour préserver l'observation.
                             </p>
                         </div>
 

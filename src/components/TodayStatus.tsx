@@ -27,19 +27,19 @@ const TodayStatus: React.FC<TodayStatusProps> = ({ habits }) => {
         isHabitActiveOnDay(habit, currentDayIndex)
     );
 
-    // Calculer les habitudes non cochées aujourd'hui
-    const uncheckedHabits = activeHabitsToday.filter(habit =>
+    // Calculer les signaux qui n'ont pas encore été émis aujourd'hui.
+    const unemittedSignals = activeHabitsToday.filter(habit =>
         !habit.progress[currentDayIndex]
     );
 
-    // Calculer le pourcentage de complétion
+    // Calculer le niveau d'alignement du jour.
     const totalHabitsToday = activeHabitsToday.length;
-    const checkedHabits = totalHabitsToday - uncheckedHabits.length;
+    const emittedSignals = totalHabitsToday - unemittedSignals.length;
     const completionPercentage = totalHabitsToday > 0
-        ? Math.round((checkedHabits / totalHabitsToday) * 100)
+        ? Math.round((emittedSignals / totalHabitsToday) * 100)
         : 100;
 
-    const isWeak = completionPercentage < 60;
+    const hasResistance = completionPercentage < 60;
 
     // Déclencher une célébration quand on atteint 100%
     useEffect(() => {
@@ -58,43 +58,43 @@ const TodayStatus: React.FC<TodayStatusProps> = ({ habits }) => {
         <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`card ${isWeak
-                ? 'bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-200'
+            className={`card ${hasResistance
+                ? 'bg-gradient-to-br from-orange-50 to-rose-50 border-2 border-orange-200'
                 : 'bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200'
                 }`}
         >
-            <Celebration visible={showCelebration} message="Journée parfaite ! 🏆" onClose={() => setShowCelebration(false)} />
+            <Celebration visible={showCelebration} message="Alignement complet du jour" onClose={() => setShowCelebration(false)} />
             <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-lg ${isWeak ? 'bg-red-100' : 'bg-green-100'}`}>
-                        <Calendar className={`w-6 h-6 ${isWeak ? 'text-red-600' : 'text-green-600'}`} />
+                    <div className={`p-3 rounded-lg ${hasResistance ? 'bg-orange-100' : 'bg-green-100'}`}>
+                        <Calendar className={`w-6 h-6 ${hasResistance ? 'text-orange-600' : 'text-green-600'}`} />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-slate-800">Statut du jour</h2>
-                        <p className="text-sm text-slate-600">{formatDateFull(today)}</p>
+                        <h2 className="text-xl font-bold text-slate-800">Fréquence du jour</h2>
+                        <p className="text-sm text-slate-600">{formatDateFull(today)} · signaux vibratoires actifs</p>
                     </div>
                 </div>
                 <div className="text-right">
-                    <div className={`text-3xl font-bold ${isWeak ? 'text-red-600' : 'text-green-600'}`}>
+                    <div className={`text-3xl font-bold ${hasResistance ? 'text-orange-600' : 'text-green-600'}`}>
                         {completionPercentage}%
                     </div>
                     <p className="text-xs text-slate-600">
-                        {checkedHabits}/{totalHabitsToday} complété{checkedHabits > 1 ? 's' : ''}
+                        {emittedSignals}/{totalHabitsToday} signal{emittedSignals > 1 ? 's' : ''} émis
                     </p>
                 </div>
             </div>
 
-            {/* Message de motivation */}
-            {isWeak && (
+            {/* Message de recalibrage */}
+            {hasResistance && (
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.2 }}
-                    className="flex items-center gap-3 p-4 bg-red-100 rounded-lg mb-4 border border-red-200"
+                    className="flex items-center gap-3 p-4 bg-orange-100 rounded-lg mb-4 border border-orange-200"
                 >
-                    <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0" />
-                    <p className="text-red-800 font-semibold text-lg">
-                        Journée difficile. Essaie une micro‑action de 2 minutes.
+                    <AlertCircle className="w-6 h-6 text-orange-600 flex-shrink-0" />
+                    <p className="text-orange-900 font-semibold text-lg">
+                        De la résistance est présente. Choisis un micro-signal de 2 minutes pour pivoter doucement.
                     </p>
                 </motion.div>
             )}
@@ -108,20 +108,20 @@ const TodayStatus: React.FC<TodayStatusProps> = ({ habits }) => {
                 >
                     <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
                     <p className="text-green-800 font-semibold text-lg">
-                        Parfait ! Note 1 bienfait ressenti pour ancrer la motivation.
+                        Tu as émis tous tes signaux du jour. Note le ressenti pour ancrer cette fréquence.
                     </p>
                 </motion.div>
             )}
 
-            {/* Liste des habitudes non cochées */}
-            {uncheckedHabits.length > 0 && (
+            {/* Liste des signaux non émis */}
+            {unemittedSignals.length > 0 && (
                 <div>
                     <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-orange-500"></span>
-                        Habitudes restantes ({uncheckedHabits.length})
+                        Signaux à émettre ({unemittedSignals.length})
                     </h3>
                     <div className="space-y-2">
-                        {uncheckedHabits.map(habit => (
+                        {unemittedSignals.map(habit => (
                             <motion.div
                                 key={habit.id}
                                 initial={{ opacity: 0, x: -10 }}
@@ -135,7 +135,7 @@ const TodayStatus: React.FC<TodayStatusProps> = ({ habits }) => {
                                     ? 'bg-green-100 text-green-700'
                                     : 'bg-red-100 text-red-700'
                                     }`}>
-                                    {habit.type === 'start' ? '▲ Commencer' : '▼ Arrêter'}
+                                    {habit.type === 'start' ? 'Émettre' : 'Libérer'}
                                 </span>
                                 <span className="text-xs text-slate-400 group-hover:text-indigo-500 transition-colors">→</span>
                             </motion.div>
