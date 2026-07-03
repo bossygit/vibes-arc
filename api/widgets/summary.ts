@@ -1,439 +1,507 @@
+/**
+ * /api/widgets/summary — legacy, même cœur que v2 + champs psychology/futureSelf.
+ *
+ * Auto-contenu (zéro import runtime local) : sur Vercel Hobby, les imports de
+ * fichiers `_*.ts` dans /api ne sont pas bundlés → FUNCTION_INVOCATION_FAILED.
+ * Les clients iOS utilisent /api/widgets/v2.
+ */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getServiceSupabase } from './_supabase-client';
-import { dateToDayIndex, dayIndexToDate as getDateForDay, todayDayIndex } from './_dayIndex';
-import { dayQualifiesForNeverBreak, type HabitForChain } from './_neverBreakChain';
-import { generatePsychologicalInsight, getDefaultPsychology } from './_psychologyEngine';
-import { generateFutureSelf, getDefaultFutureSelf } from './_futureSelfEngine';
-import { generateDopamineReward, getDefaultReward } from './_dopamineRewardEngine';
-import { generateLockScreenTrigger, getDefaultTrigger } from './_lockScreenTriggerEngine';
 
+// ─── Day index + Never Break the Chain (inlined) ─────────────────────────────
 
-interface WidgetSummaryResponse {
-  today: string;
-  streaks: {
-    longest: number;
-    current: number;
-    byHabit: { habitId: number; name: string; current: number; longest: number }[];
-  };
-  todayRemaining: {
-    count: number;
-    habits: { habitId: number; name: string; type: 'start' | 'stop' }[];
-  };
-  monthlyScore: {
-    month: string;
-    score: number;
-    completedDays: number;
-    totalDaysWithHabits: number;
-  };
-  weeklyStats: {
-    weekStart: string;
-    completionRate: number;
-    days: { date: string; rate: number }[];
-  };
-  insight: {
-    title: string;
-    message: string;
-  };
-  psychology?: {
-    level: { number: number; name: string };
-    insight: { title: string; message: string; tone: string; emoji: string };
-    streakPressure: boolean;
-  };
-  chain?: {
-    length: number;
-    status: 'broken' | 'fragile' | 'stable' | 'strong';
-    pressure: boolean;
-    calendar: { date: string; completed: boolean }[];
-  };
-  futureSelf?: {
-    nextLevel: { name: string; daysRemaining: number };
-    projectedStreak: { in7days: number; in30days: number };
-    message: { title: string; message: string; emoji: string };
-  };
-  reward?: {
-    rewardType: string;
-    rewardLevel: 'low' | 'medium' | 'high' | 'epic';
-    title: string;
-    message: string;
-    emoji: string;
-  };
-  trigger?: {
-    title: string;
-    message: string;
-    emoji: string;
-    strength: 'light' | 'medium' | 'strong';
-  };
+/** Même jour 0 que l’app web et que les widgets (1er octobre 2025). */
+const WIDGET_APP_START = new Date(2025, 9, 1);
+const CHAIN_DAY_MIN_COMPLETION_RATIO = 0.5;
+
+interface HabitForChain {
+  id: number;
+  created_at?: string | null;
+  total_days?: number | null;
 }
 
-function getWeekStart(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay(); // 0 = dimanche, 1 = lundi
-  const diff = (day === 0 ? -6 : 1 - day); // ramener au lundi
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
+function dateToDayIndex(d: Date): number {
+  const base = new Date(WIDGET_APP_START);
+  base.setHours(0, 0, 0, 0);
+  const copy = new Date(d);
+  copy.setHours(0, 0, 0, 0);
+  return Math.floor((copy.getTime() - base.getTime()) / 86_400_000);
+}
+
+function todayDayIndex(): number {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const base = new Date(WIDGET_APP_START);
+  base.setHours(0, 0, 0, 0);
+  return Math.floor((now.getTime() - base.getTime()) / 86_400_000);
+}
+
+function dayIndexToDate(idx: number): Date {
+  const d = new Date(WIDGET_APP_START);
+  d.setDate(d.getDate() + idx);
   return d;
 }
 
-const CHAIN_WINDOW_DAYS = 14;
-
-function getChainStatus(length: number): 'broken' | 'fragile' | 'stable' | 'strong' {
-  if (length === 0) return 'broken';
-  if (length <= 3) return 'fragile';
-  if (length <= 10) return 'stable';
-  return 'strong';
+function habitEligibleOnSummaryDay(habit: HabitForChain, dayIdx: number): boolean {
+  let habitStartIdx = 0;
+  if (habit.created_at) {
+    habitStartIdx = Math.max(0, dateToDayIndex(new Date(habit.created_at)));
+  }
+  if (dayIdx < habitStartIdx) return false;
+  const td = habit.total_days;
+  if (td != null && Number.isFinite(Number(td)) && dayIdx >= Number(td)) return false;
+  return true;
 }
 
-function buildEmptySummary(today: Date): WidgetSummaryResponse {
-  const todayISO = today.toISOString().slice(0, 10);
-  const monthKey = today.toISOString().slice(0, 7);
-  const weekStart = getWeekStart(today).toISOString().slice(0, 10);
-  const psychology = getDefaultPsychology();
-  const futureSelf = getDefaultFutureSelf();
-  const reward = getDefaultReward();
-  const trigger = getDefaultTrigger();
-  const todayIdx = dateToDayIndex(today);
-  const emptyCalendar: { date: string; completed: boolean }[] = [];
-  for (let i = 0; i < CHAIN_WINDOW_DAYS; i++) {
-    const idx = todayIdx - (CHAIN_WINDOW_DAYS - 1) + i;
-    const date = getDateForDay(idx).toISOString().slice(0, 10);
-    emptyCalendar.push({ date, completed: false });
+function dayQualifiesForChain(completedEligible: number, eligibleCount: number): boolean {
+  if (eligibleCount <= 0) return false;
+  return completedEligible / eligibleCount >= CHAIN_DAY_MIN_COMPLETION_RATIO;
+}
+
+function dayQualifiesForNeverBreak(
+  habits: HabitForChain[],
+  dayIdx: number,
+  progressRows: { habit_id: number; day_index: number }[],
+): boolean {
+  const completedHids = new Set(
+    progressRows.filter((r) => r.day_index === dayIdx).map((r) => r.habit_id),
+  );
+  let eligible = 0;
+  let done = 0;
+  for (const h of habits) {
+    if (!habitEligibleOnSummaryDay(h, dayIdx)) continue;
+    eligible++;
+    if (completedHids.has(h.id)) done++;
   }
+  return dayQualifiesForChain(done, eligible);
+}
+
+// ─── Supabase REST helpers ──────────────────────────────────────────────────
+
+function sbHeaders() {
+  const url = process.env.SUPABASE_URL!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  return {
+    url,
+    headers: {
+      apikey: key,
+      Authorization: 'Bearer ' + key,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+  };
+}
+
+/**
+ * Construit une query PostgREST sans URLSearchParams sur les valeurs de filtre :
+ * les opérateurs `in.(...)` doivent garder parenthèses / virgules non encodées.
+ */
+function buildPostgrestQueryString(params: Record<string, string>): string {
+  const parts: string[] = [];
+  for (const [key, rawValue] of Object.entries(params)) {
+    const encKey = encodeURIComponent(key);
+    if (key === 'select') {
+      parts.push(`${encKey}=${encodeURIComponent(rawValue)}`);
+    } else {
+      parts.push(`${encKey}=${rawValue}`);
+    }
+  }
+  return parts.join('&');
+}
+
+async function sbGet<T = Record<string, unknown>[]>(
+  table: string,
+  params: Record<string, string>
+): Promise<{ data: T | null; error: string | null }> {
+  try {
+    const { url, headers } = sbHeaders();
+    const qs = buildPostgrestQueryString(params);
+    const r = await fetch(`${url}/rest/v1/${table}?${qs}`, { headers });
+    if (!r.ok) return { data: null, error: await r.text() };
+    return { data: (await r.json()) as T, error: null };
+  } catch (e) {
+    return { data: null, error: String(e) };
+  }
+}
+
+async function sbPost(
+  table: string,
+  body: unknown,
+  prefer = 'return=minimal'
+): Promise<{ error: string | null }> {
+  try {
+    const { url, headers } = sbHeaders();
+    const r = await fetch(`${url}/rest/v1/${table}`, {
+      method: 'POST',
+      headers: { ...headers, Prefer: prefer },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) return { error: await r.text() };
+    return { error: null };
+  } catch (e) {
+    return { error: String(e) };
+  }
+}
+
+// ─── Date utilities ─────────────────────────────────────────────────────────
+
+function dateToISO(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function monthStartIdx(today: Date): number {
+  const m = new Date(today.getFullYear(), today.getMonth(), 1);
+  return Math.max(0, Math.floor((m.getTime() - WIDGET_APP_START.getTime()) / 86_400_000));
+}
+
+function weekStartIdx(today: Date): number {
+  const d = new Date(today);
+  const dow = d.getDay();
+  d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+  d.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.floor((d.getTime() - WIDGET_APP_START.getTime()) / 86_400_000));
+}
+
+// ─── Streak computation ──────────────────────────────────────────────────────
+
+function computeStreaks(
+  completedDayIndices: number[],
+  todayIdx: number,
+  windowSize = 60
+): { current: number; longest: number } {
+  const set = new Set(completedDayIndices);
+  let current = 0;
+  for (let i = todayIdx; i > todayIdx - windowSize && i >= 0; i--) {
+    if (set.has(i)) current++;
+    else break;
+  }
+  const sorted = completedDayIndices
+    .filter((d) => d >= todayIdx - windowSize && d <= todayIdx)
+    .sort((a, b) => a - b);
+  let longest = 0, temp = 0;
+  let prev: number | null = null;
+  for (const d of sorted) {
+    if (prev === null || d === prev + 1) temp++;
+    else { if (temp > longest) longest = temp; temp = 1; }
+    prev = d;
+  }
+  if (temp > longest) longest = temp;
+  return { current, longest };
+}
+
+// ─── Trigger generation (inline, pain-avoidance / coût de l’inaction) ─────────
+// Titre court pour le header widget ; message = 1–2 phrases (affiché sous le titre côté iOS).
+
+function makeTrigger(
+  chainLen: number,
+  todayDone: number,
+  todayTotal: number,
+  todayChainQualifies: boolean,
+) {
+  const allDone = todayDone >= todayTotal && todayTotal > 0;
+  if (allDone && chainLen >= 7) {
+    return {
+      title: 'Légendaire',
+      message: 'Vision : tu accumules des preuves que tu te tiens. Demain, même ligne.',
+      emoji: '🏆',
+      strength: 'strong',
+    };
+  }
+  if (allDone) {
+    return { title: 'Journée complète', message: 'Respire, tu as tenu. Pas de pression, juste de la clarté.', emoji: '✅', strength: 'medium' };
+  }
+  if (chainLen >= 3 && !todayChainQualifies) {
+    return {
+      title: 'Casser coûte plus cher',
+      message: `Ta chaîne de ${chainLen} jours : rater aujourd’hui, c’est repartir de zéro émotionnellement. Deux minutes d’action pèsent moins qu’un soir de regret.`,
+      emoji: '🔥',
+      strength: 'strong',
+    };
+  }
+  if (chainLen === 0) {
+    return {
+      title: 'L’inaction a un prix',
+      message:
+        'Rester figé, c’est t’entraîner à ne pas te faire confiance. Un passage ridiculement petit aujourd’hui coûte moins qu’un jour de plus sur la pente facile (distraction, report).',
+      emoji: '⚡',
+      strength: 'light',
+    };
+  }
+  return {
+    title: `Jour ${chainLen + 1} : ne pas rater le fil`,
+    message:
+      'L’inaction d’hier s’appelle moins « repos » que « dérive ». Un tout petit geste maintenant vaut mieux qu’une spirale d’impuissance ce soir.',
+    emoji: '💪',
+    strength: 'medium',
+  };
+}
+
+function makeReward(chainLen: number, currentStreak: number, longestStreak: number) {
+  if (chainLen >= 100) return { rewardType: 'streak_milestone', rewardLevel: 'epic', title: 'Centenaire', message: '100 jours!', emoji: '🌟' };
+  if (chainLen >= 30) return { rewardType: 'streak_milestone', rewardLevel: 'high', title: 'Un mois', message: '30 jours consécutifs!', emoji: '🎯' };
+  if (currentStreak > longestStreak && longestStreak > 0) {
+    return { rewardType: 'new_record', rewardLevel: 'high', title: 'Nouveau record!', message: `${currentStreak} jours, ton meilleur.`, emoji: '🏅' };
+  }
+  if (chainLen >= 7) return { rewardType: 'streak_milestone', rewardLevel: 'medium', title: 'Une semaine', message: '7 jours sans pause.', emoji: '🔥' };
+  return null;
+}
+
+// ─── Empty summary ───────────────────────────────────────────────────────────
+
+function emptySummary(todayISO: string) {
+  const trigger = {
+    title: 'Lier, sinon ça s’érode',
+    message: 'Sans lien, pas de miroir : facile d’oublier le coût d’inaction. Ouvre Vibes Arc et connecte l’appareil.',
+    emoji: '📱',
+    strength: 'light' as const,
+  };
   return {
     today: todayISO,
     streaks: { longest: 0, current: 0, byHabit: [] },
     todayRemaining: { count: 0, habits: [] },
-    monthlyScore: { month: monthKey, score: 0, completedDays: 0, totalDaysWithHabits: 0 },
-    weeklyStats: { weekStart, completionRate: 0, days: [] },
-    insight: { title: psychology.insight.title, message: psychology.insight.message },
-    psychology: {
-      level: psychology.level,
-      insight: psychology.insight,
-      streakPressure: psychology.streakPressure,
+    monthlyScore: { month: todayISO.slice(0, 7), score: 0, completedDays: 0, totalDaysWithHabits: 0 },
+    weeklyStats: { weekStart: todayISO, completionRate: 0, days: [] },
+    insight: {
+      title: 'Pas de données',
+      message: 'Tant que ce n’est pas lié, ton cerveau choisit la facilité ailleurs. Branche l’app pour verrouiller l’intention.',
     },
-    chain: { length: 0, status: 'broken', pressure: false, calendar: emptyCalendar },
-    futureSelf,
-    reward,
+    psychology: {
+      level: { number: 1, name: 'Starter' },
+      insight: { title: trigger.title, message: trigger.message, tone: 'restart_pain', emoji: trigger.emoji },
+      streakPressure: false,
+    },
+    chain: { length: 0, status: 'broken', pressure: false, calendar: [] },
+    futureSelf: {
+      nextLevel: { name: 'Builder', daysRemaining: 3 },
+      projectedStreak: { in7days: 0, in30days: 0 },
+      message: { title: 'Nouveau départ', message: 'Aujourd’hui est le bon jour pour commencer.', emoji: '🌱' },
+    },
     trigger,
+    reward: {
+      rewardType: 'anticipation',
+      rewardLevel: 'low',
+      title: 'Continue demain',
+      message: 'Chaque jour compte.',
+      emoji: '🚀',
+    },
   };
 }
 
-function computeStreaksForHabit(completedDays: number[], todayIdx: number, windowSize = 60) {
-  if (completedDays.length === 0) return { current: 0, longest: 0 };
-  const set = new Set(completedDays);
-
-  // streak courant : remonter à partir d'aujourd'hui
-  let current = 0;
-  for (let i = todayIdx; i > todayIdx - windowSize && i >= 0; i--) {
-    if (set.has(i)) {
-      current++;
-    } else {
-      break;
-    }
-  }
-
-  // plus long streak dans la fenêtre
-  const filtered = completedDays.filter((d) => d >= todayIdx - windowSize && d <= todayIdx).sort((a, b) => a - b);
-  let longest = 0;
-  let temp = 0;
-  let prev: number | null = null;
-  for (const d of filtered) {
-    if (prev === null || d === prev + 1) {
-      temp++;
-    } else {
-      if (temp > longest) longest = temp;
-      temp = 1;
-    }
-    prev = d;
-  }
-  if (temp > longest) longest = temp;
-
-  return { current, longest };
-}
+// ─── Handler ─────────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Cache-Control', 'no-store');
+
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+
+  const deviceId = (req.query.deviceId as string | undefined)?.trim();
+  if (!deviceId) return res.status(400).json({ error: 'Missing deviceId' });
+
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return res.status(503).json({ error: 'Supabase env vars not configured' });
+  }
+
   try {
-    if (req.method !== 'GET') {
-      return res.status(405).json({ error: 'Method not allowed' });
-    }
-
-    const deviceId = (req.query.deviceId as string | undefined)?.trim();
-    if (!deviceId) {
-      return res.status(400).json({ error: 'Missing deviceId query parameter' });
-    }
-
     const today = new Date();
-    const todayIdx = todayDayIndex();
-    if (todayIdx < 0) {
-      return res.status(200).json(buildEmptySummary(today));
+    const todayIdx = todayDayIndex(); // même base que `_dayIndex` / summary
+    const todayISO = dateToISO(today);
+
+    if (todayIdx < 0) return res.status(200).json(emptySummary(todayISO));
+
+    // 1) Résoudre device → user
+    const { data: devRows, error: devErr } = await sbGet<Record<string, unknown>[]>(
+      'device_widgets',
+      { select: 'user_id', device_id: `eq.${deviceId}` }
+    );
+    if (devErr) return res.status(500).json({ error: 'device lookup failed', detail: devErr });
+
+    const userId = devRows && devRows.length > 0
+      ? (devRows[0].user_id as string | null)
+      : null;
+
+    if (!devRows || devRows.length === 0) {
+      await sbPost(
+        'device_widgets',
+        { device_id: deviceId },
+        'return=minimal,resolution=ignore-duplicates'
+      );
     }
 
-    let supabase;
-    try {
-      supabase = getServiceSupabase();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Supabase configuration error';
-      return res.status(503).json({
-        error: 'Service unavailable',
-        detail: msg.includes('Missing') ? 'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in Vercel environment.' : msg,
-      });
-    }
+    if (!userId) return res.status(200).json(emptySummary(todayISO));
 
-    // 1) Associer device -> user (ou créer entrée anonyme)
-    const { data: existingDevice, error: deviceError } = await supabase
-      .from('device_widgets')
-      .select('user_id')
-      .eq('device_id', deviceId)
-      .maybeSingle();
+    // 2) Habitudes
+    const { data: habits, error: hErr } = await sbGet<Record<string, unknown>[]>(
+      'habits',
+      { select: 'id,name,type,total_days,created_at', user_id: `eq.${userId}` }
+    );
+    if (hErr) return res.status(500).json({ error: 'habits failed', detail: hErr });
+    if (!habits || habits.length === 0) return res.status(200).json(emptySummary(todayISO));
 
-    if (deviceError) {
-      return res.status(500).json({ error: 'Failed to read device mapping', detail: deviceError.message });
-    }
+    const habitIds = habits.map((h) => h.id as number);
+    const histStart = Math.max(0, todayIdx - 60);
 
-    const userId = existingDevice?.user_id as string | null | undefined;
-
-    if (!existingDevice) {
-      const { error: insertError } = await supabase
-        .from('device_widgets')
-        .insert({ device_id: deviceId });
-      if (insertError) {
-        return res.status(500).json({ error: 'Failed to register device', detail: insertError.message });
+    // 3) Progression
+    const { data: progress, error: pErr } = await sbGet<Record<string, unknown>[]>(
+      'habit_progress',
+      {
+        select: 'habit_id,day_index',
+        'habit_id': `in.(${habitIds.join(',')})`,
+        'day_index': `gte.${histStart}`,
+        'completed': `eq.true`,
       }
+    );
+    if (pErr) return res.status(500).json({ error: 'progress failed', detail: pErr });
+
+    const progressRows = progress || [];
+
+    // 4) Calcul par habitude
+    const progressByHabit: Record<number, number[]> = {};
+    for (const id of habitIds) progressByHabit[id] = [];
+    for (const row of progressRows) {
+      const hid = row.habit_id as number;
+      const di = row.day_index as number;
+      if (progressByHabit[hid]) progressByHabit[hid].push(di);
     }
 
-    if (!userId) {
-      // Device encore non lié à un utilisateur → payload neutre
-      return res.status(200).json(buildEmptySummary(today));
-    }
-
-    // 2) Charger les habitudes de l'utilisateur
-    const { data: habits, error: habitsError } = await supabase
-      .from('habits')
-      .select('id, name, type, total_days, created_at')
-      .eq('user_id', userId);
-
-    if (habitsError) {
-      return res.status(500).json({ error: 'Failed to load habits', detail: habitsError.message });
-    }
-
-    if (!habits || habits.length === 0) {
-      return res.status(200).json(buildEmptySummary(today));
-    }
-
-    const habitIds = habits.map((h) => h.id);
-
-    // Fenêtres temporelles
-    const monthStartDate = new Date(today.getFullYear(), today.getMonth(), 1);
-    const monthEndDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    const monthStartIdx = Math.max(0, dateToDayIndex(monthStartDate));
-    const monthEndIdx = Math.max(monthStartIdx, dateToDayIndex(monthEndDate));
-
-    const weekStartDate = getWeekStart(today);
-    const weekStartIdx = Math.max(0, dateToDayIndex(weekStartDate));
-    const weekEndIdx = Math.min(todayIdx, weekStartIdx + 6);
-
-    const historyStartIdx = Math.max(0, Math.min(weekStartIdx, monthStartIdx, todayIdx - 60));
-    const historyEndIdx = todayIdx;
-
-    // 3) Charger la progression sur la fenêtre utile
-    const { data: progressRows, error: progressError } = await supabase
-      .from('habit_progress')
-      .select('habit_id, day_index, completed')
-      .in('habit_id', habitIds)
-      .gte('day_index', historyStartIdx)
-      .lte('day_index', historyEndIdx)
-      .eq('completed', true);
-
-    if (progressError) {
-      return res.status(500).json({ error: 'Failed to load habit progress', detail: progressError.message });
-    }
-
-    const completedByHabit = new Map<number, number[]>();
-    const completedByDay = new Map<number, number>();
-
-    for (const row of progressRows || []) {
-      const days = completedByHabit.get(row.habit_id) || [];
-      days.push(row.day_index);
-      completedByHabit.set(row.habit_id, days);
-      completedByDay.set(row.day_index, (completedByDay.get(row.day_index) || 0) + 1);
-    }
-
-    // 4) Streaks par habitude
-    let globalCurrent = 0;
-    let globalLongest = 0;
+    let overallCurrent = 0, overallLongest = 0;
     const byHabit: { habitId: number; name: string; current: number; longest: number }[] = [];
 
-    for (const habit of habits) {
-      const days = (completedByHabit.get(habit.id) || []).sort((a, b) => a - b);
-      const { current, longest } = computeStreaksForHabit(days, todayIdx);
-      if (current > 0 || longest > 0) {
-        byHabit.push({ habitId: habit.id, name: habit.name, current, longest });
-      }
-      if (current > globalCurrent) globalCurrent = current;
-      if (longest > globalLongest) globalLongest = longest;
+    for (const h of habits) {
+      const hid = h.id as number;
+      const { current, longest } = computeStreaks(progressByHabit[hid] || [], todayIdx);
+      if (current > overallCurrent) overallCurrent = current;
+      if (longest > overallLongest) overallLongest = longest;
+      byHabit.push({ habitId: hid, name: h.name as string, current, longest });
     }
-
-    byHabit.sort((a, b) => b.current - a.current || b.longest - a.longest);
-
-    // 5) Habitudes restantes aujourd'hui
-    const todayRemainingHabits: { habitId: number; name: string; type: 'start' | 'stop' }[] = [];
-    const todayHasCompletion = new Set<number>();
-    for (const row of progressRows || []) {
-      if (row.day_index === todayIdx) {
-        todayHasCompletion.add(row.habit_id);
-      }
-    }
-
-    for (const habit of habits) {
-      const createdAt = new Date(habit.created_at);
-      const habitStartIdx = Math.max(0, dateToDayIndex(createdAt));
-      if (todayIdx < habitStartIdx || todayIdx >= habit.total_days) continue;
-      if (!todayHasCompletion.has(habit.id)) {
-        todayRemainingHabits.push({ habitId: habit.id, name: habit.name, type: habit.type });
-      }
-    }
-
-    // 6) Score mensuel
-    let monthlyCompleted = 0;
-    const monthlyDays = new Set<number>();
-    for (const [dayIndex, count] of Array.from(completedByDay.entries())) {
-      if (dayIndex >= monthStartIdx && dayIndex <= monthEndIdx) {
-        monthlyCompleted += count;
-        monthlyDays.add(dayIndex);
-      }
-    }
-
-    const daysUpToTodayInMonth = Math.max(
-      0,
-      Math.min(todayIdx, monthEndIdx) - monthStartIdx + 1,
-    );
-
-    const monthlyScore = {
-      month: today.toISOString().slice(0, 7),
-      score: monthlyCompleted,
-      completedDays: monthlyDays.size,
-      totalDaysWithHabits: habits.length > 0 ? daysUpToTodayInMonth : 0,
-    };
-
-    // 7) Stats hebdo
-    const weekDays: { date: string; rate: number }[] = [];
-    let sumRates = 0;
-    let rateCount = 0;
-    const habitCount = habits.length || 1;
-
-    for (let idx = weekStartIdx; idx <= weekEndIdx; idx++) {
-      const date = getDateForDay(idx);
-      const completedCount = completedByDay.get(idx) || 0;
-      const rate = Math.round((completedCount / habitCount) * 100);
-      weekDays.push({ date: date.toISOString().slice(0, 10), rate });
-      sumRates += rate;
-      rateCount++;
-    }
-
-    const weeklyStats = {
-      weekStart: getWeekStart(today).toISOString().slice(0, 10),
-      completionRate: rateCount > 0 ? Math.round(sumRates / rateCount) : 0,
-      days: weekDays,
-    };
 
     const habitsForChain: HabitForChain[] = habits.map((h) => ({
-      id: h.id,
-      created_at: h.created_at ?? null,
-      total_days: h.total_days ?? null,
+      id: h.id as number,
+      created_at: (h.created_at as string | null | undefined) ?? null,
+      total_days: h.total_days != null ? (h.total_days as number) : null,
     }));
 
-    const progressForNeverBreak = (progressRows || []).map((r) => ({
+    const progressForNeverBreak = progressRows.map((r) => ({
       habit_id: r.habit_id as number,
       day_index: r.day_index as number,
     }));
 
-    // Never Break the Chain : jour valide si proportion d’habitudes éligibles complétées ≥ 50 %
-    const chainCalendar: { date: string; completed: boolean }[] = [];
-    for (let i = 0; i < CHAIN_WINDOW_DAYS; i++) {
-      const idx = todayIdx - (CHAIN_WINDOW_DAYS - 1) + i;
-      const date = getDateForDay(idx).toISOString().slice(0, 10);
-      const completed =
-        idx >= 0 && dayQualifiesForNeverBreak(habitsForChain, idx, progressForNeverBreak);
-      chainCalendar.push({ date, completed });
-    }
-    let chainLength = 0;
-    for (let i = 0; i < CHAIN_WINDOW_DAYS; i++) {
-      const idx = todayIdx - i;
-      if (idx < 0) break;
-      if (!dayQualifiesForNeverBreak(habitsForChain, idx, progressForNeverBreak)) break;
-      chainLength++;
+    // 5) Habitudes restantes aujourd'hui (éligibles au jour, comme summary)
+    const completedTodayIds = new Set(
+      progressRows.filter((r) => r.day_index === todayIdx).map((r) => r.habit_id as number),
+    );
+    const remainingHabits: { habitId: number; name: string; type: string }[] = [];
+    for (let i = 0; i < habits.length; i++) {
+      const h = habits[i];
+      const hf = habitsForChain[i];
+      if (!habitEligibleOnSummaryDay(hf, todayIdx)) continue;
+      if (!completedTodayIds.has(h.id as number)) {
+        remainingHabits.push({
+          habitId: h.id as number,
+          name: h.name as string,
+          type: h.type as string,
+        });
+      }
     }
 
-    const todayHasAnyCompletion = (completedByDay.get(todayIdx) ?? 0) >= 1;
+    // 6) Never Break the Chain : jour valide si ≥ 50 % des habitudes éligibles complétées ce jour-là
+    const anyCompletionDaySet = new Set(progressRows.map((r) => r.day_index as number));
+    const chainQualifiedIndices: number[] = [];
+    for (let d = 0; d <= todayIdx; d++) {
+      if (dayQualifiesForNeverBreak(habitsForChain, d, progressForNeverBreak)) {
+        chainQualifiedIndices.push(d);
+      }
+    }
+    const { current: chainLen } = computeStreaks(chainQualifiedIndices, todayIdx);
+    const chainStatus = chainLen === 0 ? 'broken' : chainLen <= 3 ? 'fragile' : chainLen <= 10 ? 'stable' : 'strong';
+    const chainQualifySet = new Set(chainQualifiedIndices);
+
     const todayChainQualifies = dayQualifiesForNeverBreak(habitsForChain, todayIdx, progressForNeverBreak);
-    const chainPressure = chainLength >= 3 && !todayChainQualifies;
-    const chain = {
-      length: chainLength,
-      status: getChainStatus(chainLength),
-      pressure: chainPressure,
-      calendar: chainCalendar,
-    };
 
-    const summary: WidgetSummaryResponse = {
-      today: today.toISOString().slice(0, 10),
-      streaks: {
-        longest: globalLongest,
-        current: globalCurrent,
-        byHabit: byHabit.slice(0, 5),
+    // Calendrier sur 14 jours (point = jour qualifiant Never Break)
+    const calWindow = 14;
+    const calendar: { date: string; completed: boolean }[] = [];
+    for (let i = calWindow - 1; i >= 0; i--) {
+      const idx = todayIdx - i;
+      if (idx >= 0) {
+        calendar.push({ date: dateToISO(dayIndexToDate(idx)), completed: chainQualifySet.has(idx) });
+      }
+    }
+
+    // 7) Score mensuel (jour « actif » = au moins une habitude cochée — hors chaîne NB)
+    const mStart = monthStartIdx(today);
+    const mEnd = todayIdx;
+    let mCompleted = 0;
+    for (let i = mStart; i <= mEnd; i++) {
+      if (anyCompletionDaySet.has(i)) mCompleted++;
+    }
+    const mTotal = mEnd - mStart + 1;
+    const mScore = mTotal > 0 ? Math.round((mCompleted / mTotal) * 100) : 0;
+
+    // 8) Score hebdomadaire
+    const wStart = weekStartIdx(today);
+    const wEnd = Math.min(todayIdx, wStart + 6);
+    const wDays: { date: string; rate: number }[] = [];
+    let wCompletedCount = 0;
+    for (let i = wStart; i <= wEnd; i++) {
+      const done = anyCompletionDaySet.has(i) ? 1 : 0;
+      wCompletedCount += done;
+      wDays.push({ date: dateToISO(dayIndexToDate(i)), rate: done });
+    }
+    const wRate = wDays.length > 0 ? wCompletedCount / wDays.length : 0;
+
+    // 9) Trigger & reward
+    const todayDone = completedTodayIds.size;
+    const todayTotal = habits.length;
+    const trigger = makeTrigger(chainLen, todayDone, todayTotal, todayChainQualifies);
+    const reward = makeReward(chainLen, overallCurrent, overallLongest);
+
+    const pressure = chainLen >= 3 && !todayChainQualifies;
+    return res.status(200).json({
+      today: todayISO,
+      streaks: { longest: overallLongest, current: overallCurrent, byHabit },
+      todayRemaining: { count: remainingHabits.length, habits: remainingHabits },
+      monthlyScore: {
+        month: todayISO.slice(0, 7),
+        score: mScore,
+        completedDays: mCompleted,
+        totalDaysWithHabits: mTotal,
       },
-      todayRemaining: {
-        count: todayRemainingHabits.length,
-        habits: todayRemainingHabits.slice(0, 8),
+      weeklyStats: {
+        weekStart: dateToISO(dayIndexToDate(wStart)),
+        completionRate: wRate,
+        days: wDays,
       },
-      monthlyScore,
-      weeklyStats,
-      insight: { title: '', message: '' },
-      chain,
-    };
-
-    const psychology = generatePsychologicalInsight({
-      currentStreak: summary.streaks.current,
-      longestStreak: summary.streaks.longest,
-      completionRate: summary.weeklyStats.completionRate,
-      todayRemaining: summary.todayRemaining.count,
-      monthlyScore: summary.monthlyScore.completedDays,
-      chainPressure: chain.pressure,
-      chainLength: chain.length,
+      insight: { title: trigger.title, message: trigger.message },
+      psychology: {
+        level: { number: 1, name: 'Starter' },
+        insight: {
+          title: trigger.title,
+          message: trigger.message,
+          tone: pressure ? 'protect_chain' : 'default',
+          emoji: trigger.emoji,
+        },
+        streakPressure: pressure,
+      },
+      chain: {
+        length: chainLen,
+        status: chainStatus,
+        pressure,
+        calendar,
+      },
+      futureSelf: {
+        nextLevel: { name: 'Builder', daysRemaining: Math.max(0, 3 - chainLen) },
+        projectedStreak: { in7days: chainLen + 7, in30days: chainLen + 30 },
+        message: { title: trigger.title, message: trigger.message, emoji: trigger.emoji },
+      },
+      trigger,
+      reward: reward ?? {
+        rewardType: 'anticipation',
+        rewardLevel: 'low',
+        title: 'Continue demain',
+        message: 'Chaque jour compte.',
+        emoji: '🚀',
+      },
     });
-    summary.psychology = psychology;
-    summary.insight = { title: psychology.insight.title, message: psychology.insight.message };
-
-    const futureSelf = generateFutureSelf({
-      currentStreak: summary.streaks.current,
-      longestStreak: summary.streaks.longest,
-      completionRate: summary.weeklyStats.completionRate,
-    });
-    summary.futureSelf = futureSelf;
-
-    const allHabitsCompletedToday = todayHasAnyCompletion && summary.todayRemaining.count === 0;
-    const chainProtected = todayChainQualifies && chain.length >= 3;
-    const reward = generateDopamineReward({
-      habitCompletedToday: todayHasAnyCompletion,
-      allHabitsCompletedToday,
-      currentStreak: summary.streaks.current,
-      chainLength: chain.length,
-      chainProtected,
-      weeklyCompletionRate: summary.weeklyStats.completionRate,
-      dayOfWeek: today.getDay(),
-    });
-    summary.reward = reward;
-
-    const trigger = generateLockScreenTrigger({
-      todayRemaining: summary.todayRemaining.count,
-      chainLength: chain.length,
-      chainPressure: chain.pressure,
-      currentStreak: summary.streaks.current,
-    });
-    summary.trigger = trigger;
-
-    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=60');
-    return res.status(200).json(summary);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return res.status(500).json({ error: 'Unexpected error', detail: msg });
+  } catch (e) {
+    return res.status(500).json({ error: 'Internal error', detail: String(e) });
   }
 }

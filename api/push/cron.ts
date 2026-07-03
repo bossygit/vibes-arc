@@ -1,6 +1,24 @@
+/**
+ * GET/POST /api/push/cron — auto-contenu (zéro import runtime local hors npm).
+ */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import webpush from 'web-push';
-import { getServiceSupabase } from './_supabase-client';
+
+function getEnv(): { url: string; key: string } {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+  return { url, key };
+}
+
+function restHeaders(key: string): Record<string, string> {
+  return {
+    apikey: key,
+    Authorization: 'Bearer ' + key,
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+}
 
 function configureWebPush() {
   const publicKey = process.env.VAPID_PUBLIC_KEY;
@@ -24,41 +42,36 @@ function getTZDateParts(timeZone: string, date: Date) {
 function getDayIndexForTZ(timeZone: string) {
   const now = new Date();
   const p = getTZDateParts(timeZone, now);
-  // midnight in TZ → represent as UTC date for diff
   const todayUTC = new Date(Date.UTC(p.year, p.month - 1, p.day));
-  const startUTC = new Date(Date.UTC(2025, 9, 1)); // startDate: 2025-10-01
+  const startUTC = new Date(Date.UTC(2025, 9, 1));
   const diff = Math.floor((todayUTC.getTime() - startUTC.getTime()) / (1000 * 60 * 60 * 24));
   return Math.max(0, diff);
 }
 
-/** Retourne l'heure locale courante (0-23) dans le fuseau horaire donne */
 function getLocalHour(timeZone: string): number {
   const fmt = new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', hour12: false });
   return Number(fmt.format(new Date()));
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Securiser le endpoint avec CRON_SECRET (obligatoire en production)
   const secret = process.env.CRON_SECRET;
   if (!secret || req.headers.authorization !== `Bearer ${secret}`) {
     return res.status(401).send('Unauthorized');
   }
   try {
     configureWebPush();
-    const supabase = getServiceSupabase();
+    const { url, key } = getEnv();
+    const hdrs = restHeaders(key);
 
-    // Pull subscriptions + user prefs
-    const { data: subs, error } = await supabase
-      .from('push_subscriptions')
-      .select('user_id, endpoint, subscription, user_prefs(notif_enabled, notif_hour, notif_timezone)')
-      .limit(5000);
-
-    if (error) return res.status(500).send(error.message);
+    const subsQs =
+      'select=' + encodeURIComponent('user_id,endpoint,subscription,user_prefs(notif_enabled,notif_hour,notif_timezone)') +
+      '&limit=5000';
+    const subsRes = await fetch(url + '/rest/v1/push_subscriptions?' + subsQs, { headers: hdrs });
+    if (!subsRes.ok) return res.status(500).send(await subsRes.text());
+    const subs = (await subsRes.json()) as any[];
     if (!subs || subs.length === 0) return res.status(200).json({ ok: true, sent: 0 });
 
     let sent = 0;
-
-    // Group by user
     const byUser = new Map<string, any[]>();
     subs.forEach((s: any) => {
       const arr = byUser.get(s.user_id) || [];
@@ -71,20 +84,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!prefs?.notif_enabled) continue;
       const tz = prefs.notif_timezone || 'Europe/Paris';
 
-      // Ne pas envoyer en dehors de la plage 6h-22h (heure locale de l'utilisateur)
       const localHour = getLocalHour(tz);
       if (localHour < 6 || localHour > 22) continue;
 
       const dayIndex = getDayIndexForTZ(tz);
 
-      // Fetch habits for user
-      const { data: habits, error: hErr } = await supabase
-        .from('habits')
-        .select('id, name, total_days, created_at')
-        .eq('user_id', userId);
-      if (hErr || !habits || habits.length === 0) continue;
+      const habitsQs =
+        'select=' + encodeURIComponent('id,name,total_days,created_at') +
+        '&user_id=eq.' + encodeURIComponent(userId);
+      const habitsRes = await fetch(url + '/rest/v1/habits?' + habitsQs, { headers: hdrs });
+      if (!habitsRes.ok) continue;
+      const habits = (await habitsRes.json()) as any[];
+      if (!habits || habits.length === 0) continue;
 
-      // Habit is active from created_at dayIndex
       const baseUTC = new Date(Date.UTC(2025, 9, 1));
       const activeHabits = habits.filter((h: any) => {
         const created = new Date(h.created_at);
@@ -95,11 +107,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (activeHabits.length === 0) continue;
 
       const habitIds = activeHabits.map((h: any) => h.id);
-      const { data: progress } = await supabase
-        .from('habit_progress')
-        .select('habit_id, completed')
-        .eq('day_index', dayIndex)
-        .in('habit_id', habitIds);
+      const progressQs =
+        'select=' + encodeURIComponent('habit_id,completed') +
+        '&day_index=eq.' + dayIndex +
+        '&habit_id=in.(' + habitIds.join(',') + ')';
+      const progressRes = await fetch(url + '/rest/v1/habit_progress?' + progressQs, { headers: hdrs });
+      const progress = progressRes.ok ? ((await progressRes.json()) as any[]) : [];
 
       const doneSet = new Set((progress || []).filter((p: any) => p.completed).map((p: any) => p.habit_id));
       const remaining = activeHabits.filter((h: any) => !doneSet.has(h.id));
@@ -121,9 +134,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           await webpush.sendNotification(s.subscription as any, payload);
           sent += 1;
         } catch (err: any) {
-          // If gone, remove it
           if (err?.statusCode === 404 || err?.statusCode === 410) {
-            await supabase.from('push_subscriptions').delete().eq('user_id', userId).eq('endpoint', s.endpoint);
+            const delQs =
+              'user_id=eq.' + encodeURIComponent(userId) +
+              '&endpoint=eq.' + encodeURIComponent(s.endpoint);
+            await fetch(url + '/rest/v1/push_subscriptions?' + delQs, {
+              method: 'DELETE',
+              headers: { ...hdrs, Prefer: 'return=minimal' },
+            });
           }
         }
       }
@@ -134,4 +152,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).send(e?.message || 'Error');
   }
 }
-

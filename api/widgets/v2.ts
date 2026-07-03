@@ -1,13 +1,79 @@
 /**
  * /api/widgets/v2 — même structure JSON que /api/widgets/summary.
+ *
+ * Auto-contenu (zéro import runtime local) : sur Vercel Hobby, les imports de
+ * fichiers `_*.ts` dans /api ne sont pas bundlés → FUNCTION_INVOCATION_FAILED.
+ * Pattern identique à api/health.ts et api/widgets/check.ts.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { WIDGET_APP_START, dayIndexToDate, todayDayIndex } from './_dayIndex';
-import {
-  dayQualifiesForNeverBreak,
-  habitEligibleOnSummaryDay,
-  type HabitForChain,
-} from './_neverBreakChain';
+
+// ─── Day index + Never Break the Chain (inlined) ─────────────────────────────
+
+/** Même jour 0 que l’app web et que les widgets (1er octobre 2025). */
+const WIDGET_APP_START = new Date(2025, 9, 1);
+const CHAIN_DAY_MIN_COMPLETION_RATIO = 0.5;
+
+interface HabitForChain {
+  id: number;
+  created_at?: string | null;
+  total_days?: number | null;
+}
+
+function dateToDayIndex(d: Date): number {
+  const base = new Date(WIDGET_APP_START);
+  base.setHours(0, 0, 0, 0);
+  const copy = new Date(d);
+  copy.setHours(0, 0, 0, 0);
+  return Math.floor((copy.getTime() - base.getTime()) / 86_400_000);
+}
+
+function todayDayIndex(): number {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const base = new Date(WIDGET_APP_START);
+  base.setHours(0, 0, 0, 0);
+  return Math.floor((now.getTime() - base.getTime()) / 86_400_000);
+}
+
+function dayIndexToDate(idx: number): Date {
+  const d = new Date(WIDGET_APP_START);
+  d.setDate(d.getDate() + idx);
+  return d;
+}
+
+function habitEligibleOnSummaryDay(habit: HabitForChain, dayIdx: number): boolean {
+  let habitStartIdx = 0;
+  if (habit.created_at) {
+    habitStartIdx = Math.max(0, dateToDayIndex(new Date(habit.created_at)));
+  }
+  if (dayIdx < habitStartIdx) return false;
+  const td = habit.total_days;
+  if (td != null && Number.isFinite(Number(td)) && dayIdx >= Number(td)) return false;
+  return true;
+}
+
+function dayQualifiesForChain(completedEligible: number, eligibleCount: number): boolean {
+  if (eligibleCount <= 0) return false;
+  return completedEligible / eligibleCount >= CHAIN_DAY_MIN_COMPLETION_RATIO;
+}
+
+function dayQualifiesForNeverBreak(
+  habits: HabitForChain[],
+  dayIdx: number,
+  progressRows: { habit_id: number; day_index: number }[],
+): boolean {
+  const completedHids = new Set(
+    progressRows.filter((r) => r.day_index === dayIdx).map((r) => r.habit_id),
+  );
+  let eligible = 0;
+  let done = 0;
+  for (const h of habits) {
+    if (!habitEligibleOnSummaryDay(h, dayIdx)) continue;
+    eligible++;
+    if (completedHids.has(h.id)) done++;
+  }
+  return dayQualifiesForChain(done, eligible);
+}
 
 // ─── Supabase REST helpers ──────────────────────────────────────────────────
 

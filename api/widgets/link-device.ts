@@ -1,5 +1,29 @@
+/**
+ * POST /api/widgets/link-device
+ *
+ * Auto-contenu (zéro import runtime local) — même contrainte Vercel que v2/check.
+ */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getServiceSupabase, requireUserFromBearer } from './_supabase-client';
+
+function getEnv(): { url: string; key: string } {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+  return { url, key };
+}
+
+async function requireUserId(authHeader?: string | null): Promise<string> {
+  const token = (authHeader || '').replace(/^Bearer\s+/i, '').trim();
+  if (!token) throw new Error('Missing bearer token');
+  const { url, key } = getEnv();
+  const r = await fetch(url + '/auth/v1/user', {
+    headers: { apikey: key, Authorization: 'Bearer ' + token },
+  });
+  if (!r.ok) throw new Error('Invalid token');
+  const user = (await r.json()) as { id?: string };
+  if (!user?.id) throw new Error('Invalid token');
+  return user.id;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -10,7 +34,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     deviceId = (req.body?.deviceId ?? '').trim();
   } catch {
-    // body peut ne pas être déjà parsé
     if (typeof req.body === 'string') {
       try {
         const parsed = JSON.parse(req.body);
@@ -26,29 +49,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { user } = await requireUserFromBearer(req.headers.authorization);
-    const userId = user.id;
+    const userId = await requireUserId(req.headers.authorization);
+    const { url, key } = getEnv();
 
-    // requireUserFromBearer valide le JWT puis utilise déjà getServiceSupabase() (service role, pas RLS utilisateur).
-    const svc = getServiceSupabase();
+    // Upsert merge sur device_id (évite course avec /api/widgets/v2).
+    const r = await fetch(url + '/rest/v1/device_widgets', {
+      method: 'POST',
+      headers: {
+        apikey: key,
+        Authorization: 'Bearer ' + key,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Prefer: 'resolution=merge-duplicates,on_conflict=device_id,return=minimal',
+      },
+      body: JSON.stringify({
+        device_id: deviceId,
+        user_id: userId,
+        updated_at: new Date().toISOString(),
+      }),
+    });
 
-    // Un seul upsert (merge sur device_id) : évite course read→insert vs ligne déjà créée par /api/widgets/v2,
-    // et simplifie le flux si RLS / visibilité diffère entre SELECT et PATCH selon la clé utilisée sur Vercel.
-    const linkResult = await svc
-      .from('device_widgets')
-      .upsert(
-        {
-          device_id: deviceId,
-          user_id: userId,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'device_id' }
-      );
-
-    if (linkResult.error) {
+    if (!r.ok) {
       return res.status(500).json({
         error: 'Failed to link device',
-        detail: linkResult.error.message,
+        detail: await r.text(),
       });
     }
 
@@ -57,4 +81,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: e?.message || 'Unauthorized' });
   }
 }
-
