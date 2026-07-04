@@ -19,6 +19,8 @@ export interface Habit {
      * Si absent (données historiques), on le déduit de `createdAt`.
      */
     startDayIndex?: number;
+    /** Clé logique pour le système de milestones (ex: meditation, gratitude) */
+    milestoneKey?: string;
 }
 
 export interface HabitStats {
@@ -159,5 +161,65 @@ export interface IdentityTemplate {
     color: string;
     icon: string;
     difficulty: 'beginner' | 'intermediate' | 'advanced';
+}
+
+// ===== Milestones =====
+
+export type MilestoneDomain = 'routine' | 'health' | 'manifestation';
+
+export type MilestoneType =
+    | 'streak'
+    | 'same_day_combo'
+    | 'parallel_combo'
+    | 'identity_score'
+    | 'weekly_frequency'
+    | 'identity_composite';
+
+export interface ParallelComboRule {
+    habitKey: string;
+    minStreak: number;
+}
+
+export interface MilestoneDefinition {
+    id: string;
+    title: string;
+    description: string;
+    domain: MilestoneDomain;
+    /** Patterns pour matcher une identité par nom (insensible à la casse) */
+    identityNameMatch?: string[];
+    type: MilestoneType;
+    threshold: number;
+    habitKeys: string[];
+    parallelRules?: ParallelComboRule[];
+    weeklyMinPerWeek?: number;
+    weeklyWeeks?: number;
+    emoji: string;
+    celebrationMessage?: string;
+    telegramMessage?: string;
+}
+
+export type MilestoneStatus = 'locked' | 'in_progress' | 'achieved';
+
+export interface MilestoneAchievement {
+    milestoneId: string;
+    achievedAt: string;
+    notifiedAt?: string;
+}
+
+export interface MilestoneProgress {
+    definition: MilestoneDefinition;
+    current: number;
+    target: number;
+    percent: number;
+    status: MilestoneStatus;
+    achievedAt?: string;
+    identityName?: string;
+}
+
+export interface PendingMilestoneCelebration {
+    title: string;
+    message: string;
+    emoji: string;
+    milestoneId: string;
 }
 

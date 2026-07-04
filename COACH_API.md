@@ -270,6 +270,26 @@ Tu pourrais aussi ajouter un webhook pour que l'app notifie n8n quand :
 
 ---
 
+## 🆕 Endpoints coaching (Telegram bot)
+
+### GET `/review-context` — Contexte agrégé pour revues
+
+**Paramètres :**
+- `user_id` (query) : ID utilisateur Supabase
+- `period` (query) : `daily` | `weekly` | `monthly` | `quarterly` | `midyear` | `yearly`
+
+**Réponse :** snapshot période, analytics habitudes, stats, profile, insights, psychology.
+
+### GET/POST `/psychology` — Sync modules psychologie
+
+POST body : `{ "module_type": "inner_child|priming|...", "data": {...} }`
+
+### GET/POST `/knowledge-graph` — Graphe de connaissances
+
+POST body : `{ "patterns": [{ source_type, source_id, target_type, target_id, relationship, strength, evidence }] }`
+
+---
+
 ## 📝 Notes
 
 - Les données sont en temps réel depuis Supabase

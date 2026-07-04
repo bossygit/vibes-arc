@@ -118,14 +118,15 @@ async function sendNotificationToUser(
 ) {
   const prefs = await fetchUserPrefs(adminClient, userId);
   
-  // Pour un test manuel, on autorise l'envoi même si notif_enabled est false
+  // Pour un test manuel ou milestone, on autorise l'envoi même si notif_enabled est false
   const isManualTest = options.reason === "manual-test";
-  
+  const isMilestone = options.reason === "milestone";
+
   if (!prefs) {
     return { status: "error", reason: "Impossible de charger les préférences utilisateur" };
   }
-  
-  if (!isManualTest && !prefs.notif_enabled) {
+
+  if (!isManualTest && !isMilestone && !prefs.notif_enabled) {
     return { status: "skipped", reason: "Notifications désactivées" };
   }
 

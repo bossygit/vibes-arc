@@ -8,11 +8,11 @@ type GameViewKey = 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'manifesta
 
 const GAME_HABIT_KEYS: GameViewKey[] = ['magicGratitude', 'moneyMindset', 'focusWheel', 'manifestation'];
 
-const GAME_HABITS: Record<GameViewKey, { name: string; type: 'start' }> = {
-  magicGratitude: { name: 'Gratitude (The Magic)', type: 'start' },
-  moneyMindset: { name: 'Abondance', type: 'start' },
-  focusWheel: { name: 'Focus Wheel', type: 'start' },
-  manifestation: { name: 'Manifestation KIA', type: 'start' },
+const GAME_HABITS: Record<GameViewKey, { name: string; type: 'start'; milestoneKey: string }> = {
+  magicGratitude: { name: 'Gratitude (The Magic)', type: 'start', milestoneKey: 'gratitude' },
+  moneyMindset: { name: 'Abondance', type: 'start', milestoneKey: 'abundance' },
+  focusWheel: { name: 'Focus Wheel', type: 'start', milestoneKey: 'pivots' },
+  manifestation: { name: 'Manifestation KIA', type: 'start', milestoneKey: 'manifestation' },
 };
 
 /**
@@ -40,6 +40,7 @@ export function useGameHabitSync(view: ViewType): void {
             type: config.type,
             totalDays,
             linkedIdentities: [],
+            milestoneKey: config.milestoneKey,
           });
         }
         if (habit && !habit.progress[todayIdx]) {

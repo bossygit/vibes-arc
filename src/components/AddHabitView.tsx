@@ -144,8 +144,12 @@ const AddHabitView: React.FC = () => {
 
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-3">
-                        Identités vibratoires soutenues {newHabit.linkedIdentities.length > 0 && `(${newHabit.linkedIdentities.length})`}
+                        Identités vibratoires soutenues (optionnel)
+                        {newHabit.linkedIdentities.length > 0 && ` (${newHabit.linkedIdentities.length})`}
                     </label>
+                    <p className="text-xs text-slate-500 mb-3">
+                        Tu peux aussi assigner les signaux plus tard par glisser-déposer dans Identités.
+                    </p>
                     {identities.length === 0 ? (
                         <div className="text-center py-8 text-slate-500">
                             <p className="mb-3">Aucune identité vibratoire créée</p>
@@ -186,7 +190,7 @@ const AddHabitView: React.FC = () => {
 
                 <button
                     onClick={handleAddHabit}
-                    disabled={!newHabit.name.trim() || newHabit.linkedIdentities.length === 0}
+                    disabled={!newHabit.name.trim()}
                     className="btn-primary w-full flex items-center justify-center gap-2"
                 >
                     <Plus className="w-5 h-5" />

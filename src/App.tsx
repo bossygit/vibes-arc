@@ -19,12 +19,14 @@ import EnvironmentDesignView from '@/components/EnvironmentDesignView';
 import ManifestationView from '@/components/ManifestationView';
 import CoachChat from '@/components/CoachChat';
 import InnerChildCheckin from '@/components/InnerChildCheckin';
+import Celebration from '@/components/Celebration';
 import { getCurrentDayIndex, isHabitActiveOnDay, getHabitStartDayIndex } from '@/utils/habitUtils';
 import { useGameHabitSync } from '@/hooks/useGameHabitSync';
+import { schedulePsychologySync } from '@/services/psychologySyncService';
 import { Download, X, Share } from 'lucide-react';
 
 function App() {
-    const { view } = useAppStore();
+    const { view, pendingMilestoneCelebration, clearMilestoneCelebration } = useAppStore();
     useGameHabitSync(view);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -32,6 +34,12 @@ function App() {
     useEffect(() => {
         checkAuth();
     }, []);
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            schedulePsychologySync();
+        }
+    }, [isAuthenticated]);
 
     const checkAuth = async () => {
         try {
@@ -48,6 +56,7 @@ function App() {
 
     const handleAuthSuccess = () => {
         setIsAuthenticated(true);
+        schedulePsychologySync();
     };
 
     const renderView = () => {
@@ -112,6 +121,16 @@ function App() {
             <SmartNudges />
             {/* Bandeau d'installation PWA */}
             <InstallBanner />
+            <Celebration
+                visible={!!pendingMilestoneCelebration}
+                message={
+                    pendingMilestoneCelebration
+                        ? `${pendingMilestoneCelebration.title}\n${pendingMilestoneCelebration.message}`
+                        : undefined
+                }
+                durationMs={2200}
+                onClose={clearMilestoneCelebration}
+            />
         </div>
     );
 }

@@ -9,6 +9,7 @@ import IdentitiesProgressChart from './IdentitiesProgressChart';
 import TodayStatus from './TodayStatus';
 import ChainSection from './ChainSection';
 import FutureSelfSection from './FutureSelfSection';
+import MilestonesSection from './MilestonesSection';
 import RewardSection from './RewardSection';
 import OverallCalendar from './OverallCalendar';
 import MonthlySummary2026 from './MonthlySummary2026';
@@ -16,7 +17,7 @@ import { motion } from 'framer-motion';
 import { getCurrentDayIndex } from '@/utils/habitUtils';
 
 const Dashboard: React.FC = () => {
-    const { identities, habits, setView, gamification, addPoints, createReward, claimReward, primingSessions } = useAppStore();
+    const { identities, habits, setView, gamification, addPoints, createReward, claimReward, primingSessions, milestoneAchievements } = useAppStore();
 
     const handleDataChange = () => {
         // Recharger les données depuis le store
@@ -165,6 +166,17 @@ const Dashboard: React.FC = () => {
             {habits.length > 0 && (
                 <section>
                     <FutureSelfSection habits={habits} />
+                </section>
+            )}
+
+            {/* Milestones */}
+            {habits.length > 0 && (
+                <section>
+                    <MilestonesSection
+                        habits={habits}
+                        identities={identities}
+                        achievements={milestoneAchievements}
+                    />
                 </section>
             )}
 

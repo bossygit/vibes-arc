@@ -1,7 +1,9 @@
 import { create } from 'zustand';
-import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs, NotificationChannel, PrimingSession, EnvironmentMap } from '@/types';
+import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs, NotificationChannel, PrimingSession, EnvironmentMap, MilestoneAchievement, PendingMilestoneCelebration } from '@/types';
 import SupabaseDatabaseClient from '@/database/supabase-client';
 import { computePointsForAction, calculateHabitStats, isHabitActiveOnDay } from '@/utils/habitUtils';
+import { evaluateMilestones, detectNewAchievements } from '@/utils/milestoneUtils';
+import { suggestMilestoneKeyForName } from '@/data/habitKeyAliases';
 
 interface AppState {
     // State
@@ -14,6 +16,8 @@ interface AppState {
     userPrefs: UserPrefs;
     primingSessions: PrimingSession[];
     environments: EnvironmentMap[];
+    milestoneAchievements: MilestoneAchievement[];
+    pendingMilestoneCelebration: PendingMilestoneCelebration | null;
 
     // Actions
     setView: (view: ViewType) => void;
@@ -25,6 +29,8 @@ interface AppState {
     deleteHabit: (id: number) => void;
     toggleHabitDay: (habitId: number, dayIndex: number) => void;
     updateHabit: (id: number, updates: Partial<Habit>) => void;
+    linkHabitToIdentity: (habitId: number, identityId: number) => Promise<void>;
+    unlinkHabitFromIdentity: (habitId: number, identityId: number) => Promise<void>;
     toggleSkipDay: (habitId: number, dayIndex: number) => void;
     addPoints: (amount: number) => void;
     createReward: (title: string, cost: number) => void;
@@ -44,6 +50,7 @@ interface AppState {
     addEnvironment: (env: Omit<EnvironmentMap, 'id' | 'createdAt' | 'updatedAt'>) => void;
     updateEnvironment: (id: string, updates: Partial<Omit<EnvironmentMap, 'id' | 'createdAt'>>) => void;
     deleteEnvironment: (id: string) => void;
+    clearMilestoneCelebration: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => {
@@ -106,6 +113,51 @@ export const useAppStore = create<AppState>((set) => {
         localStorage.setItem(ENV_KEY, JSON.stringify(envs));
     };
 
+    const processNewMilestones = async (
+        before: ReturnType<typeof evaluateMilestones>,
+        state: { habits: Habit[]; identities: Identity[]; skipsByHabit: SkipsByHabit; milestoneAchievements: MilestoneAchievement[] }
+    ) => {
+        const after = evaluateMilestones(
+            state.habits,
+            state.identities,
+            state.milestoneAchievements,
+            state.skipsByHabit
+        );
+        const newlyAchieved = detectNewAchievements(before, after);
+        if (newlyAchieved.length === 0) return;
+
+        const first = newlyAchieved[0];
+        const def = first.definition;
+
+        await db.saveMilestoneAchievement(def.id);
+
+        const telegramMsg = def.telegramMessage ?? `🏆 Milestone : ${def.title}\n${def.celebrationMessage ?? def.description}`;
+        db.sendMilestoneTelegramNotification(telegramMsg)
+            .then((res) => {
+                if (res.status === 'sent') {
+                    db.markMilestoneNotified(def.id);
+                }
+            })
+            .catch(() => {});
+
+        set((s) => {
+            const achievement: MilestoneAchievement = {
+                milestoneId: def.id,
+                achievedAt: new Date().toISOString(),
+            };
+            const already = s.milestoneAchievements.some((a) => a.milestoneId === def.id);
+            return {
+                milestoneAchievements: already ? s.milestoneAchievements : [achievement, ...s.milestoneAchievements],
+                pendingMilestoneCelebration: {
+                    title: `${def.emoji} ${def.title}`,
+                    message: def.celebrationMessage ?? def.description,
+                    emoji: def.emoji,
+                    milestoneId: def.id,
+                },
+            };
+        });
+    };
+
     // Charger les données initiales
     const loadInitialData = async () => {
         try {
@@ -134,7 +186,25 @@ export const useAppStore = create<AppState>((set) => {
             }
             const primingSessions = loadPrimingSessions();
             const environments = loadEnvironments();
-            set({ identities, habits, skipsByHabit, gamification, userPrefs, primingSessions, environments });
+            let milestoneAchievements: MilestoneAchievement[] = [];
+            try {
+                milestoneAchievements = await db.getMilestoneAchievements();
+            } catch {
+                milestoneAchievements = [];
+            }
+
+            const initialProgress = evaluateMilestones(habits, identities, milestoneAchievements);
+            const retroactive = initialProgress.filter(
+                (p) =>
+                    p.status === 'achieved' &&
+                    !milestoneAchievements.some((a) => a.milestoneId === p.definition.id)
+            );
+            for (const p of retroactive) {
+                const saved = await db.saveMilestoneAchievement(p.definition.id);
+                if (saved) milestoneAchievements = [saved, ...milestoneAchievements];
+            }
+
+            set({ identities, habits, skipsByHabit, gamification, userPrefs, primingSessions, environments, milestoneAchievements });
         } catch (error) {
             console.error('Erreur lors du chargement des données:', error);
             // En cas d'erreur, initialiser avec des tableaux vides
@@ -146,6 +216,7 @@ export const useAppStore = create<AppState>((set) => {
                 userPrefs: { ...defaultUserPrefs },
                 primingSessions: loadPrimingSessions(),
                 environments: loadEnvironments(),
+                milestoneAchievements: [],
             });
         }
     };
@@ -164,6 +235,8 @@ export const useAppStore = create<AppState>((set) => {
         userPrefs: { ...defaultUserPrefs },
         primingSessions: loadPrimingSessions(),
         environments: loadEnvironments(),
+        milestoneAchievements: [],
+        pendingMilestoneCelebration: null,
 
         // Actions
         setView: (view) => set({ view }),
@@ -216,16 +289,18 @@ export const useAppStore = create<AppState>((set) => {
 
         addHabit: async (habitData) => {
             try {
+                const milestoneKey = habitData.milestoneKey ?? suggestMilestoneKeyForName(habitData.name);
                 const newHabit = await db.createHabit(
                     habitData.name,
                     habitData.type,
                     habitData.totalDays,
-                    habitData.linkedIdentities
+                    habitData.linkedIdentities,
+                    milestoneKey
                 );
                 set((state) => ({
-                    habits: [...state.habits, newHabit],
+                    habits: [...state.habits, { ...newHabit, milestoneKey }],
                 }));
-                return newHabit;
+                return { ...newHabit, milestoneKey };
             } catch (error) {
                 console.error('Erreur lors de la création de l\'habitude:', error);
                 throw error; // Propagate error or return null, but for now throwing is fine if caught
@@ -263,6 +338,14 @@ export const useAppStore = create<AppState>((set) => {
 
                 const success = await db.toggleHabitDay(habitId, dayIndex);
                 if (success) {
+                    const stateBefore = useAppStore.getState();
+                    const milestonesBefore = evaluateMilestones(
+                        stateBefore.habits,
+                        stateBefore.identities,
+                        stateBefore.milestoneAchievements,
+                        stateBefore.skipsByHabit
+                    );
+
                     set((state) => {
                         // Mettre à jour la progression
                         const updatedHabits = state.habits.map(h => {
@@ -297,6 +380,11 @@ export const useAppStore = create<AppState>((set) => {
                         localStorage.setItem('vibes-arc-gamification', JSON.stringify(newGam));
                         return { habits: updatedHabits, gamification: newGam };
                     });
+
+                    const stateAfter = useAppStore.getState();
+                    if (stateAfter.habits.find((h) => h.id === habitId)?.progress[dayIndex]) {
+                        processNewMilestones(milestonesBefore, stateAfter);
+                    }
                 }
             } catch (error) {
                 console.error('Erreur lors de la mise à jour de la progression:', error);
@@ -329,6 +417,20 @@ export const useAppStore = create<AppState>((set) => {
             } catch (error) {
                 console.error('Erreur lors de la mise à jour de l\'habitude:', error);
             }
+        },
+
+        linkHabitToIdentity: async (habitId, identityId) => {
+            const habit = useAppStore.getState().habits.find((h) => h.id === habitId);
+            if (!habit || habit.linkedIdentities.includes(identityId)) return;
+            const linkedIdentities = [...habit.linkedIdentities, identityId];
+            await useAppStore.getState().updateHabit(habitId, { linkedIdentities });
+        },
+
+        unlinkHabitFromIdentity: async (habitId, identityId) => {
+            const habit = useAppStore.getState().habits.find((h) => h.id === habitId);
+            if (!habit || !habit.linkedIdentities.includes(identityId)) return;
+            const linkedIdentities = habit.linkedIdentities.filter((id) => id !== identityId);
+            await useAppStore.getState().updateHabit(habitId, { linkedIdentities });
         },
 
 
@@ -467,5 +569,7 @@ export const useAppStore = create<AppState>((set) => {
                 return { environments: next };
             });
         },
+
+        clearMilestoneCelebration: () => set({ pendingMilestoneCelebration: null }),
     };
 });

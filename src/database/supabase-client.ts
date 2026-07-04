@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Identity, Habit, Reward, Challenge, UserPrefs, SkipsByHabit } from '@/types';
+import { Identity, Habit, Reward, Challenge, UserPrefs, SkipsByHabit, MilestoneAchievement } from '@/types';
 
 // Types pour Supabase
 interface SupabaseIdentity {
@@ -161,7 +161,8 @@ class SupabaseDatabaseClient {
         name: string,
         type: 'start' | 'stop',
         totalDays: number,
-        linkedIdentities: number[]
+        linkedIdentities: number[],
+        milestoneKey?: string
     ): Promise<Habit> {
         const user = await this.getCurrentUser();
         if (!user) throw new Error('Utilisateur non authentifié');
@@ -174,6 +175,7 @@ class SupabaseDatabaseClient {
                 type,
                 total_days: totalDays,
                 user_id: user.id,
+                milestone_key: milestoneKey ?? null,
             })
             .select()
             .single();
@@ -215,6 +217,7 @@ class SupabaseDatabaseClient {
             linkedIdentities,
             progress: new Array(totalDays).fill(false),
             createdAt: habitData.created_at,
+            milestoneKey: habitData.milestone_key ?? undefined,
             startDayIndex: (() => {
                 try {
                     const base = new Date(2025, 9, 1);
@@ -271,6 +274,7 @@ class SupabaseDatabaseClient {
                 linkedIdentities: linkedIdentities?.map(item => item.identity_id) || [],
                 progress,
                 createdAt: habit.created_at,
+                milestoneKey: habit.milestone_key ?? undefined,
                 startDayIndex: (() => {
                     try {
                         const base = new Date(2025, 9, 1);
@@ -293,13 +297,14 @@ class SupabaseDatabaseClient {
         if (!user) throw new Error('Utilisateur non authentifié');
 
         // Mettre à jour l'habitude
-        if (updates.name || updates.type || updates.totalDays) {
+        if (updates.name || updates.type || updates.totalDays || updates.milestoneKey !== undefined) {
             const { error } = await this.supabase
                 .from('habits')
                 .update({
                     name: updates.name,
                     type: updates.type,
                     total_days: updates.totalDays,
+                    milestone_key: updates.milestoneKey ?? null,
                     updated_at: new Date().toISOString(),
                 })
                 .eq('id', id)
@@ -718,6 +723,114 @@ class SupabaseDatabaseClient {
                 status: 'error',
                 reason: error?.message || 'Impossible de contacter le serveur de notifications'
             };
+        }
+    }
+
+    // ===== MILESTONE ACHIEVEMENTS =====
+
+    async getMilestoneAchievements(): Promise<MilestoneAchievement[]> {
+        const user = await this.getCurrentUser();
+        if (!user) return [];
+
+        const { data, error } = await this.supabase
+            .from('milestone_achievements')
+            .select('milestone_id, achieved_at, notified_at')
+            .eq('user_id', user.id)
+            .order('achieved_at', { ascending: false });
+
+        if (error) {
+            console.warn('milestone_achievements indisponible:', error.message);
+            return this.getLocalMilestoneAchievements();
+        }
+
+        const achievements = (data || []).map((row: { milestone_id: string; achieved_at: string; notified_at: string | null }) => ({
+            milestoneId: row.milestone_id,
+            achievedAt: row.achieved_at,
+            notifiedAt: row.notified_at ?? undefined,
+        }));
+
+        this.saveLocalMilestoneAchievements(achievements);
+        return achievements;
+    }
+
+    private getLocalMilestoneAchievements(): MilestoneAchievement[] {
+        try {
+            const raw = localStorage.getItem('vibes-arc-milestone-achievements');
+            return raw ? JSON.parse(raw) : [];
+        } catch {
+            return [];
+        }
+    }
+
+    private saveLocalMilestoneAchievements(achievements: MilestoneAchievement[]): void {
+        localStorage.setItem('vibes-arc-milestone-achievements', JSON.stringify(achievements));
+    }
+
+    async saveMilestoneAchievement(milestoneId: string): Promise<MilestoneAchievement | null> {
+        const user = await this.getCurrentUser();
+        const achievedAt = new Date().toISOString();
+        const achievement: MilestoneAchievement = { milestoneId, achievedAt };
+
+        const local = this.getLocalMilestoneAchievements();
+        if (!local.some((a) => a.milestoneId === milestoneId)) {
+            this.saveLocalMilestoneAchievements([achievement, ...local]);
+        }
+
+        if (!user) return achievement;
+
+        const { error } = await this.supabase
+            .from('milestone_achievements')
+            .upsert(
+                {
+                    user_id: user.id,
+                    milestone_id: milestoneId,
+                    achieved_at: achievedAt,
+                },
+                { onConflict: 'user_id,milestone_id' }
+            );
+
+        if (error) {
+            console.warn('Erreur sauvegarde milestone:', error.message);
+        }
+
+        return achievement;
+    }
+
+    async markMilestoneNotified(milestoneId: string): Promise<void> {
+        const user = await this.getCurrentUser();
+        const notifiedAt = new Date().toISOString();
+
+        const local = this.getLocalMilestoneAchievements().map((a) =>
+            a.milestoneId === milestoneId ? { ...a, notifiedAt } : a
+        );
+        this.saveLocalMilestoneAchievements(local);
+
+        if (!user) return;
+
+        await this.supabase
+            .from('milestone_achievements')
+            .update({ notified_at: notifiedAt })
+            .eq('user_id', user.id)
+            .eq('milestone_id', milestoneId);
+    }
+
+    async sendMilestoneTelegramNotification(message: string): Promise<{ status: string; reason?: string }> {
+        try {
+            const { data, error } = await this.supabase.functions.invoke('send-notifications', {
+                body: {
+                    mode: 'single',
+                    reason: 'milestone',
+                    previewMessage: message,
+                },
+            });
+
+            if (error) {
+                return { status: 'error', reason: error.message };
+            }
+
+            return (data as { status: string; reason?: string }) ?? { status: 'sent' };
+        } catch (err: unknown) {
+            return { status: 'error', reason: (err as Error).message };
         }
     }
 }

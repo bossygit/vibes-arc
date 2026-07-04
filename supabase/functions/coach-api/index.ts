@@ -43,6 +43,167 @@ interface UserStats {
   }>;
 }
 
+type ReviewPeriod = "daily" | "weekly" | "monthly" | "quarterly" | "midyear" | "yearly";
+
+const WIDGET_APP_START = new Date(2025, 9, 1); // 1 Oct 2025 — same as web app
+
+function dateToDayIndex(d: Date): number {
+  const base = new Date(WIDGET_APP_START);
+  base.setHours(0, 0, 0, 0);
+  const copy = new Date(d);
+  copy.setHours(0, 0, 0, 0);
+  return Math.floor((copy.getTime() - base.getTime()) / 86_400_000);
+}
+
+function todayDayIndex(): number {
+  return dateToDayIndex(new Date());
+}
+
+function dayIndexToISO(idx: number): string {
+  const d = new Date(WIDGET_APP_START);
+  d.setDate(d.getDate() + idx);
+  return d.toISOString().split("T")[0];
+}
+
+function getPeriodRange(period: ReviewPeriod): {
+  startDate: Date;
+  endDate: Date;
+  compareStartDate: Date | null;
+  compareEndDate: Date | null;
+} {
+  const now = new Date();
+  now.setHours(23, 59, 59, 999);
+  const endDate = new Date(now);
+  let startDate: Date;
+  let compareStartDate: Date | null = null;
+  let compareEndDate: Date | null = null;
+
+  switch (period) {
+    case "daily": {
+      startDate = new Date(now);
+      startDate.setHours(0, 0, 0, 0);
+      compareStartDate = new Date(startDate);
+      compareStartDate.setDate(compareStartDate.getDate() - 1);
+      compareEndDate = new Date(compareStartDate);
+      compareEndDate.setHours(23, 59, 59, 999);
+      break;
+    }
+    case "weekly": {
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - 6);
+      startDate.setHours(0, 0, 0, 0);
+      compareEndDate = new Date(startDate);
+      compareEndDate.setDate(compareEndDate.getDate() - 1);
+      compareEndDate.setHours(23, 59, 59, 999);
+      compareStartDate = new Date(compareEndDate);
+      compareStartDate.setDate(compareStartDate.getDate() - 6);
+      compareStartDate.setHours(0, 0, 0, 0);
+      break;
+    }
+    case "monthly": {
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - 29);
+      startDate.setHours(0, 0, 0, 0);
+      compareEndDate = new Date(startDate);
+      compareEndDate.setDate(compareEndDate.getDate() - 1);
+      compareEndDate.setHours(23, 59, 59, 999);
+      compareStartDate = new Date(compareEndDate);
+      compareStartDate.setDate(compareStartDate.getDate() - 29);
+      compareStartDate.setHours(0, 0, 0, 0);
+      break;
+    }
+    case "quarterly": {
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - 89);
+      startDate.setHours(0, 0, 0, 0);
+      compareEndDate = new Date(startDate);
+      compareEndDate.setDate(compareEndDate.getDate() - 1);
+      compareEndDate.setHours(23, 59, 59, 999);
+      compareStartDate = new Date(compareEndDate);
+      compareStartDate.setDate(compareStartDate.getDate() - 89);
+      compareStartDate.setHours(0, 0, 0, 0);
+      break;
+    }
+    case "midyear": {
+      startDate = new Date(now.getFullYear(), 0, 1);
+      startDate.setHours(0, 0, 0, 0);
+      compareStartDate = new Date(now.getFullYear() - 1, 0, 1);
+      compareStartDate.setHours(0, 0, 0, 0);
+      compareEndDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+      compareEndDate.setHours(23, 59, 59, 999);
+      break;
+    }
+    case "yearly": {
+      startDate = new Date(now.getFullYear(), 0, 1);
+      startDate.setHours(0, 0, 0, 0);
+      compareStartDate = new Date(now.getFullYear() - 1, 0, 1);
+      compareStartDate.setHours(0, 0, 0, 0);
+      compareEndDate = new Date(now.getFullYear() - 1, 11, 31);
+      compareEndDate.setHours(23, 59, 59, 999);
+      break;
+    }
+    default:
+      startDate = new Date(now);
+      startDate.setHours(0, 0, 0, 0);
+  }
+
+  return { startDate, endDate, compareStartDate, compareEndDate };
+}
+
+function computeStreak(completedDays: number[]): { current: number; longest: number } {
+  if (completedDays.length === 0) return { current: 0, longest: 0 };
+  const sorted = [...new Set(completedDays)].sort((a, b) => a - b);
+  let longest = 1;
+  let current = 1;
+  let run = 1;
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === sorted[i - 1] + 1) {
+      run++;
+    } else {
+      longest = Math.max(longest, run);
+      run = 1;
+    }
+  }
+  longest = Math.max(longest, run);
+
+  const todayIdx = todayDayIndex();
+  const set = new Set(sorted);
+  if (set.has(todayIdx)) {
+    current = 1;
+    for (let d = todayIdx - 1; d >= 0; d--) {
+      if (set.has(d)) current++;
+      else break;
+    }
+  } else if (set.has(todayIdx - 1)) {
+    current = 1;
+    for (let d = todayIdx - 2; d >= 0; d--) {
+      if (set.has(d)) current++;
+      else break;
+    }
+  } else {
+    current = 0;
+  }
+
+  return { current, longest };
+}
+
+function completionRateForRange(
+  progressByDay: Map<number, Set<number>>,
+  habitIds: number[],
+  startIdx: number,
+  endIdx: number,
+): number {
+  if (habitIds.length === 0 || endIdx < startIdx) return 0;
+  let totalSlots = 0;
+  let completed = 0;
+  for (let d = startIdx; d <= endIdx; d++) {
+    totalSlots += habitIds.length;
+    const daySet = progressByDay.get(d);
+    if (daySet) completed += daySet.size;
+  }
+  return totalSlots > 0 ? Math.round((completed / totalSlots) * 1000) / 10 : 0;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -91,10 +252,24 @@ serve(async (req) => {
       return await handleGetProfile(adminClient, userId);
     } else if (path.endsWith("/insights") && req.method === "POST") {
       return await handlePostInsight(adminClient, userId, req);
+    } else if (path.endsWith("/review-context")) {
+      const period = (url.searchParams.get("period") || "weekly") as ReviewPeriod;
+      return await handleGetReviewContext(adminClient, userId, period);
+    } else if (path.endsWith("/psychology") && req.method === "POST") {
+      return await handlePostPsychology(adminClient, userId, req);
+    } else if (path.endsWith("/psychology")) {
+      return await handleGetPsychology(adminClient, userId);
+    } else if (path.endsWith("/knowledge-graph") && req.method === "POST") {
+      return await handlePostKnowledgeGraph(adminClient, userId, req);
+    } else if (path.endsWith("/knowledge-graph")) {
+      return await handleGetKnowledgeGraph(adminClient, userId);
     } else {
       return jsonResponse({
         error: "Unknown endpoint",
-        availableEndpoints: ["/habits", "/stats", "/today", "/motivation", "/profile", "/insights (POST)"],
+        availableEndpoints: [
+          "/habits", "/stats", "/today", "/motivation", "/profile",
+          "/insights (POST)", "/review-context", "/psychology", "/knowledge-graph",
+        ],
       }, 404);
     }
   } catch (error) {
@@ -491,6 +666,293 @@ async function handleGetMotivation(
       topStreaks: topStreaks.map((h: HabitData) => ({ name: h.name, streak: h.currentStreak })),
     },
   });
+}
+
+// ============================================================
+// GET /review-context — Aggregated data for coaching reviews
+// ============================================================
+async function handleGetReviewContext(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+  period: ReviewPeriod,
+): Promise<Response> {
+  const validPeriods: ReviewPeriod[] = ["daily", "weekly", "monthly", "quarterly", "midyear", "yearly"];
+  if (!validPeriods.includes(period)) {
+    return jsonResponse({ error: `period must be one of: ${validPeriods.join(", ")}` }, 400);
+  }
+
+  const { startDate, endDate, compareStartDate, compareEndDate } = getPeriodRange(period);
+  const startIdx = dateToDayIndex(startDate);
+  const endIdx = dateToDayIndex(endDate);
+  const compareStartIdx = compareStartDate ? dateToDayIndex(compareStartDate) : null;
+  const compareEndIdx = compareEndDate ? dateToDayIndex(compareEndDate) : null;
+
+  const habitsResponse = await handleGetHabits(adminClient, userId);
+  const habitsData = await habitsResponse.json();
+  const habits: HabitData[] = habitsData.habits || [];
+
+  const statsResponse = await handleGetStats(adminClient, userId);
+  const statsData = await statsResponse.json();
+  const stats: UserStats = statsData.stats;
+
+  const todayResponse = await handleGetToday(adminClient, userId);
+  const todayData = await todayResponse.json();
+
+  const { data: profile } = await adminClient
+    .from("coach_full_context")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
+
+  const { data: insights } = await adminClient
+    .from("coach_insights")
+    .select("insight_type, content, created_at")
+    .eq("user_id", userId)
+    .gte("created_at", startDate.toISOString())
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  const habitIds = habits.map((h) => h.id);
+  const progressByDay = new Map<number, Set<number>>();
+
+  if (habitIds.length > 0) {
+    const { data: progressRows } = await adminClient
+      .from("habit_progress")
+      .select("habit_id, day_index")
+      .in("habit_id", habitIds)
+      .eq("completed", true)
+      .gte("day_index", Math.max(0, compareStartIdx ?? startIdx))
+      .lte("day_index", endIdx);
+
+    for (const row of progressRows || []) {
+      const di = row.day_index as number;
+      if (!progressByDay.has(di)) progressByDay.set(di, new Set());
+      progressByDay.get(di)!.add(row.habit_id as number);
+    }
+  }
+
+  const habitAnalytics = habits.map((habit) => {
+    const completedDays: number[] = [];
+    for (const [dayIdx, set] of progressByDay.entries()) {
+      if (set.has(habit.id)) completedDays.push(dayIdx);
+    }
+    const streaks = computeStreak(completedDays);
+    const periodRate = completionRateForRange(progressByDay, [habit.id], startIdx, endIdx);
+    const compareRate = compareStartIdx !== null && compareEndIdx !== null
+      ? completionRateForRange(progressByDay, [habit.id], compareStartIdx, compareEndIdx)
+      : null;
+    const trend = compareRate !== null ? periodRate - compareRate : null;
+
+    return {
+      id: habit.id,
+      name: habit.name,
+      type: habit.type,
+      completionRate: habit.completionRate,
+      periodCompletionRate: periodRate,
+      compareCompletionRate: compareRate,
+      trend,
+      currentStreak: streaks.current,
+      longestStreak: streaks.longest,
+      linkedIdentities: habit.linkedIdentities,
+    };
+  });
+
+  const overallPeriodRate = completionRateForRange(progressByDay, habitIds, startIdx, endIdx);
+  const overallCompareRate = compareStartIdx !== null && compareEndIdx !== null
+    ? completionRateForRange(progressByDay, habitIds, compareStartIdx, compareEndIdx)
+    : null;
+
+  const topPerforming = habitAnalytics
+    .filter((h) => h.periodCompletionRate >= 70)
+    .sort((a, b) => b.periodCompletionRate - a.periodCompletionRate)
+    .slice(0, 5);
+
+  const struggling = habitAnalytics
+    .filter((h) => h.periodCompletionRate < 40)
+    .sort((a, b) => a.periodCompletionRate - b.periodCompletionRate)
+    .slice(0, 5);
+
+  const improving = habitAnalytics
+    .filter((h) => h.trend !== null && h.trend > 10)
+    .sort((a, b) => (b.trend ?? 0) - (a.trend ?? 0))
+    .slice(0, 5);
+
+  const declining = habitAnalytics
+    .filter((h) => h.trend !== null && h.trend < -10)
+    .sort((a, b) => (a.trend ?? 0) - (b.trend ?? 0))
+    .slice(0, 5);
+
+  const dailyBreakdown: Array<{ date: string; completionRate: number; completed: number; total: number }> = [];
+  for (let d = startIdx; d <= endIdx; d++) {
+    const daySet = progressByDay.get(d) || new Set();
+    dailyBreakdown.push({
+      date: dayIndexToISO(d),
+      completionRate: habitIds.length > 0
+        ? Math.round((daySet.size / habitIds.length) * 1000) / 10
+        : 0,
+      completed: daySet.size,
+      total: habitIds.length,
+    });
+  }
+
+  let psychology: Record<string, unknown> = {};
+  const { data: psychRows } = await adminClient
+    .from("psychology_snapshots")
+    .select("module_type, data, synced_at")
+    .eq("user_id", userId)
+    .order("synced_at", { ascending: false });
+
+  if (psychRows) {
+    for (const row of psychRows) {
+      if (!psychology[row.module_type as string]) {
+        psychology[row.module_type as string] = row.data;
+      }
+    }
+  }
+
+  return jsonResponse({
+    period: {
+      type: period,
+      start: startDate.toISOString().split("T")[0],
+      end: endDate.toISOString().split("T")[0],
+      compareStart: compareStartDate?.toISOString().split("T")[0] ?? null,
+      compareEnd: compareEndDate?.toISOString().split("T")[0] ?? null,
+      dayIndexStart: startIdx,
+      dayIndexEnd: endIdx,
+    },
+    habits: {
+      total: habits.length,
+      analytics: habitAnalytics,
+      topPerforming,
+      struggling,
+      improving,
+      declining,
+    },
+    stats: {
+      overall: stats,
+      periodCompletionRate: overallPeriodRate,
+      compareCompletionRate: overallCompareRate,
+      trend: overallCompareRate !== null ? overallPeriodRate - overallCompareRate : null,
+    },
+    today: todayData.today,
+    dailyBreakdown,
+    profile: profile ?? null,
+    insights: insights ?? [],
+    psychology,
+  });
+}
+
+// ============================================================
+// GET/POST /psychology — Psychology module sync
+// ============================================================
+async function handleGetPsychology(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<Response> {
+  const { data, error } = await adminClient
+    .from("psychology_snapshots")
+    .select("module_type, data, synced_at")
+    .eq("user_id", userId)
+    .order("synced_at", { ascending: false });
+
+  if (error) return jsonResponse({ error: error.message }, 500);
+
+  const latest: Record<string, unknown> = {};
+  for (const row of data || []) {
+    if (!latest[row.module_type as string]) {
+      latest[row.module_type as string] = { data: row.data, synced_at: row.synced_at };
+    }
+  }
+  return jsonResponse({ psychology: latest });
+}
+
+async function handlePostPsychology(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+  req: Request,
+): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return jsonResponse({ error: "Invalid JSON body" }, 400);
+  }
+
+  const { module_type, data } = body as { module_type: string; data: Record<string, unknown> };
+  const validModules = [
+    "inner_child", "priming", "manifestation", "focus_wheel",
+    "money_mindset", "magic_gratitude", "environment",
+  ];
+  if (!module_type || !validModules.includes(module_type)) {
+    return jsonResponse({ error: `module_type must be one of: ${validModules.join(", ")}` }, 400);
+  }
+  if (!data) return jsonResponse({ error: "data is required" }, 400);
+
+  const { error } = await adminClient.from("psychology_snapshots").insert({
+    user_id: userId,
+    module_type,
+    data,
+  });
+  if (error) return jsonResponse({ error: error.message }, 500);
+  return jsonResponse({ success: true });
+}
+
+// ============================================================
+// GET/POST /knowledge-graph — Personal knowledge graph edges
+// ============================================================
+async function handleGetKnowledgeGraph(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<Response> {
+  const { data, error } = await adminClient
+    .from("knowledge_graph_edges")
+    .select("*")
+    .eq("user_id", userId)
+    .order("detected_at", { ascending: false })
+    .limit(100);
+
+  if (error) return jsonResponse({ error: error.message }, 500);
+  return jsonResponse({ edges: data ?? [] });
+}
+
+async function handlePostKnowledgeGraph(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+  req: Request,
+): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return jsonResponse({ error: "Invalid JSON body" }, 400);
+  }
+
+  const patterns = (body.patterns || [body]) as Array<Record<string, unknown>>;
+  const inserted = [];
+
+  for (const p of patterns) {
+    const { source_type, source_id, target_type, target_id, relationship, strength, evidence } = p;
+    if (!source_type || !source_id || !target_type || !target_id || !relationship) continue;
+
+    const { data, error } = await adminClient
+      .from("knowledge_graph_edges")
+      .upsert({
+        user_id: userId,
+        source_type,
+        source_id,
+        target_type,
+        target_id,
+        relationship,
+        strength: strength ?? 0.5,
+        evidence: evidence ?? [],
+      }, { onConflict: "user_id,source_type,source_id,target_type,target_id,relationship" })
+      .select()
+      .single();
+
+    if (!error && data) inserted.push(data);
+  }
+
+  return jsonResponse({ success: true, inserted: inserted.length, edges: inserted });
 }
 
 // ============================================================
