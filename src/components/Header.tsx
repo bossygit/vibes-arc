@@ -3,7 +3,7 @@ import { useAppStore } from '@/store/useAppStore';
 import SupabaseDatabaseClient from '@/database/supabase-client';
 import { Trophy, User, ChevronDown, Menu, X } from 'lucide-react';
 
-type NavKey = 'dashboard' | 'coachChat' | 'priming' | 'environment' | 'identities' | 'addHabit' | 'templates' | 'rewards' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'manifestation' | 'innerChild';
+type NavKey = 'dashboard' | 'coachChat' | 'priming' | 'environment' | 'identities' | 'addHabit' | 'templates' | 'rewards' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'manifestation' | 'innerChild' | 'karmicGarden';
 
 const directNav: { key: NavKey; label: string }[] = [
     { key: 'dashboard', label: 'Alignement du jour' },
@@ -11,6 +11,7 @@ const directNav: { key: NavKey; label: string }[] = [
 ];
 
 const toolsNav: { key: NavKey; label: string }[] = [
+    { key: 'karmicGarden', label: 'Jardin Karmique' },
     { key: 'innerChild', label: 'Inner Child' },
     { key: 'priming', label: 'Priming vibratoire' },
     { key: 'environment', label: 'Environnement énergétique' },

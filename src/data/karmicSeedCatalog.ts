@@ -1,0 +1,100 @@
+import type { DomainMeta, FreeSeedAction, InnerQualities, SeedDomain } from '@/types/karmicGarden';
+
+export const SEED_DOMAINS: SeedDomain[] = [
+    'abondance',
+    'relations',
+    'sante',
+    'sagesse',
+    'leadership',
+    'spiritualite',
+];
+
+export const DOMAIN_META: Record<SeedDomain, DomainMeta> = {
+    abondance: {
+        id: 'abondance',
+        label: 'Abondance',
+        emoji: '💰',
+        colorClass: 'text-green-700',
+        bgClass: 'bg-green-50',
+        borderClass: 'border-green-200',
+        primaryQualities: ['generosite', 'integrite'],
+    },
+    relations: {
+        id: 'relations',
+        label: 'Relations',
+        emoji: '❤️',
+        colorClass: 'text-red-700',
+        bgClass: 'bg-red-50',
+        borderClass: 'border-red-200',
+        primaryQualities: ['compassion', 'patience'],
+    },
+    sante: {
+        id: 'sante',
+        label: 'Santé',
+        emoji: '🔵',
+        colorClass: 'text-blue-700',
+        bgClass: 'bg-blue-50',
+        borderClass: 'border-blue-200',
+        primaryQualities: ['discipline', 'courage'],
+    },
+    sagesse: {
+        id: 'sagesse',
+        label: 'Sagesse',
+        emoji: '🟣',
+        colorClass: 'text-purple-700',
+        bgClass: 'bg-purple-50',
+        borderClass: 'border-purple-200',
+        primaryQualities: ['clarte'],
+    },
+    leadership: {
+        id: 'leadership',
+        label: 'Leadership',
+        emoji: '🟡',
+        colorClass: 'text-amber-700',
+        bgClass: 'bg-amber-50',
+        borderClass: 'border-amber-200',
+        primaryQualities: ['courage', 'integrite'],
+    },
+    spiritualite: {
+        id: 'spiritualite',
+        label: 'Spiritualité',
+        emoji: '⚪',
+        colorClass: 'text-indigo-700',
+        bgClass: 'bg-indigo-50',
+        borderClass: 'border-indigo-200',
+        primaryQualities: ['joie', 'clarte'],
+    },
+};
+
+export const FREE_SEED_CATALOG: FreeSeedAction[] = [
+    { id: 'compliment', label: 'Compliment sincère', domain: 'relations', difficulty: 1, karmaReward: 5, qualityGain: 2, requiresPartner: true },
+    { id: 'ecoute', label: 'Écoute active 10 min', domain: 'relations', difficulty: 2, karmaReward: 8, qualityGain: 3, requiresPartner: true },
+    { id: 'encouragement', label: "Message d'encouragement", domain: 'relations', difficulty: 1, karmaReward: 5, qualityGain: 2, requiresPartner: true },
+    { id: 'don', label: 'Don (temps ou argent)', domain: 'abondance', difficulty: 2, karmaReward: 8, qualityGain: 3, requiresPartner: true },
+    { id: 'partager', label: 'Partager une ressource', domain: 'abondance', difficulty: 1, karmaReward: 5, qualityGain: 2, requiresPartner: true },
+    { id: 'faire_reussir', label: 'Faire réussir quelqu\'un', domain: 'abondance', difficulty: 3, karmaReward: 12, qualityGain: 5, requiresPartner: true },
+    { id: 'sport', label: 'Sport / mouvement', domain: 'sante', difficulty: 2, karmaReward: 8, qualityGain: 3 },
+    { id: 'repas', label: 'Repas sain', domain: 'sante', difficulty: 1, karmaReward: 5, qualityGain: 2 },
+    { id: 'sommeil', label: 'Sommeil 8 h', domain: 'sante', difficulty: 2, karmaReward: 8, qualityGain: 3 },
+    { id: 'lire', label: 'Lire 15 min', domain: 'sagesse', difficulty: 1, karmaReward: 5, qualityGain: 2 },
+    { id: 'journal', label: 'Journal de réflexion', domain: 'sagesse', difficulty: 2, karmaReward: 8, qualityGain: 3 },
+    { id: 'enseigner', label: 'Enseigner gratuitement', domain: 'sagesse', difficulty: 3, karmaReward: 12, qualityGain: 5, requiresPartner: true },
+    { id: 'deleguer', label: 'Déléguer avec confiance', domain: 'leadership', difficulty: 2, karmaReward: 8, qualityGain: 3, requiresPartner: true },
+    { id: 'feedback', label: 'Feedback constructif', domain: 'leadership', difficulty: 2, karmaReward: 8, qualityGain: 3, requiresPartner: true },
+    { id: 'meditation', label: 'Méditation 10 min', domain: 'spiritualite', difficulty: 2, karmaReward: 8, qualityGain: 3 },
+    { id: 'gratitude', label: 'Gratitude (3 items)', domain: 'spiritualite', difficulty: 1, karmaReward: 5, qualityGain: 2 },
+    { id: 'pardonner', label: 'Pardonner quelqu\'un', domain: 'relations', difficulty: 3, karmaReward: 25, qualityGain: 8, isLegendary: true, requiresPartner: true },
+    { id: 'don_anonyme', label: 'Don anonyme', domain: 'abondance', difficulty: 3, karmaReward: 25, qualityGain: 8, isLegendary: true },
+    { id: 'sauver_relation', label: 'Sauver une relation', domain: 'relations', difficulty: 3, karmaReward: 25, qualityGain: 8, isLegendary: true, requiresPartner: true },
+];
+
+export const QUALITY_LABELS: Record<keyof InnerQualities, string> = {
+    generosite: 'Générosité',
+    discipline: 'Discipline',
+    patience: 'Patience',
+    courage: 'Courage',
+    compassion: 'Compassion',
+    clarte: 'Clarté',
+    integrite: 'Intégrité',
+    joie: 'Joie',
+};

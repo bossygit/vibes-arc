@@ -72,6 +72,12 @@ export const HABIT_KEY_ALIASES: Record<string, string[]> = {
         '3 pivots',
         'abraham-hicks pivot',
     ],
+    karmic_management: [
+        'jardin karmique',
+        'karmic management',
+        'karmic garden',
+        'graine karmique',
+    ],
 };
 
 /** Clés connues des jeux / modules auto-créés */
@@ -80,6 +86,7 @@ export const GAME_HABIT_MILESTONE_KEYS: Record<string, string> = {
     'Abondance': 'abundance',
     'Focus Wheel': 'pivots',
     'Manifestation KIA': 'manifestation',
+    'Jardin Karmique': 'karmic_management',
 };
 
 export function resolveHabitKey(habit: { name: string; milestoneKey?: string }): string | null {
