@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle2, Sprout } from 'lucide-react';
 import { DOMAIN_META, SEED_DOMAINS } from '@/data/karmicSeedCatalog';
-import type { KarmicMorningSession, MorningDraft, SeedDomain } from '@/types/karmicGarden';
+import type { KarmicMorningSession, MorningDraft } from '@/types/karmicGarden';
 import CoffeeMeditation from './CoffeeMeditation';
 
 interface MorningCycleWizardProps {

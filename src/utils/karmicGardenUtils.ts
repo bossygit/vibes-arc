@@ -1,5 +1,5 @@
 import { DOMAIN_META } from '@/data/karmicSeedCatalog';
-import { KARMIC_LEVELS, PLOT_STAGE_THRESHOLDS } from '@/data/karmicGardenLevels';
+import { KARMIC_LEVELS } from '@/data/karmicGardenLevels';
 import type {
     FreeSeedAction,
     InnerQualities,
@@ -91,7 +91,7 @@ export function getPlotStage(seedCount: number): number {
 }
 
 export function getKarmicLevel(karmaTotal: number): (typeof KARMIC_LEVELS)[number] {
-    let level = KARMIC_LEVELS[0];
+    let level: (typeof KARMIC_LEVELS)[number] = KARMIC_LEVELS[0];
     for (const l of KARMIC_LEVELS) {
         if (karmaTotal >= l.threshold) level = l;
     }
