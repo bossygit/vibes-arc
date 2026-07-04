@@ -47,7 +47,7 @@ export function evaluateStreak(
 }
 
 export function evaluateSameDayCombo(
-    habits: Habit[],
+    _habits: Habit[],
     habitByKey: HabitByKey,
     habitKeys: string[],
     threshold: number
