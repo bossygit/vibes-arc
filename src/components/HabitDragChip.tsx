@@ -10,6 +10,8 @@ interface HabitDragChipProps {
     selected?: boolean;
     onSelect?: () => void;
     compact?: boolean;
+    onDragStart?: () => void;
+    onDragEnd?: () => void;
 }
 
 const HabitDragChip: React.FC<HabitDragChipProps> = ({
@@ -17,6 +19,8 @@ const HabitDragChip: React.FC<HabitDragChipProps> = ({
     selected = false,
     onSelect,
     compact = false,
+    onDragStart,
+    onDragEnd,
 }) => {
     const stats = calculateHabitStats(habit);
     const typeLabel = habit.type === 'start' ? 'À faire' : 'À éviter';
@@ -24,12 +28,18 @@ const HabitDragChip: React.FC<HabitDragChipProps> = ({
     const handleDragStart = (e: React.DragEvent) => {
         e.dataTransfer.setData(HABIT_DRAG_MIME, String(habit.id));
         e.dataTransfer.effectAllowed = 'copy';
+        onDragStart?.();
+    };
+
+    const handleDragEnd = () => {
+        onDragEnd?.();
     };
 
     return (
         <div
             draggable
             onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
             onClick={onSelect}
             className={`
                 flex items-center gap-2 rounded-lg border px-3 py-2 cursor-grab active:cursor-grabbing

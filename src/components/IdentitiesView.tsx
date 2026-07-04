@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Plus, Sparkles, Target } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
+import { useDragAutoScroll } from '@/hooks/useDragAutoScroll';
 import { evaluateMilestones, getMilestonesForIdentity } from '@/utils/milestoneUtils';
 import { IDENTITY_COLORS, getIdentityColorStyle } from '@/utils/identityColors';
 import EditIdentityModal from './EditIdentityModal';
@@ -27,6 +28,9 @@ const IdentitiesView: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [showAddForm, setShowAddForm] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+
+    useDragAutoScroll(isDragging);
 
     const milestoneProgress = useMemo(
         () => evaluateMilestones(habits, identities, milestoneAchievements),
@@ -69,7 +73,7 @@ const IdentitiesView: React.FC = () => {
     };
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-6">
             <section className="rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 text-white p-6 md:p-8">
                 <div className="flex items-start gap-4">
                     <div className="p-3 bg-white/15 rounded-xl flex-shrink-0">
@@ -87,57 +91,66 @@ const IdentitiesView: React.FC = () => {
                 </div>
             </section>
 
-            <section className="card">
-                <div className="flex items-center justify-between gap-4 mb-4">
-                    <div>
-                        <h3 className="font-semibold text-slate-800 flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-indigo-600" />
-                            Bibliothèque de signaux
-                        </h3>
-                        <p className="text-sm text-slate-600 mt-1">
-                            Glisse un signal sur une identité, ou sélectionne-le puis clique « Ajouter la sélection ».
-                        </p>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => setView('addHabit')}
-                        className="btn-primary whitespace-nowrap flex items-center gap-2"
-                    >
-                        <Plus className="w-4 h-4" />
-                        Nouveau signal
-                    </button>
-                </div>
-
-                {habits.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center">
-                        <p className="text-slate-600 mb-3">Aucun signal pour l&apos;instant.</p>
-                        <button type="button" onClick={() => setView('addHabit')} className="btn-primary">
-                            Créer mon premier signal
-                        </button>
-                    </div>
-                ) : (
-                    <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                            {habits.map((habit) => (
-                                <HabitDragChip
-                                    key={habit.id}
-                                    habit={habit}
-                                    selected={selectedHabitId === habit.id}
-                                    onSelect={() => toggleHabitSelection(habit.id)}
-                                />
-                            ))}
+            <div className="lg:grid lg:grid-cols-[minmax(280px,320px)_1fr] lg:gap-6 lg:items-start">
+                {/* Bibliothèque sticky — toujours accessible pendant le drag */}
+                <aside className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:z-10">
+                    <section className="card">
+                        <div className="flex items-center justify-between gap-4 mb-4">
+                            <div>
+                                <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                                    <Sparkles className="w-5 h-5 text-indigo-600" />
+                                    Bibliothèque de signaux
+                                </h3>
+                                <p className="text-sm text-slate-600 mt-1">
+                                    Glisse un signal sur une identité. La page défile automatiquement près du bord
+                                    bas ou haut. Sur grand écran, la bibliothèque reste fixe à gauche.
+                                </p>
+                            </div>
                         </div>
-                        {unassignedHabits.length > 0 && (
-                            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3">
-                                {unassignedHabits.length} signal{unassignedHabits.length > 1 ? 's' : ''} sans
-                                identité — assigne-les pour mesurer ton intégration.
-                            </p>
-                        )}
-                    </>
-                )}
-            </section>
 
-            <section>
+                        <button
+                            type="button"
+                            onClick={() => setView('addHabit')}
+                            className="btn-primary w-full flex items-center justify-center gap-2 mb-4"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Nouveau signal
+                        </button>
+
+                        {habits.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center">
+                                <p className="text-slate-600 mb-3">Aucun signal pour l&apos;instant.</p>
+                                <button type="button" onClick={() => setView('addHabit')} className="btn-primary">
+                                    Créer mon premier signal
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="space-y-2">
+                                    {habits.map((habit) => (
+                                        <HabitDragChip
+                                            key={habit.id}
+                                            habit={habit}
+                                            selected={selectedHabitId === habit.id}
+                                            onSelect={() => toggleHabitSelection(habit.id)}
+                                            onDragStart={() => setIsDragging(true)}
+                                            onDragEnd={() => setIsDragging(false)}
+                                        />
+                                    ))}
+                                </div>
+                                {unassignedHabits.length > 0 && (
+                                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3">
+                                        {unassignedHabits.length} signal{unassignedHabits.length > 1 ? 's' : ''} sans
+                                        identité — assigne-les pour mesurer ton intégration.
+                                    </p>
+                                )}
+                            </>
+                        )}
+                    </section>
+                </aside>
+
+                {/* Identités — scroll libre, drop zones accessibles */}
+                <section>
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-bold text-slate-800">Mes identités cibles</h3>
                     <button
@@ -216,7 +229,7 @@ const IdentitiesView: React.FC = () => {
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    <div className="grid grid-cols-1 gap-5">
                         {identities.map((identity) => (
                             <IdentityBoardCard
                                 key={identity.id}
@@ -237,7 +250,14 @@ const IdentitiesView: React.FC = () => {
                         ))}
                     </div>
                 )}
-            </section>
+                </section>
+            </div>
+
+            {isDragging && (
+                <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-indigo-600 text-white text-sm shadow-lg pointer-events-none animate-pulse">
+                    Approche du bord bas ou haut pour faire défiler la page
+                </div>
+            )}
 
             {editingIdentity && (
                 <EditIdentityModal
