@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Sprout } from 'lucide-react';
 import { DOMAIN_META, SEED_DOMAINS } from '@/data/karmicSeedCatalog';
 import type { KarmicMorningSession, MorningDraft } from '@/types/karmicGarden';
 import CoffeeMeditation from './CoffeeMeditation';
+import KarmicCoachPanel from './KarmicCoachPanel';
 
 interface MorningCycleWizardProps {
     todaySession?: KarmicMorningSession;
@@ -38,32 +39,49 @@ const MorningCycleWizard: React.FC<MorningCycleWizardProps> = ({ todaySession, o
 
     const update = (patch: Partial<MorningDraft>) => setDraft((d) => ({ ...d, ...patch }));
 
+    const progressBar = (
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+            {[1, 2, 3, 4].map((s) => (
+                <div
+                    key={s}
+                    className={`flex-1 h-1.5 rounded-full ${s <= step ? 'bg-indigo-500' : 'bg-slate-200'}`}
+                />
+            ))}
+        </div>
+    );
+
+    const coachPanel = (
+        <KarmicCoachPanel
+            step={step as 1 | 2 | 3 | 4}
+            draft={draft}
+            onApplySuggestion={(field, value) => update({ [field]: value })}
+        />
+    );
+
     const canStep1 = draft.goal.trim().length > 0;
     const canStep2 = draft.partnerName.trim().length > 0 && draft.helpPlan.trim().length > 0;
     const canStep3 = draft.actionLog.trim().length >= 20;
 
     if (step === 4) {
         return (
-            <CoffeeMeditation
-                goal={draft.goal}
-                partnerName={draft.partnerName}
-                actionLog={draft.actionLog}
-                onBack={() => setStep(3)}
-                onComplete={(meditationCompleted) => onComplete(draft, meditationCompleted)}
-            />
+            <div className="space-y-6">
+                {progressBar}
+                {coachPanel}
+                <CoffeeMeditation
+                    goal={draft.goal}
+                    partnerName={draft.partnerName}
+                    actionLog={draft.actionLog}
+                    onBack={() => setStep(3)}
+                    onComplete={(meditationCompleted) => onComplete(draft, meditationCompleted)}
+                />
+            </div>
         );
     }
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-                {[1, 2, 3, 4].map((s) => (
-                    <div
-                        key={s}
-                        className={`flex-1 h-1.5 rounded-full ${s <= step ? 'bg-indigo-500' : 'bg-slate-200'}`}
-                    />
-                ))}
-            </div>
+            {progressBar}
+            {coachPanel}
 
             {step === 1 && (
                 <div className="space-y-4">

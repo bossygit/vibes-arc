@@ -9,6 +9,7 @@ import MorningCycleWizard from './karmic/MorningCycleWizard';
 import FreeSeedPicker from './karmic/FreeSeedPicker';
 import KarmicGardenPlot from './karmic/KarmicGardenPlot';
 import InnerQualitiesPanel from './karmic/InnerQualitiesPanel';
+import KarmicCoachPanel from './karmic/KarmicCoachPanel';
 
 type Tab = 'morning' | 'afternoon';
 
@@ -81,7 +82,20 @@ const KarmicGardenView: React.FC = () => {
                 {tab === 'morning' ? (
                     <MorningCycleWizard todaySession={todayMorning} onComplete={handleMorningComplete} />
                 ) : (
-                    <FreeSeedPicker state={state} onPlant={handlePlantFree} />
+                    <div className="space-y-6">
+                        <KarmicCoachPanel
+                            step="afternoon"
+                            draft={todayMorning ? {
+                                goal: todayMorning.goal,
+                                partnerName: todayMorning.partnerName,
+                                helpPlan: todayMorning.helpPlan,
+                                domain: todayMorning.domain,
+                            } : {}}
+                            qualities={state.qualities}
+                            plotProgress={state.plotProgress}
+                        />
+                        <FreeSeedPicker state={state} onPlant={handlePlantFree} />
+                    </div>
                 )}
             </div>
         </div>
