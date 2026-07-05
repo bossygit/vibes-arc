@@ -19,6 +19,7 @@ import EnvironmentDesignView from '@/components/EnvironmentDesignView';
 import ManifestationView from '@/components/ManifestationView';
 import CoachChat from '@/components/CoachChat';
 import KarmicGardenView from '@/components/KarmicGardenView';
+import ControleEjaculationView from '@/components/ControleEjaculationView';
 import InnerChildCheckin from '@/components/InnerChildCheckin';
 import Celebration from '@/components/Celebration';
 import { getCurrentDayIndex, isHabitActiveOnDay, getHabitStartDayIndex } from '@/utils/habitUtils';
@@ -90,6 +91,8 @@ function App() {
                 return <CoachChat />;
             case 'karmicGarden':
                 return <KarmicGardenView />;
+            case 'voieControle':
+                return <ControleEjaculationView />;
             case 'innerChild':
                 return <InnerChildCheckin />;
             case 'accountSettings':

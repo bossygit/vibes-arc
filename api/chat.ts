@@ -1,12 +1,15 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { buildKarmicCoachSystemPrompt } from '../src/data/karmicManagementKnowledge';
+import { buildControleCoachSystemPrompt } from '../src/data/controleEjaculationKnowledge';
 import {
-    buildStepUserPrompt,
+    buildStepUserPrompt as buildKarmicStepUserPrompt,
     parsePartnerSuggestions,
     stripPartnerSuggestionsLine,
     type KarmicCoachRequestContext,
     type KarmicCoachStep,
 } from '../src/utils/karmicCoachPrompts';
+import { buildStepUserPrompt as buildControleStepUserPrompt } from '../src/utils/controleCoachPrompts';
+import type { ControleCoachContext, ControleCoachStep } from '../src/types/controleEjaculation';
 
 // ─── System Prompt : Coach Vibes (Vibrational Alignment System) ───────────────
 
@@ -106,11 +109,16 @@ interface ChatRequest {
     messages?: ChatMessage[];
     provider?: 'gemini' | 'groq';
     userContext?: string; // JSON stringified user data
-    mode?: 'karmic';
-    step?: KarmicCoachStep;
+    mode?: 'karmic' | 'controle';
+    step?: KarmicCoachStep | ControleCoachStep;
     draft?: KarmicCoachRequestContext['draft'];
     qualities?: KarmicCoachRequestContext['qualities'];
     plotProgress?: KarmicCoachRequestContext['plotProgress'];
+    profile?: ControleCoachContext['profile'];
+    progress?: ControleCoachContext['progress'];
+    exerciseId?: ControleCoachContext['exerciseId'];
+    sessionLog?: ControleCoachContext['sessionLog'];
+    phaseIndex?: ControleCoachContext['phaseIndex'];
 }
 
 // ─── Provider : Google Gemini ─────────────────────────────────────────────────
@@ -205,7 +213,7 @@ async function callGroq(messages: ChatMessage[], userContext?: string): Promise<
 
 // ─── Coach Karmique (NVIDIA NIM) ──────────────────────────────────────────────
 
-async function callNvidia(userPrompt: string): Promise<string> {
+async function callNvidia(systemPrompt: string, userPrompt: string): Promise<string> {
     const apiKey = process.env.NVIDIA_API_KEY;
     if (!apiKey) throw new Error('NVIDIA_API_KEY non configurée');
 
@@ -220,7 +228,7 @@ async function callNvidia(userPrompt: string): Promise<string> {
         body: JSON.stringify({
             model,
             messages: [
-                { role: 'system', content: buildKarmicCoachSystemPrompt() },
+                { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt },
             ],
             temperature: 0.2,
@@ -250,7 +258,7 @@ async function handleKarmicCoach(body: ChatRequest, res: VercelResponse) {
     }
 
     const ctx: KarmicCoachRequestContext = { step, draft, qualities, plotProgress };
-    const rawReply = await callNvidia(buildStepUserPrompt(ctx));
+    const rawReply = await callNvidia(buildKarmicCoachSystemPrompt(), buildKarmicStepUserPrompt(ctx));
 
     const partnerSuggestions = step === 2 ? parsePartnerSuggestions(rawReply) : undefined;
     const reply = step === 2 ? stripPartnerSuggestionsLine(rawReply) : rawReply.trim();
@@ -259,6 +267,40 @@ async function handleKarmicCoach(body: ChatRequest, res: VercelResponse) {
         reply,
         ...(partnerSuggestions?.length ? { partnerSuggestions } : {}),
     });
+}
+
+const CONTROLE_VALID_STEPS: ControleCoachStep[] = [
+    'welcome',
+    'wizard_result',
+    'daily',
+    'exercise',
+    'breath',
+    'session_log',
+    'phase_advance',
+];
+
+async function handleControleCoach(body: ChatRequest, res: VercelResponse) {
+    const { step, profile, progress, exerciseId, sessionLog, phaseIndex } = body;
+
+    if (!step || !CONTROLE_VALID_STEPS.includes(step as ControleCoachStep)) {
+        return res.status(400).json({ error: 'step invalide' });
+    }
+
+    const ctx: ControleCoachContext = {
+        step: step as ControleCoachStep,
+        profile,
+        progress,
+        exerciseId,
+        sessionLog,
+        phaseIndex,
+    };
+
+    const reply = await callNvidia(
+        buildControleCoachSystemPrompt(),
+        buildControleStepUserPrompt(ctx)
+    );
+
+    return res.status(200).json({ reply: reply.trim() });
 }
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
@@ -277,6 +319,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (body.mode === 'karmic') {
             return await handleKarmicCoach(body, res);
+        }
+
+        if (body.mode === 'controle') {
+            return await handleControleCoach(body, res);
         }
 
         const { messages, provider = 'gemini', userContext } = body;

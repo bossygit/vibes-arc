@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>La Voie du Contrôle — Programme unifié</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;0,700;1,500&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B1210;
+    --bg-2:#0F1B17;
+    --surface:#152722;
+    --surface-2:#1D332C;
+    --surface-3:#28443A;
+    --line: rgba(237,239,234,0.09);
+    --jade:#4FAE8E;
+    --jade-soft:#3C8A70;
+    --copper:#D68A4C;
+    --copper-soft:#B5713A;
+    --gold:#E4C158;
+    --blue:#5C8FD6;
+    --brown:#8A5A34;
+    --text:#EDEFEA;
+    --text-muted:#9BB0A5;
+    --text-faint:#5C7368;
+    --danger:#C6604F;
+    --font-display:'Newsreader', serif;
+    --font-body:'Space Grotesk', sans-serif;
+    --font-mono:'JetBrains Mono', monospace;
+    --radius:18px;
+    --radius-sm:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:radial-gradient(120% 140% at 50% -10%, #12241F 0%, var(--bg) 55%);
+    color:var(--text);
+    font-family:var(--font-body);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app-shell{max-width:560px;margin:0 auto;padding:0 18px 80px;}
+  a{color:inherit;}
+  button{font-family:inherit;cursor:pointer;}
+  :focus-visible{outline:2px solid var(--jade);outline-offset:2px;}
+
+  .eyebrow{
+    font-family:var(--font-mono);
+    text-transform:uppercase;
+    letter-spacing:0.16em;
+    font-size:0.7rem;
+    color:var(--jade);
+    display:flex;align-items:center;gap:8px;
+  }
+  .eyebrow::before{content:'';width:14px;height:1px;background:var(--jade);display:inline-block;}
+
+  h1,h2,h3{font-family:var(--font-display);font-weight:600;margin:0;color:var(--text);}
+  p{margin:0;color:var(--text-muted);line-height:1.6;}
+
+  .screen{display:none;}
+  .screen.active{display:block;animation:fadeIn .4s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+  /* ---------- LOADER ---------- */
+  #loader{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50;font-family:var(--font-mono);color:var(--text-faint);font-size:0.8rem;letter-spacing:0.08em;}
+  #loader.hidden{display:none;}
+
+  /* ---------- WELCOME ---------- */
+  .hero{padding:56px 0 28px;}
+  .hero h1{font-size:clamp(2.1rem,7vw,2.9rem);line-height:1.08;margin:14px 0 18px;}
+  .hero h1 em{font-style:italic;color:var(--jade);}
+  .hero p{font-size:1.02rem;margin-bottom:14px;}
+  .tier-legend{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0 8px;}
+  .tier-pill{font-family:var(--font-mono);font-size:0.68rem;letter-spacing:0.04em;padding:5px 10px;border-radius:100px;border:1px solid var(--line);color:var(--text-muted);display:flex;align-items:center;gap:6px;}
+  .dot{width:7px;height:7px;border-radius:50%;display:inline-block;}
+  .dot.clin{background:var(--jade);}
+  .dot.trad{background:var(--copper);}
+  .dot.psy{background:var(--blue);}
+
+  .source-cards{display:grid;gap:12px;margin:24px 0;}
+  .source-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px 16px;}
+  .source-card h4{font-family:var(--font-body);font-weight:600;font-size:0.92rem;margin:0 0 4px;color:var(--text);}
+  .source-card p{font-size:0.87rem;}
+
+  .btn{border:none;border-radius:100px;padding:14px 22px;font-weight:600;font-size:0.95rem;transition:transform .15s ease, opacity .15s ease;}
+  .btn:active{transform:scale(0.97);}
+  .btn-primary{background:var(--jade);color:#08110D;}
+  .btn-primary:hover{opacity:0.92;}
+  .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--text);}
+  .btn-block{width:100%;display:block;text-align:center;}
+  .btn-sm{padding:9px 16px;font-size:0.82rem;}
+
+  .disclaimer{margin-top:26px;padding:14px 16px;border:1px solid var(--line);border-radius:var(--radius-sm);background:rgba(198,96,79,0.06);}
+  .disclaimer p{font-size:0.78rem;color:var(--text-faint);}
+
+  /* ---------- WIZARD ---------- */
+  .wizard-wrap{padding:40px 0;}
+  .progress-dots{display:flex;gap:6px;margin-bottom:26px;}
+  .progress-dots span{height:3px;flex:1;background:var(--surface-3);border-radius:2px;overflow:hidden;}
+  .progress-dots span i{display:block;height:100%;width:0%;background:var(--jade);transition:width .3s ease;}
+  .progress-dots span.done i{width:100%;}
+  .progress-dots span.active i{width:100%;}
+
+  .q-title{font-size:1.35rem;margin-bottom:22px;line-height:1.3;}
+  .option-grid{display:grid;gap:10px;margin-bottom:30px;}
+  .option-btn{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px 16px;color:var(--text);font-size:0.94rem;display:flex;justify-content:space-between;align-items:center;transition:border-color .15s ease, background .15s ease;}
+  .option-btn:hover{border-color:var(--jade-soft);}
+  .option-btn.selected{border-color:var(--jade);background:rgba(79,174,142,0.1);}
+  .option-btn .check{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--text-faint);flex-shrink:0;margin-left:12px;}
+  .option-btn.selected .check{border-color:var(--jade);background:var(--jade);}
+
+  .wizard-nav{display:flex;gap:10px;}
+  .wizard-nav .btn-ghost{flex:0 0 auto;}
+  .wizard-nav .btn-primary{flex:1;}
+  .btn-primary:disabled{opacity:0.35;pointer-events:none;}
+
+  /* ---------- RESULT ---------- */
+  .result-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin:24px 0;}
+  .result-card .belt-name{font-family:var(--font-display);font-size:1.6rem;margin:6px 0 10px;}
+  .result-row{display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line);font-size:0.88rem;}
+  .result-row:first-of-type{border-top:none;}
+  .result-row span:first-child{color:var(--text-faint);}
+
+  /* ---------- DASHBOARD HEADER ---------- */
+  .dash-header{position:sticky;top:0;z-index:10;background:rgba(11,18,16,0.92);backdrop-filter:blur(6px);padding:14px 0;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px;}
+  .belt-chip{display:flex;align-items:center;gap:8px;font-size:0.82rem;font-weight:600;}
+  .belt-swatch{width:14px;height:14px;border-radius:4px;border:1px solid rgba(237,239,234,0.25);}
+  .stat-chip{font-family:var(--font-mono);font-size:0.72rem;color:var(--text-muted);display:flex;gap:14px;}
+
+  section.block{margin-bottom:34px;}
+  .block-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .block-title h2{font-size:1.15rem;}
+  .block-sub{font-size:0.82rem;color:var(--text-faint);margin-top:2px;}
+
+  /* ---------- DIAL ---------- */
+  .dial-wrap{display:flex;align-items:center;gap:20px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;}
+  .dial-svg{width:112px;height:112px;flex-shrink:0;}
+  .dial-info .k{font-family:var(--font-mono);font-size:0.68rem;color:var(--text-faint);letter-spacing:0.08em;text-transform:uppercase;}
+  .dial-info .v{font-family:var(--font-display);font-size:1.3rem;margin:2px 0 8px;}
+  .xp-track{width:100%;height:6px;background:var(--surface-3);border-radius:4px;overflow:hidden;}
+  .xp-track i{display:block;height:100%;background:linear-gradient(90deg,var(--jade),var(--gold));}
+
+  /* ---------- TODAY ---------- */
+  .today-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px;}
+  .ex-item{display:flex;gap:12px;padding:12px 0;border-top:1px solid var(--line);}
+  .ex-item:first-child{border-top:none;}
+  .ex-check{width:22px;height:22px;border-radius:6px;border:1.5px solid var(--text-faint);flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;transition:all .15s ease;}
+  .ex-check.on{background:var(--jade);border-color:var(--jade);}
+  .ex-check.on::after{content:'✓';color:#08110D;font-size:13px;font-weight:700;}
+  .ex-body h4{font-family:var(--font-body);font-weight:600;font-size:0.92rem;margin:0 0 3px;}
+  .ex-body p{font-size:0.82rem;}
+  .ex-freq{font-family:var(--font-mono);font-size:0.68rem;color:var(--jade);margin-top:4px;display:block;}
+
+  /* ---------- BREATH ---------- */
+  .breath-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px;text-align:center;}
+  .breath-circle{width:120px;height:120px;margin:14px auto;border-radius:50%;background:radial-gradient(circle at 35% 30%, rgba(79,174,142,0.55), rgba(79,174,142,0.12));border:1px solid var(--jade-soft);transform:scale(1);transition:transform 4s ease-in-out;display:flex;align-items:center;justify-content:center;}
+  .breath-circle span{font-family:var(--font-mono);font-size:0.72rem;color:var(--text);}
+  @media (prefers-reduced-motion: reduce){.breath-circle{transition-duration:.2s;}}
+
+  /* ---------- PHASES ---------- */
+  .phase-card{border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;background:var(--surface);}
+  .phase-card.current{border-color:var(--jade-soft);}
+  .phase-head{padding:16px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .phase-head-left{display:flex;align-items:center;gap:12px;}
+  .phase-num{font-family:var(--font-mono);font-size:0.72rem;color:var(--text-faint);}
+  .phase-head h3{font-size:1rem;}
+  .phase-weeks{font-family:var(--font-mono);font-size:0.68rem;color:var(--text-faint);}
+  .chevron{transition:transform .2s ease;color:var(--text-faint);}
+  .phase-card.open .chevron{transform:rotate(180deg);}
+  .phase-body{max-height:0;overflow:hidden;transition:max-height .3s ease;}
+  .phase-card.open .phase-body{max-height:1400px;}
+  .phase-body-inner{padding:0 18px 18px;}
+  .phase-obj{font-size:0.85rem;margin-bottom:14px;}
+  .tier-badge{font-family:var(--font-mono);font-size:0.62rem;text-transform:uppercase;letter-spacing:0.04em;padding:2px 7px;border-radius:100px;display:inline-flex;align-items:center;gap:4px;margin-top:6px;border:1px solid var(--line);color:var(--text-muted);}
+  .phase-advance{margin-top:14px;}
+
+  /* ---------- CHART ---------- */
+  .chart-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px;}
+  .legend{display:flex;gap:16px;margin-top:10px;font-size:0.72rem;color:var(--text-faint);}
+  .legend span{display:flex;align-items:center;gap:6px;}
+  .legend-line{width:14px;height:0;border-top:2px dashed var(--copper);}
+  .legend-dot{width:8px;height:8px;border-radius:50%;background:var(--jade);}
+
+  .log-form{margin-top:18px;padding-top:16px;border-top:1px solid var(--line);display:grid;gap:10px;}
+  .log-form label{font-size:0.78rem;color:var(--text-faint);display:block;margin-bottom:4px;}
+  .log-form input[type="number"]{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--text);font-family:var(--font-mono);}
+  .log-form input[type="range"]{width:100%;accent-color:var(--jade);}
+  .range-val{font-family:var(--font-mono);font-size:0.78rem;color:var(--jade);}
+
+  /* ---------- BELTS ---------- */
+  .belts-row{display:flex;gap:10px;flex-wrap:wrap;}
+  .belt-item{flex:1 1 30%;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px;text-align:center;opacity:0.4;}
+  .belt-item.unlocked{opacity:1;}
+  .belt-dot{width:20px;height:20px;border-radius:50%;margin:0 auto 8px;border:2px solid rgba(237,239,234,0.25);}
+  .belt-item span{font-size:0.7rem;display:block;color:var(--text-muted);}
+
+  footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;}
+  footer p{font-size:0.72rem;color:var(--text-faint);}
+  .reset-link{background:none;border:none;color:var(--text-faint);font-size:0.72rem;text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<div id="loader">chargement…</div>
+
+<div class="app-shell">
+
+  <!-- ===================== WELCOME ===================== -->
+  <section class="screen" id="screen-welcome">
+    <div class="hero">
+      <div class="eyebrow">Programme personnel</div>
+      <h1>La Voie du <em>Contrôle</em></h1>
+      <p>Trois communautés abordent le contrôle de l'éjaculation avec des méthodes très différentes : la médecine comportementale occidentale, la pratique taoïste de Mantak Chia, et la discipline mentale des communautés de rétention séminale.</p>
+      <p style="margin-top:10px;">Ce programme garde ce qui tient la route dans chacune, et l'organise en 4 phases progressives — avec un suivi et une projection de résultats.</p>
+
+      <div class="tier-legend">
+        <div class="tier-pill"><span class="dot clin"></span> Validé cliniquement</div>
+        <div class="tier-pill"><span class="dot trad"></span> Pratique traditionnelle</div>
+        <div class="tier-pill"><span class="dot psy"></span> Levier psychologique</div>
+      </div>
+
+      <div class="source-cards">
+        <div class="source-card">
+          <h4><span class="dot clin"></span>&nbsp; Médecine comportementale</h4>
+          <p>Arrêt-départ, compression (Masters &amp; Johnson) et renforcement du plancher pelvien. Les études les mieux conduites montrent un gain réel — jusqu'à 4x le temps de contrôle en 8 à 12 semaines pour le travail du plancher pelvien.</p>
+        </div>
+        <div class="source-card">
+          <h4><span class="dot trad"></span>&nbsp; Taoïsme — Mantak Chia</h4>
+          <p>Verrouillage du muscle PC, respiration et redirection de l'attention ("Grand Tirage"). Peu d'essais cliniques, mais un mécanisme cohérent avec la médecine moderne : mêmes muscles, même respiration, cadre mental différent.</p>
+        </div>
+        <div class="source-card">
+          <h4><span class="dot psy"></span>&nbsp; Rétention / discipline</h4>
+          <p>Les bénéfices physiologiques annoncés (énergie, testostérone) ne sont pas soutenus par la science. En revanche, le suivi de streak, le journaling et le travail d'identité ont une vraie valeur d'engagement.</p>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-block" onclick="startWizard()">Évaluer mon état actuel</button>
+
+      <div class="disclaimer">
+        <p>Outil éducatif et auto-dirigé, construit à partir de sources publiques (études cliniques et littérature taoïste). Il ne remplace pas un avis médical. Si la difficulté persiste ou te pèse, un urologue ou un·e sexologue peut t'aider directement.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== WIZARD ===================== -->
+  <section class="screen" id="screen-wizard">
+    <div class="wizard-wrap">
+      <div class="progress-dots" id="progress-dots"></div>
+      <div id="wizard-container"></div>
+    </div>
+  </section>
+
+  <!-- ===================== RESULT ===================== -->
+  <section class="screen" id="screen-result">
+    <div class="wizard-wrap">
+      <div class="eyebrow">Point de départ</div>
+      <h2 style="font-size:1.5rem;margin-top:10px;">Ton profil est prêt.</h2>
+      <div class="result-card">
+        <span class="eyebrow">Ceinture de départ</span>
+        <div class="belt-name" id="result-belt">Blanche</div>
+        <div id="result-rows"></div>
+      </div>
+      <p id="result-note" style="margin-bottom:22px;"></p>
+      <button class="btn btn-primary btn-block" onclick="goDashboard()">Voir mon tableau de bord</button>
+    </div>
+  </section>
+
+  <!-- ===================== DASHBOARD ===================== -->
+  <section class="screen" id="screen-dashboard">
+    <div class="dash-header">
+      <div class="belt-chip"><span class="belt-swatch" id="hdr-belt-swatch"></span><span id="hdr-belt-name">—</span></div>
+      <div class="stat-chip"><span id="hdr-xp">0 XP</span><span id="hdr-streak">🔥 0j</span></div>
+    </div>
+
+    <section class="block">
+      <div class="dial-wrap">
+        <svg class="dial-svg" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface-3)" stroke-width="10"/>
+          <circle id="dial-arc" cx="60" cy="60" r="50" fill="none" stroke="var(--jade)" stroke-width="10" stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="314" transform="rotate(-90 60 60)"/>
+          <text x="60" y="56" text-anchor="middle" font-family="JetBrains Mono" font-size="20" fill="#EDEFEA" id="dial-pct">0%</text>
+          <text x="60" y="72" text-anchor="middle" font-family="Space Grotesk" font-size="8" fill="#9BB0A5">maîtrise</text>
+        </svg>
+        <div class="dial-info">
+          <div class="k">Semaine</div>
+          <div class="v" id="dial-week">1</div>
+          <div class="k" id="dial-phase-name">Phase — Fondation</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block-title">
+        <div><h2>Pratique du jour</h2><div class="block-sub" id="today-date"></div></div>
+      </div>
+      <div class="today-card" id="today-list"></div>
+    </section>
+
+    <section class="block">
+      <div class="block-title"><h2>Respiration d'ancrage</h2></div>
+      <div class="breath-card">
+        <p style="font-size:0.85rem;">4 secondes d'inspiration par le ventre, 7 secondes d'expiration. L'inverse d'une respiration stimulante type Wim Hof — ici on calme le système nerveux.</p>
+        <div class="breath-circle" id="breath-circle"><span id="breath-label">Prêt</span></div>
+        <button class="btn btn-ghost btn-sm" id="breath-btn" onclick="toggleBreath()">Démarrer</button>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block-title"><h2>Le programme</h2></div>
+      <div id="phases-list"></div>
+    </section>
+
+    <section class="block">
+      <div class="block-title"><h2>Progression</h2></div>
+      <div class="chart-card">
+        <svg id="chart-svg" viewBox="0 0 320 180" width="100%" height="180"></svg>
+        <div class="legend">
+          <span><i class="legend-line"></i> Projection estimée</span>
+          <span><span class="legend-dot"></span> Tes observations</span>
+        </div>
+        <div class="log-form">
+          <div>
+            <label for="log-seconds">Temps tenu lors de ta dernière session (secondes)</label>
+            <input type="number" id="log-seconds" min="0" placeholder="ex : 90">
+          </div>
+          <div>
+            <label for="log-anxiety">Anxiété ressentie : <span class="range-val" id="log-anxiety-val">5</span>/10</label>
+            <input type="range" id="log-anxiety" min="1" max="10" value="5" oninput="document.getElementById('log-anxiety-val').textContent=this.value">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="logSession()">Enregistrer l'observation</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block-title"><h2>Ceintures</h2></div>
+      <div class="belts-row" id="belts-row"></div>
+    </section>
+
+    <footer>
+      <p>Fait avec Claude · usage personnel</p>
+      <button class="reset-link" onclick="resetAll()">Recommencer</button>
+    </footer>
+  </section>
+
+</div>
+
+<script>
+/* ============================================================
+   DONNÉES DU PROGRAMME
+   ============================================================ */
+const PHASES = [
+  { id:'p1', name:'Fondation', belt:'Jaune → Orange', weeks:'1–3',
+    objective:"Construire la force et la conscience du muscle PC (plancher pelvien) — la base commune aux trois traditions.",
+    exercises:[
+      { id:'p1e1', title:'Repérage du muscle PC', freq:'Une fois, semaine 1', tier:'clin',
+        desc:"Pendant la miction, arrête le jet à mi-parcours. Le muscle qui se contracte est le muscle PC. N'utilise pas l'urine pour t'entraîner ensuite — c'était juste pour le repérer." },
+      { id:'p1e2', title:'Contractions lentes', freq:'2×/jour · 3 séries de 10', tier:'clin',
+        desc:"Contracte le muscle PC 5 secondes, relâche 5 secondes. 10 répétitions par série." },
+      { id:'p1e3', title:'Contractions rapides', freq:'1×/jour · 3 séries de 15', tier:'clin',
+        desc:"Contracte puis relâche rapidement, comme un battement. Construit le réflexe utilisé en Phase 3." },
+      { id:'p1e4', title:"Cartographie de l'excitation", freq:'2×/semaine, en solo', tier:'clin',
+        desc:"Sans chercher l'orgasme, note mentalement ton excitation de 1 à 10 toutes les minutes. Arrête-toi dès 7/10." }
+    ]},
+  { id:'p2', name:'Régulation', belt:'Verte', weeks:'4–6',
+    objective:"Apprendre à faire redescendre l'excitation à volonté grâce à l'arrêt-départ, la compression, et une respiration qui calme le système nerveux.",
+    exercises:[
+      { id:'p2e1', title:'Séances arrêt-départ', freq:'2–3×/semaine', tier:'clin',
+        desc:"Stimule-toi jusqu'à 8/10, arrête complètement, respire lentement jusqu'à 3–4/10, reprends. Vise 4 à 5 cycles." },
+      { id:'p2e2', title:'Technique de compression', freq:'2×/semaine', tier:'clin',
+        desc:"À 8–9/10, applique une pression ferme 3–5 secondes à la base du gland ou sur le périnée, puis relâche." },
+      { id:'p2e3', title:'Respiration abdominale calmante', freq:'Quotidien, 5 min', tier:'clin',
+        desc:"Inspire 4 s par le nez en gonflant le ventre, expire 6–8 s. Entraîne ce réflexe hors contexte sexuel pour pouvoir le déclencher au bon moment." }
+    ]},
+  { id:'p3', name:'Intégration énergétique', belt:'Bleue', weeks:'7–9',
+    objective:"Ajouter les outils taoïstes qui prolongent l'arrêt-départ : verrouillage musculaire, rétention du souffle et redirection de l'attention.",
+    exercises:[
+      { id:'p3e1', title:'Verrouillage de puissance', freq:'À chaque séance', tier:'trad',
+        desc:"À l'approche du point de non-retour, contracte fermement le muscle PC et le périnée en même temps." },
+      { id:'p3e2', title:'Le Grand Tirage', freq:'2×/semaine', tier:'trad',
+        desc:"Au moment critique : contracte le PC, rentre légèrement le menton, retiens le souffle 3–5 s, et dirige mentalement la sensation du bas du corps vers le haut." },
+      { id:'p3e3', title:'Orgasme « vallée » vs « pic »', freq:'Exploration libre', tier:'trad',
+        desc:"Cherche à ressentir des vagues de plaisir successives plutôt qu'un pic unique suivi d'une chute. La présence avant la performance." }
+    ]},
+  { id:'p4', name:'Maîtrise & intégration', belt:'Marron → Noire', weeks:'10–12+',
+    objective:"Transférer les acquis en contexte réel, suivre ta progression dans la durée, et alléger la pratique dédiée sans perdre les acquis.",
+    exercises:[
+      { id:'p4e1', title:'Application en contexte partenaire', freq:"Selon l'occasion", tier:'clin',
+        desc:"Utilise l'arrêt-départ, la respiration et le verrouillage pendant un rapport, en communiquant le rythme si besoin." },
+      { id:'p4e2', title:'Journal hebdomadaire', freq:'1×/semaine', tier:'psy',
+        desc:"Note tes déclencheurs (stress, fatigue, nouveauté), ton anxiété et ton contrôle ressenti. Ce journal nourrit ton graphique de progression." },
+      { id:'p4e3', title:"Plan d'entretien", freq:'2×/semaine à vie', tier:'clin',
+        desc:"Une fois le contrôle acquis, garde seulement les contractions PC 2 fois par semaine pour maintenir les acquis." }
+    ]}
+];
+
+const TIER_LABEL = { clin:'Validé clinique', trad:'Pratique traditionnelle', psy:'Levier psychologique' };
+const TIER_DOT = { clin:'clin', trad:'trad', psy:'psy' };
+
+const BELTS = [
+  { name:'Blanche', min:0,    color:'#EDEFEA' },
+  { name:'Jaune',   min:80,   color:'#E4C158' },
+  { name:'Orange',  min:220,  color:'#D68A4C' },
+  { name:'Verte',   min:450,  color:'#4FAE8E' },
+  { name:'Bleue',   min:800,  color:'#5C8FD6' },
+  { name:'Marron',  min:1300, color:'#8A5A34' },
+  { name:'Noire',   min:1900, color:'#1A1F1D' }
+];
+
+const QUESTIONS = [
+  { id:'baseline', title:"Aujourd'hui, combien de temps tiens-tu généralement avant l'éjaculation (seul ou en couple) ?", multi:false,
+    options:[
+      {v:'<1', l:"Moins d'1 minute"},
+      {v:'1-3', l:'1 à 3 minutes'},
+      {v:'3-7', l:'3 à 7 minutes'},
+      {v:'7+', l:'Plus de 7 minutes'},
+      {v:'unknown', l:'Je ne sais pas vraiment'}
+    ]},
+  { id:'experience', title:'As-tu déjà pratiqué une de ces approches ?', multi:true,
+    options:[
+      {v:'retention', l:'Rétention séminale / NoFap'},
+      {v:'taoist', l:'Respiration ou méditation taoïste'},
+      {v:'behavioral', l:'Arrêt-départ ou compression'},
+      {v:'pelvic', l:'Plancher pelvien / Kegel'},
+      {v:'none', l:'Aucune de ces approches'}
+    ]},
+  { id:'anxiety', title:"L'anxiété de performance joue-t-elle un rôle dans ta difficulté à durer ?", multi:false,
+    options:[
+      {v:'faible', l:'Peu ou pas'},
+      {v:'moderee', l:'Un peu, par moments'},
+      {v:'elevee', l:'Beaucoup, presque à chaque fois'}
+    ]},
+  { id:'frequency', title:'Combien de fois par semaine peux-tu réalistement pratiquer seul ?', multi:false,
+    options:[
+      {v:'1-2', l:'1 à 2 fois'},
+      {v:'3-4', l:'3 à 4 fois'},
+      {v:'5-7', l:'5 fois ou plus'}
+    ]},
+  { id:'goal', title:'Quel est ton objectif principal en ce moment ?', multi:false,
+    options:[
+      {v:'duree', l:'Prolonger la durée'},
+      {v:'plaisir', l:'Explorer le plaisir sans but'},
+      {v:'anxiete', l:"Réduire l'anxiété de performance"},
+      {v:'discipline', l:'Discipline et développement personnel'}
+    ]}
+];
+
+const BASELINE_SECONDS = { '<1':45, '1-3':120, '3-7':300, '7+':600, 'unknown':90 };
+const FREQ_FACTOR = { '1-2':0.6, '3-4':0.85, '5-7':1.0 };
+const ANX_FACTOR = { elevee:0.85, moderee:1.0, faible:1.15 };
+
+/* ============================================================
+   ÉTAT + STOCKAGE
+   ============================================================ */
+let state = { profile:null, progress:null, logs:[] };
+let wizardStep = 0;
+let wizardAnswers = { baseline:null, experience:[], anxiety:null, frequency:null, goal:null };
+let breathing = false;
+let breathTimer = null;
+
+async function loadData(key){
+  try{
+    const res = await window.storage.get(key, false);
+    return res && res.value ? JSON.parse(res.value) : null;
+  }catch(e){ return null; }
+}
+async function saveData(key, value){
+  try{ await window.storage.set(key, JSON.stringify(value), false); }
+  catch(e){ console.error('Sauvegarde impossible', e); }
+}
+async function deleteData(key){
+  try{ await window.storage.delete(key, false); }catch(e){}
+}
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function daysBetween(a,b){ return Math.floor((new Date(b) - new Date(a)) / 86400000); }
+
+function defaultProgress(){ return { phase:0, xp:0, streak:0, lastPracticeDate:null }; }
+
+/* ============================================================
+   INIT
+   ============================================================ */
+async function init(){
+  const profile = await loadData('profile');
+  const progress = await loadData('progress');
+  const logs = await loadData('logs');
+  state.profile = profile;
+  state.progress = progress || defaultProgress();
+  state.logs = logs || [];
+
+  if(!profile){
+    showScreen('welcome');
+  } else {
+    showScreen('dashboard');
+    renderDashboard();
+  }
+  document.getElementById('loader').classList.add('hidden');
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+/* ============================================================
+   WIZARD
+   ============================================================ */
+function startWizard(){
+  wizardStep = 0;
+  wizardAnswers = { baseline:null, experience:[], anxiety:null, frequency:null, goal:null };
+  showScreen('wizard');
+  renderWizard();
+}
+
+function renderDots(){
+  const wrap = document.getElementById('progress-dots');
+  wrap.innerHTML = '';
+  QUESTIONS.forEach((q,i)=>{
+    const d = document.createElement('span');
+    if(i < wizardStep) d.className = 'done';
+    if(i === wizardStep) d.className = 'active';
+    d.innerHTML = '<i></i>';
+    wrap.appendChild(d);
+  });
+}
+
+function isAnswered(q){
+  if(q.multi) return wizardAnswers[q.id].length > 0;
+  return !!wizardAnswers[q.id];
+}
+
+function renderWizard(){
+  renderDots();
+  const q = QUESTIONS[wizardStep];
+  const container = document.getElementById('wizard-container');
+  const optsHtml = q.options.map(o=>{
+    const selected = q.multi ? wizardAnswers[q.id].includes(o.v) : wizardAnswers[q.id] === o.v;
+    return `<button class="option-btn${selected?' selected':''}" onclick="selectOption('${q.id}','${o.v}',${q.multi})">
+      <span>${o.l}</span><span class="check"></span>
+    </button>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="q-title">${q.title}</div>
+    <div class="option-grid">${optsHtml}</div>
+    <div class="wizard-nav">
+      ${wizardStep>0 ? '<button class="btn btn-ghost" onclick="prevStep()">←</button>' : ''}
+      <button class="btn btn-primary" id="next-btn" onclick="nextStep()" ${isAnswered(q)?'':'disabled'}>${wizardStep===QUESTIONS.length-1 ? 'Terminer' : 'Suivant'}</button>
+    </div>
+  `;
+}
+
+function selectOption(qid, val, multi){
+  if(multi){
+    if(val === 'none'){
+      wizardAnswers[qid] = wizardAnswers[qid].includes('none') ? [] : ['none'];
+    } else {
+      let arr = wizardAnswers[qid].filter(v=>v!=='none');
+      if(arr.includes(val)) arr = arr.filter(v=>v!==val);
+      else arr.push(val);
+      wizardAnswers[qid] = arr;
+    }
+  } else {
+    wizardAnswers[qid] = val;
+  }
+  renderWizard();
+}
+
+function prevStep(){
+  if(wizardStep>0){ wizardStep--; renderWizard(); }
+}
+
+async function nextStep(){
+  if(wizardStep < QUESTIONS.length-1){
+    wizardStep++;
+    renderWizard();
+  } else {
+    await finalizeProfile();
+  }
+}
+
+async function finalizeProfile(){
+  const profile = { ...wizardAnswers, startDate: todayStr() };
+  state.profile = profile;
+  await saveData('profile', profile);
+  showScreen('result');
+  renderResult();
+}
+
+/* ============================================================
+   RESULT
+   ============================================================ */
+function renderResult(){
+  const p = state.profile;
+  const baselineLabel = {
+    '<1':"moins d'1 minute", '1-3':'1 à 3 minutes', '3-7':'3 à 7 minutes',
+    '7+':'plus de 7 minutes', 'unknown':'indéterminé'
+  }[p.baseline];
+
+  document.getElementById('result-belt').textContent = 'Blanche';
+  document.getElementById('result-rows').innerHTML = `
+    <div class="result-row"><span>Point de départ estimé</span><span>${baselineLabel}</span></div>
+    <div class="result-row"><span>Anxiété de performance</span><span>${({faible:'Faible',moderee:'Modérée',elevee:'Élevée'})[p.anxiety]}</span></div>
+    <div class="result-row"><span>Fréquence de pratique</span><span>${p.frequency} × / semaine</span></div>
+    <div class="result-row"><span>Phase de départ</span><span>Fondation (semaine 1)</span></div>
+  `;
+
+  let note = "Ton programme démarre par la Phase 1 — Fondation, commune aux trois traditions.";
+  if(p.anxiety === 'elevee'){
+    note += " Comme l'anxiété de performance joue un rôle important pour toi, la respiration calmante sera introduite dès maintenant plutôt qu'en Phase 2.";
+  }
+  if(p.goal === 'plaisir'){
+    note += " Ton objectif d'exploration du plaisir te rapprochera vite du travail taoïste de la Phase 3.";
+  }
+  document.getElementById('result-note').textContent = note;
+}
+
+async function goDashboard(){
+  showScreen('dashboard');
+  renderDashboard();
+}
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+function currentBelt(xp){
+  let b = BELTS[0];
+  for(const belt of BELTS){ if(xp >= belt.min) b = belt; }
+  return b;
+}
+function nextBelt(xp){
+  for(const belt of BELTS){ if(xp < belt.min) return belt; }
+  return null;
+}
+
+function renderDashboard(){
+  renderHeader();
+  renderDial();
+  renderToday();
+  renderPhases();
+  renderChart();
+  renderBelts();
+}
+
+function renderHeader(){
+  const xp = state.progress.xp;
+  const belt = currentBelt(xp);
+  document.getElementById('hdr-belt-swatch').style.background = belt.color;
+  document.getElementById('hdr-belt-name').textContent = 'Ceinture ' + belt.name;
+  document.getElementById('hdr-xp').textContent = xp + ' XP';
+  document.getElementById('hdr-streak').textContent = '🔥 ' + state.progress.streak + 'j';
+}
+
+function renderDial(){
+  const xp = state.progress.xp;
+  const cap = BELTS[BELTS.length-1].min;
+  const pct = Math.min(100, Math.round((xp/cap)*100));
+  const circumference = 314;
+  const offset = circumference - (circumference*pct/100);
+  document.getElementById('dial-arc').setAttribute('stroke-dashoffset', offset);
+  document.getElementById('dial-pct').textContent = pct + '%';
+
+  const weeksElapsed = Math.max(1, Math.floor(daysBetween(state.profile.startDate, todayStr())/7) + 1);
+  document.getElementById('dial-week').textContent = weeksElapsed;
+  const phase = PHASES[state.progress.phase];
+  document.getElementById('dial-phase-name').textContent = 'Phase ' + (state.progress.phase+1) + ' — ' + phase.name;
+}
+
+function todayLoggedExerciseIds(){
+  const t = todayStr();
+  return state.logs.filter(l => l.type==='exercise' && l.date===t).map(l=>l.exerciseId);
+}
+
+function renderToday(){
+  document.getElementById('today-date').textContent = new Date().toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+  const phase = PHASES[state.progress.phase];
+  const doneToday = todayLoggedExerciseIds();
+  const html = phase.exercises.map(ex=>{
+    const on = doneToday.includes(ex.id);
+    return `
+      <div class="ex-item">
+        <div class="ex-check ${on?'on':''}" onclick="toggleExercise('${ex.id}')"></div>
+        <div class="ex-body">
+          <h4>${ex.title}</h4>
+          <p>${ex.desc}</p>
+          <span class="ex-freq">${ex.freq}</span>
+        </div>
+      </div>`;
+  }).join('');
+  document.getElementById('today-list').innerHTML = html;
+}
+
+async function toggleExercise(exId){
+  const t = todayStr();
+  const already = state.logs.find(l => l.type==='exercise' && l.date===t && l.exerciseId===exId);
+  if(already){
+    state.logs = state.logs.filter(l => l !== already);
+    state.progress.xp = Math.max(0, state.progress.xp - 10);
+  } else {
+    state.logs.push({ type:'exercise', date:t, exerciseId:exId, xp:10 });
+    state.progress.xp += 10;
+    updateStreak(t);
+  }
+  await saveData('logs', state.logs);
+  await saveData('progress', state.progress);
+  renderHeader(); renderDial(); renderToday(); renderBelts();
+}
+
+function updateStreak(t){
+  const last = state.progress.lastPracticeDate;
+  if(last === t) return;
+  if(last){
+    const gap = daysBetween(last, t);
+    state.progress.streak = (gap === 1) ? state.progress.streak + 1 : 1;
+  } else {
+    state.progress.streak = 1;
+  }
+  state.progress.lastPracticeDate = t;
+}
+
+function renderPhases(){
+  const wrap = document.getElementById('phases-list');
+  wrap.innerHTML = PHASES.map((ph, idx)=>{
+    const isCurrent = idx === state.progress.phase;
+    const exHtml = ph.exercises.map(ex=>`
+      <div style="margin-bottom:14px;">
+        <h4 style="font-size:0.88rem;margin:0 0 3px;">${ex.title}</h4>
+        <p style="font-size:0.82rem;">${ex.desc}</p>
+        <span class="ex-freq">${ex.freq}</span>
+        <span class="tier-badge"><span class="dot ${TIER_DOT[ex.tier]}"></span>${TIER_LABEL[ex.tier]}</span>
+      </div>`).join('');
+    const advanceBtn = (isCurrent && idx < PHASES.length-1)
+      ? `<button class="btn btn-primary btn-sm phase-advance" onclick="advancePhase(${idx})">Marquer cette phase comme acquise →</button>`
+      : '';
+    return `
+      <div class="phase-card ${isCurrent?'current':''} ${isCurrent?'open':''}" id="phase-${idx}">
+        <div class="phase-head" onclick="togglePhase(${idx})">
+          <div class="phase-head-left">
+            <span class="phase-num">0${idx+1}</span>
+            <div><h3>${ph.name}</h3><span class="phase-weeks">Semaines ${ph.weeks} · Ceinture ${ph.belt}</span></div>
+          </div>
+          <span class="chevron">⌄</span>
+        </div>
+        <div class="phase-body">
+          <div class="phase-body-inner">
+            <p class="phase-obj">${ph.objective}</p>
+            ${exHtml}
+            ${advanceBtn}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function togglePhase(idx){
+  document.getElementById('phase-'+idx).classList.toggle('open');
+}
+
+async function advancePhase(idx){
+  state.progress.phase = Math.min(PHASES.length-1, idx+1);
+  state.progress.xp += 150;
+  state.logs.push({ type:'phase', date:todayStr(), phaseId:PHASES[idx].id, xp:150 });
+  await saveData('progress', state.progress);
+  await saveData('logs', state.logs);
+  renderHeader(); renderDial(); renderToday(); renderPhases(); renderBelts();
+}
+
+/* ---------- CHART ---------- */
+function multiplierAtWeek(week, M, tau){
+  return 1 + (M-1) * (1 - Math.exp(-week/tau));
+}
+
+function projectionSeries(){
+  const p = state.profile;
+  const baseline = BASELINE_SECONDS[p.baseline] || 90;
+  const freqF = FREQ_FACTOR[p.frequency] || 0.85;
+  const anxF = ANX_FACTOR[p.anxiety] || 1.0;
+  const M = 1 + 2.5 * freqF * anxF;
+  const tau = 5;
+  const pts = [];
+  for(let w=0; w<=16; w++){
+    pts.push({ week:w, seconds: baseline * multiplierAtWeek(w, M, tau) });
+  }
+  return pts;
+}
+
+function renderChart(){
+  const svg = document.getElementById('chart-svg');
+  const series = projectionSeries();
+  const maxY = Math.max(...series.map(p=>p.seconds), ...state.logs.filter(l=>l.type==='session').map(l=>l.seconds||0)) * 1.15;
+  const W = 320, H = 180, padL = 34, padB = 20, padT = 10, padR = 10;
+  const xScale = w => padL + (w/16) * (W-padL-padR);
+  const yScale = s => (H-padB) - (s/maxY) * (H-padB-padT);
+
+  let svgHtml = '';
+  // grid lines
+  for(let i=0;i<=4;i++){
+    const y = padT + i*(H-padB-padT)/4;
+    svgHtml += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="rgba(237,239,234,0.06)" stroke-width="1"/>`;
+  }
+  // x labels every 4 weeks
+  for(let w=0; w<=16; w+=4){
+    svgHtml += `<text x="${xScale(w)}" y="${H-4}" font-family="JetBrains Mono" font-size="7" fill="#5C7368" text-anchor="middle">S${w}</text>`;
+  }
+  // y label top (max)
+  svgHtml += `<text x="2" y="${padT+6}" font-family="JetBrains Mono" font-size="7" fill="#5C7368">${Math.round(maxY)}s</text>`;
+  svgHtml += `<text x="2" y="${H-padB}" font-family="JetBrains Mono" font-size="7" fill="#5C7368">0s</text>`;
+
+  // projection dashed path
+  const path = series.map((p,i)=> (i===0?'M':'L') + xScale(p.week).toFixed(1) + ',' + yScale(p.seconds).toFixed(1)).join(' ');
+  svgHtml += `<path d="${path}" fill="none" stroke="#D68A4C" stroke-width="2" stroke-dasharray="5,4"/>`;
+
+  // actual session logs
+  const startDate = state.profile.startDate;
+  state.logs.filter(l=>l.type==='session').forEach(l=>{
+    const w = Math.max(0, Math.min(16, Math.floor(daysBetween(startDate, l.date)/7)));
+    svgHtml += `<circle cx="${xScale(w)}" cy="${yScale(l.seconds)}" r="3.5" fill="#4FAE8E" stroke="#0B1210" stroke-width="1"/>`;
+  });
+
+  svg.innerHTML = svgHtml;
+}
+
+async function logSession(){
+  const seconds = parseInt(document.getElementById('log-seconds').value, 10);
+  const anxiety = parseInt(document.getElementById('log-anxiety').value, 10);
+  if(!seconds || seconds < 0){ return; }
+  state.logs.push({ type:'session', date:todayStr(), seconds, anxiety, xp:15 });
+  state.progress.xp += 15;
+  await saveData('logs', state.logs);
+  await saveData('progress', state.progress);
+  document.getElementById('log-seconds').value = '';
+  renderHeader(); renderDial(); renderChart(); renderBelts();
+}
+
+function renderBelts(){
+  const xp = state.progress.xp;
+  document.getElementById('belts-row').innerHTML = BELTS.map(b=>{
+    const unlocked = xp >= b.min;
+    return `<div class="belt-item ${unlocked?'unlocked':''}">
+      <div class="belt-dot" style="background:${b.color};"></div>
+      <span>${b.name}</span>
+    </div>`;
+  }).join('');
+}
+
+/* ---------- BREATH PACER ---------- */
+function toggleBreath(){
+  breathing = !breathing;
+  const btn = document.getElementById('breath-btn');
+  if(breathing){
+    btn.textContent = 'Arrêter';
+    breathCycle();
+  } else {
+    btn.textContent = 'Démarrer';
+    clearTimeout(breathTimer);
+    const circle = document.getElementById('breath-circle');
+    circle.style.transition = 'transform .3s ease';
+    circle.style.transform = 'scale(1)';
+    document.getElementById('breath-label').textContent = 'Prêt';
+  }
+}
+function breathCycle(){
+  if(!breathing) return;
+  const circle = document.getElementById('breath-circle');
+  const label = document.getElementById('breath-label');
+  circle.style.transition = 'transform 4s ease-in-out';
+  circle.style.transform = 'scale(1.35)';
+  label.textContent = 'Inspire…';
+  breathTimer = setTimeout(()=>{
+    if(!breathing) return;
+    circle.style.transition = 'transform 7s ease-in-out';
+    circle.style.transform = 'scale(1)';
+    label.textContent = 'Expire…';
+    breathTimer = setTimeout(breathCycle, 7000);
+  }, 4000);
+}
+
+/* ---------- RESET ---------- */
+async function resetAll(){
+  if(!confirm('Effacer toute ta progression et recommencer le questionnaire ?')) return;
+  await deleteData('profile');
+  await deleteData('progress');
+  await deleteData('logs');
+  state = { profile:null, progress: defaultProgress(), logs:[] };
+  showScreen('welcome');
+}
+
+init();
+</script>
+</body>
+</html>

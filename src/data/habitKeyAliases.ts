@@ -78,6 +78,13 @@ export const HABIT_KEY_ALIASES: Record<string, string[]> = {
         'karmic garden',
         'graine karmique',
     ],
+    neo: [
+        'neo',
+        'orgasme non éjaculatoire',
+        'neo practice',
+        'voie du contrôle',
+        'la voie du contrôle',
+    ],
 };
 
 /** Clés connues des jeux / modules auto-créés */
@@ -87,6 +94,7 @@ export const GAME_HABIT_MILESTONE_KEYS: Record<string, string> = {
     'Focus Wheel': 'pivots',
     'Manifestation KIA': 'manifestation',
     'Jardin Karmique': 'karmic_management',
+    'Neo': 'neo',
 };
 
 export function resolveHabitKey(habit: { name: string; milestoneKey?: string }): string | null {
