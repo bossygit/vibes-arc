@@ -3,13 +3,12 @@ import { Send, Bot, User, Sparkles, Loader2, RefreshCw, Zap, AlertTriangle } fro
 import {
     sendChatMessage, SUGGESTED_MESSAGES,
     updateMemoryFromConversation, clearMemory,
-    type ChatMessage, type AIProvider,
+    type ChatMessage,
 } from '@/services/aiChatService';
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
 
 const CHAT_STORAGE_KEY = 'vibes-arc-coach-chat';
-const PROVIDER_KEY = 'vibes-arc-ai-provider';
 
 function loadMessages(): ChatMessage[] {
     try {
@@ -26,10 +25,6 @@ function saveMessages(messages: ChatMessage[]) {
     localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
 }
 
-function loadProvider(): AIProvider {
-    return (localStorage.getItem(PROVIDER_KEY) as AIProvider) || 'gemini';
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const CoachChat: React.FC = () => {
@@ -37,7 +32,6 @@ const CoachChat: React.FC = () => {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [provider, setProvider] = useState<AIProvider>(loadProvider);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -50,11 +44,6 @@ const CoachChat: React.FC = () => {
     useEffect(() => {
         saveMessages(messages);
     }, [messages]);
-
-    // Persist provider
-    useEffect(() => {
-        localStorage.setItem(PROVIDER_KEY, provider);
-    }, [provider]);
 
     // Auto-resize textarea
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -93,7 +82,7 @@ const CoachChat: React.FC = () => {
             // Keep last 20 messages for context window
             const contextMessages = apiMessages.slice(-20);
 
-            const reply = await sendChatMessage(contextMessages, provider);
+            const reply = await sendChatMessage(contextMessages);
 
             const assistantMsg: ChatMessage = {
                 id: `assistant-${Date.now()}`,
@@ -114,7 +103,7 @@ const CoachChat: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [input, messages, isLoading, provider]);
+    }, [input, messages, isLoading]);
 
     // Enter to send
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -149,28 +138,6 @@ const CoachChat: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        {/* Provider Switch */}
-                        <div className="hidden sm:flex items-center gap-1 bg-white/70 backdrop-blur-sm rounded-lg border border-slate-200 p-1">
-                            <button
-                                onClick={() => setProvider('gemini')}
-                                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${provider === 'gemini'
-                                    ? 'bg-blue-500 text-white shadow-sm'
-                                    : 'text-slate-600 hover:bg-slate-100'
-                                    }`}
-                            >
-                                Gemini
-                            </button>
-                            <button
-                                onClick={() => setProvider('groq')}
-                                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${provider === 'groq'
-                                    ? 'bg-orange-500 text-white shadow-sm'
-                                    : 'text-slate-600 hover:bg-slate-100'
-                                    }`}
-                            >
-                                Groq
-                            </button>
-                        </div>
-
                         {/* Clear chat */}
                         {messages.length > 0 && (
                             <button
@@ -182,28 +149,6 @@ const CoachChat: React.FC = () => {
                             </button>
                         )}
                     </div>
-                </div>
-
-                {/* Mobile provider switch */}
-                <div className="flex sm:hidden items-center gap-1 mt-3 bg-white/70 backdrop-blur-sm rounded-lg border border-slate-200 p-1">
-                    <button
-                        onClick={() => setProvider('gemini')}
-                        className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${provider === 'gemini'
-                            ? 'bg-blue-500 text-white shadow-sm'
-                            : 'text-slate-600 hover:bg-slate-100'
-                            }`}
-                    >
-                        ✨ Gemini
-                    </button>
-                    <button
-                        onClick={() => setProvider('groq')}
-                        className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${provider === 'groq'
-                            ? 'bg-orange-500 text-white shadow-sm'
-                            : 'text-slate-600 hover:bg-slate-100'
-                            }`}
-                    >
-                        ⚡ Groq
-                    </button>
                 </div>
             </div>
 
@@ -350,7 +295,7 @@ const CoachChat: React.FC = () => {
                     <div className="flex items-center justify-center gap-1.5 mt-2">
                         <Zap className="w-3 h-3 text-slate-400" />
                         <span className="text-[10px] text-slate-400">
-                            Propulsé par {provider === 'gemini' ? 'Google Gemini' : 'Groq (Llama 3.3)'}
+                            Propulsé par Ollama Cloud (Gemma 4)
                             {' '}• Tes données sont utilisées pour personnaliser les réponses
                         </span>
                     </div>

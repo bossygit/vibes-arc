@@ -1,15 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { buildKarmicCoachSystemPrompt } from '../src/data/karmicManagementKnowledge';
-import { buildControleCoachSystemPrompt } from '../src/data/controleEjaculationKnowledge';
+import { callOllama } from './lib/ollamaClient';
+import { buildKarmicCoachSystemPrompt } from './lib/karmicCoachKnowledge';
 import {
     buildStepUserPrompt as buildKarmicStepUserPrompt,
     parsePartnerSuggestions,
     stripPartnerSuggestionsLine,
     type KarmicCoachRequestContext,
     type KarmicCoachStep,
-} from '../src/utils/karmicCoachPrompts';
-import { buildStepUserPrompt as buildControleStepUserPrompt } from '../src/utils/controleCoachPrompts';
-import type { ControleCoachContext, ControleCoachStep } from '../src/types/controleEjaculation';
+} from './lib/karmicCoachPrompts';
+import { buildControleCoachSystemPrompt } from './lib/controleCoachKnowledge';
+import {
+    buildStepUserPrompt as buildControleStepUserPrompt,
+    type ControleCoachContext,
+    type ControleCoachStep,
+} from './lib/controleCoachPrompts';
 
 // ─── System Prompt : Coach Vibes (Vibrational Alignment System) ───────────────
 
@@ -98,6 +102,9 @@ Utilise cette mémoire pour :
 - Ne dis JAMAIS que tu es une IA. Tu es Coach Vibes.
 - Quand il parle de sa KIA, sois ENTHOUSIASMÉ comme si c'était déjà fait`;
 
+const COACH_VIBES_OPTS = { temperature: 0.85, top_p: 0.95, num_predict: 1500 };
+const SPECIALIZED_COACH_OPTS = { temperature: 0.2, top_p: 0.7, num_predict: 1024 };
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ChatMessage {
@@ -107,8 +114,7 @@ interface ChatMessage {
 
 interface ChatRequest {
     messages?: ChatMessage[];
-    provider?: 'gemini' | 'groq';
-    userContext?: string; // JSON stringified user data
+    userContext?: string;
     mode?: 'karmic' | 'controle';
     step?: KarmicCoachStep | ControleCoachStep;
     draft?: KarmicCoachRequestContext['draft'];
@@ -121,144 +127,28 @@ interface ChatRequest {
     phaseIndex?: ControleCoachContext['phaseIndex'];
 }
 
-// ─── Provider : Google Gemini ─────────────────────────────────────────────────
-
-async function callGemini(messages: ChatMessage[], userContext?: string): Promise<string> {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error('GEMINI_API_KEY non configurée');
-
-    // Build the conversation for Gemini format
-    const systemInstruction = userContext
-        ? `${SYSTEM_PROMPT}\n\n📊 DONNÉES DE L'UTILISATEUR :\n${userContext}`
-        : SYSTEM_PROMPT;
-
-    const contents = messages
-        .filter(m => m.role !== 'system')
-        .map(m => ({
-            role: m.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: m.content }],
-        }));
-
-    const body = {
-        system_instruction: { parts: [{ text: systemInstruction }] },
-        contents,
-        generationConfig: {
-            temperature: 0.85,
-            maxOutputTokens: 1500,
-            topP: 0.95,
-        },
-    };
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-        const errorText = await res.text();
-        console.error('Gemini error:', res.status, errorText);
-        throw new Error(`Gemini API error: ${res.status}`);
-    }
-
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error('Réponse Gemini vide');
-    return text;
-}
-
-// ─── Provider : Groq (OpenAI-compatible) ──────────────────────────────────────
-
-async function callGroq(messages: ChatMessage[], userContext?: string): Promise<string> {
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) throw new Error('GROQ_API_KEY non configurée');
-
-    const systemMessage = userContext
-        ? `${SYSTEM_PROMPT}\n\n📊 DONNÉES DE L'UTILISATEUR :\n${userContext}`
-        : SYSTEM_PROMPT;
-
-    const allMessages = [
-        { role: 'system', content: systemMessage },
-        ...messages.filter(m => m.role !== 'system'),
-    ];
-
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: allMessages,
-            temperature: 0.85,
-            max_tokens: 1500,
-            top_p: 0.95,
-        }),
-    });
-
-    if (!res.ok) {
-        const errorText = await res.text();
-        console.error('Groq error:', res.status, errorText);
-        throw new Error(`Groq API error: ${res.status}`);
-    }
-
-    const data = await res.json();
-    const text = data?.choices?.[0]?.message?.content;
-    if (!text) throw new Error('Réponse Groq vide');
-    return text;
-}
-
-// ─── Coach Karmique (NVIDIA NIM) ──────────────────────────────────────────────
-
-async function callNvidia(systemPrompt: string, userPrompt: string): Promise<string> {
-    const apiKey = process.env.NVIDIA_API_KEY;
-    if (!apiKey) throw new Error('NVIDIA_API_KEY non configurée');
-
-    const model = process.env.NVIDIA_MODEL ?? 'meta/llama-3.3-70b-instruct';
-
-    const res = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-            model,
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt },
-            ],
-            temperature: 0.2,
-            top_p: 0.7,
-            max_tokens: 1024,
-        }),
-    });
-
-    if (!res.ok) {
-        const errorText = await res.text();
-        console.error('NVIDIA NIM error:', res.status, errorText);
-        throw new Error(`NVIDIA API error: ${res.status}`);
-    }
-
-    const data = await res.json();
-    const text = data?.choices?.[0]?.message?.content;
-    if (!text) throw new Error('Réponse NVIDIA vide');
-    return text;
-}
-
 async function handleKarmicCoach(body: ChatRequest, res: VercelResponse) {
     const { step, draft = {}, qualities, plotProgress } = body;
 
     const validSteps: KarmicCoachStep[] = [1, 2, 3, 4, 'afternoon'];
-    if (!step || !validSteps.includes(step)) {
+    if (!step || !validSteps.includes(step as KarmicCoachStep)) {
         return res.status(400).json({ error: 'step invalide (1-4 ou afternoon)' });
     }
 
-    const ctx: KarmicCoachRequestContext = { step, draft, qualities, plotProgress };
-    const rawReply = await callNvidia(buildKarmicCoachSystemPrompt(), buildKarmicStepUserPrompt(ctx));
+    const ctx: KarmicCoachRequestContext = {
+        step: step as KarmicCoachStep,
+        draft,
+        qualities,
+        plotProgress,
+    };
+
+    const rawReply = await callOllama(
+        [
+            { role: 'system', content: buildKarmicCoachSystemPrompt() },
+            { role: 'user', content: buildKarmicStepUserPrompt(ctx) },
+        ],
+        SPECIALIZED_COACH_OPTS
+    );
 
     const partnerSuggestions = step === 2 ? parsePartnerSuggestions(rawReply) : undefined;
     const reply = step === 2 ? stripPartnerSuggestionsLine(rawReply) : rawReply.trim();
@@ -295,9 +185,12 @@ async function handleControleCoach(body: ChatRequest, res: VercelResponse) {
         phaseIndex,
     };
 
-    const reply = await callNvidia(
-        buildControleCoachSystemPrompt(),
-        buildControleStepUserPrompt(ctx)
+    const reply = await callOllama(
+        [
+            { role: 'system', content: buildControleCoachSystemPrompt() },
+            { role: 'user', content: buildControleStepUserPrompt(ctx) },
+        ],
+        SPECIALIZED_COACH_OPTS
     );
 
     return res.status(200).json({ reply: reply.trim() });
@@ -306,7 +199,6 @@ async function handleControleCoach(body: ChatRequest, res: VercelResponse) {
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -325,32 +217,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return await handleControleCoach(body, res);
         }
 
-        const { messages, provider = 'gemini', userContext } = body;
+        const { messages, userContext } = body;
 
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
             return res.status(400).json({ error: 'Messages requis' });
         }
 
-        let reply: string;
+        const systemContent = userContext
+            ? `${SYSTEM_PROMPT}\n\n📊 DONNÉES DE L'UTILISATEUR :\n${userContext}`
+            : SYSTEM_PROMPT;
 
-        if (provider === 'groq') {
-            reply = await callGroq(messages, userContext);
-        } else {
-            // Default: try Gemini, fallback to Groq
-            try {
-                reply = await callGemini(messages, userContext);
-            } catch (geminiError) {
-                console.warn('Gemini failed, falling back to Groq:', geminiError);
-                reply = await callGroq(messages, userContext);
-            }
-        }
+        const reply = await callOllama(
+            [
+                { role: 'system', content: systemContent },
+                ...messages.filter((m) => m.role !== 'system').map((m) => ({
+                    role: m.role as 'user' | 'assistant',
+                    content: m.content,
+                })),
+            ],
+            COACH_VIBES_OPTS
+        );
 
         return res.status(200).json({ reply });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Erreur interne';
         console.error('Chat API error:', error);
         return res.status(500).json({
             error: 'Erreur du coach IA',
-            details: error.message || 'Erreur interne',
+            details: message,
         });
     }
 }
