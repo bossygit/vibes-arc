@@ -36,10 +36,11 @@ export async function fetchKarmicCoachAdvice(params: FetchKarmicCoachParams): Pr
     }
 
     try {
-        const res = await fetch('/api/karmic-coach', {
+        const res = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                mode: 'karmic',
                 step: params.step,
                 draft: params.draft ?? {},
                 qualities: params.qualities,
