@@ -1,19 +1,129 @@
+/**
+ * POST /api/chat — auto-contenu (zéro import runtime local hors npm).
+ * Sur Vercel Hobby, les imports de fichiers `_*.ts` ou dossiers `_lib/` dans /api
+ * ne sont pas bundlés → FUNCTION_INVOCATION_FAILED. Pattern identique à api/widgets/v2.ts.
+ */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { callOllama } from './lib/ollamaClient';
-import { buildKarmicCoachSystemPrompt } from './lib/karmicCoachKnowledge';
-import {
-    buildStepUserPrompt as buildKarmicStepUserPrompt,
-    parsePartnerSuggestions,
-    stripPartnerSuggestionsLine,
-    type KarmicCoachRequestContext,
-    type KarmicCoachStep,
-} from './lib/karmicCoachPrompts';
-import { buildControleCoachSystemPrompt } from './lib/controleCoachKnowledge';
-import {
-    buildStepUserPrompt as buildControleStepUserPrompt,
-    type ControleCoachContext,
-    type ControleCoachStep,
-} from './lib/controleCoachPrompts';
+
+// ─── Ollama client (inlined) ─────────────────────────────────────────────────
+
+interface OllamaChatMessage {
+    role: 'system' | 'user' | 'assistant';
+    content: string;
+}
+
+interface OllamaCallOptions {
+    temperature?: number;
+    top_p?: number;
+    num_predict?: number;
+}
+
+async function callOllama(
+    messages: OllamaChatMessage[],
+    opts: OllamaCallOptions = {}
+): Promise<string> {
+    const apiKey = process.env.OLLAMA_API_KEY;
+    if (!apiKey) throw new Error('OLLAMA_API_KEY non configurée');
+
+    const url = process.env.OLLAMA_API_URL ?? 'https://ollama.com/api/chat';
+    const model = process.env.OLLAMA_MODEL ?? 'gemma4:31b';
+
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+            model,
+            messages,
+            stream: false,
+            options: {
+                temperature: opts.temperature ?? 0.7,
+                top_p: opts.top_p ?? 0.9,
+                num_predict: opts.num_predict ?? 1024,
+            },
+        }),
+    });
+
+    if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Ollama error:', res.status, errorText);
+        throw new Error(`Ollama API error: ${res.status}`);
+    }
+
+    const data = await res.json();
+    const text = data?.message?.content;
+    if (!text) throw new Error('Réponse Ollama vide');
+    return text;
+}
+
+type KarmicCoachStep = 1 | 2 | 3 | 4 | 'afternoon';
+
+interface KarmicCoachRequestContext {
+    step: KarmicCoachStep;
+    draft: Record<string, unknown>;
+    qualities?: Record<string, number>;
+    plotProgress?: Record<string, number>;
+}
+
+function buildKarmicCoachSystemPrompt(): string {
+    return [
+        'Tu es le Coach Karmique — guide expert en Karmic Management (Geshe Michael Roach).',
+        'Tu accompagnes l\'utilisateur dans le Jardin Karmique de Vibes-Arc, étape par étape.',
+        '',
+        'PRINCIPES: Rien ne vient de rien. Aider les autres à réussir crée son propre succès.',
+        '4 ÉTAPES: 1 Intention, 2 Sol (partenaire), 3 Action, 4 Coffee Meditation.',
+        'CONSIGNES: français, 150-250 mots, 2-3 puces actionnables.',
+        'Étape 2: terminer par PARTNER_SUGGESTIONS: type1 | type2 | type3 si demandé.',
+    ].join('\n');
+}
+
+function buildKarmicStepUserPrompt(ctx: KarmicCoachRequestContext): string {
+    const missions: Record<KarmicCoachStep, string> = {
+        1: 'ÉTAPE 1 — Intention: aide à affiner l\'objectif en une phrase claire.',
+        2: 'ÉTAPE 2 — Sol: propose 3 types de partenaires karmiques. Termine par PARTNER_SUGGESTIONS: a | b | c',
+        3: 'ÉTAPE 3 — Action: formule une action concrète pour le partenaire aujourd\'hui.',
+        4: 'ÉTAPE 4 — Coffee Meditation: script personnalisé 4-6 phrases.',
+        afternoon: 'APRÈS-MIDI: 2-3 actions adaptées aux parcelles faibles.',
+    };
+    const draft = ctx.draft?.goal ? `Intention: ${ctx.draft.goal}` : '(aucun champ rempli)';
+    return [missions[ctx.step], '', '--- Contexte ---', draft].join('\n');
+}
+
+function parsePartnerSuggestions(reply: string): string[] {
+    const match = reply.match(/PARTNER_SUGGESTIONS:\s*(.+?)(?:\n|$)/i);
+    if (!match) return [];
+    return match[1].split('|').map((s) => s.trim()).filter(Boolean).slice(0, 3);
+}
+
+function stripPartnerSuggestionsLine(reply: string): string {
+    return reply.replace(/\n?PARTNER_SUGGESTIONS:.+$/im, '').trim();
+}
+
+type ControleCoachStep =
+    | 'welcome' | 'wizard_result' | 'daily' | 'exercise' | 'breath' | 'session_log' | 'phase_advance';
+
+interface ControleCoachContext {
+    step: ControleCoachStep;
+    profile?: Record<string, unknown>;
+    progress?: Record<string, unknown>;
+    exerciseId?: string;
+    sessionLog?: { seconds: number; anxiety: number };
+    phaseIndex?: number;
+}
+
+function buildControleCoachSystemPrompt(): string {
+    return [
+        'Tu es le Coach de « La Voie du Contrôle » — programme de contrôle éducatif.',
+        'Combine médecine comportementale, taoïsme et discipline psychologique.',
+        'CONSIGNES: français, 120-220 mots, ton bienveillant, 2-3 puces actionnables.',
+    ].join('\n');
+}
+
+function buildControleStepUserPrompt(ctx: ControleCoachContext): string {
+    return `Étape: ${ctx.step}\nProfil: ${JSON.stringify(ctx.profile ?? {})}`;
+}
 
 // ─── System Prompt : Coach Vibes (Vibrational Alignment System) ───────────────
 
