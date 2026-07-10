@@ -20,6 +20,7 @@ import ManifestationView from '@/components/ManifestationView';
 import CoachChat from '@/components/CoachChat';
 import KarmicGardenView from '@/components/KarmicGardenView';
 import ControleEjaculationView from '@/components/ControleEjaculationView';
+import FocusHoldView from '@/components/FocusHoldView';
 import InnerChildCheckin from '@/components/InnerChildCheckin';
 import Celebration from '@/components/Celebration';
 import { getCurrentDayIndex, isHabitActiveOnDay, getHabitStartDayIndex } from '@/utils/habitUtils';
@@ -95,6 +96,8 @@ function App() {
                 return <ControleEjaculationView />;
             case 'innerChild':
                 return <InnerChildCheckin />;
+            case 'focusHold':
+                return <FocusHoldView />;
             case 'accountSettings':
                 return <AccountSettingsView />;
             default:

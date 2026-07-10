@@ -815,24 +815,70 @@ class SupabaseDatabaseClient {
     }
 
     async sendMilestoneTelegramNotification(message: string): Promise<{ status: string; reason?: string }> {
-        try {
-            const { data, error } = await this.supabase.functions.invoke('send-notifications', {
-                body: {
-                    mode: 'single',
-                    reason: 'milestone',
-                    previewMessage: message,
-                },
-            });
+      try {
+        const { data, error } = await this.supabase.functions.invoke('send-notifications', {
+          body: {
+            mode: 'single',
+            reason: 'milestone',
+            previewMessage: message,
+          },
+        });
 
-            if (error) {
-                return { status: 'error', reason: error.message };
-            }
-
-            return (data as { status: string; reason?: string }) ?? { status: 'sent' };
-        } catch (err: unknown) {
-            return { status: 'error', reason: (err as Error).message };
+        if (error) {
+          return { status: 'error', reason: error.message };
         }
+
+        return (data as { status: string; reason?: string }) ?? { status: 'sent' };
+      } catch (err: unknown) {
+        return { status: 'error', reason: (err as Error).message };
+      }
     }
-}
+
+    // ===== FOCUS 17/68 (focus_holds) =====
+
+    async saveFocusHold(
+      durationSeconds: number,
+      intentionLabel: string | null,
+      milestoneReached: number,
+      startedAt?: string
+    ): Promise<boolean> {
+      const user = await this.getCurrentUser();
+      if (!user) return false;
+
+      const { error } = await this.supabase
+        .from('focus_holds')
+        .insert({
+          user_id: user.id,
+          intention_label: intentionLabel,
+          started_at: startedAt ?? new Date().toISOString(),
+          duration_seconds: durationSeconds,
+          milestone_reached: milestoneReached,
+        });
+
+      if (error) {
+        console.warn('Erreur sauvegarde focus_hold:', error.message);
+        return false;
+      }
+      return true;
+    }
+
+    async getFocusHolds(limit: number = 20): Promise<any[]> {
+      const user = await this.getCurrentUser();
+      if (!user) return [];
+
+      const { data, error } = await this.supabase
+        .from('focus_holds')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('started_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        console.warn('Erreur chargement focus_holds:', error.message);
+        return [];
+      }
+      return data ?? [];
+    }
+    }
 
 export default SupabaseDatabaseClient;
