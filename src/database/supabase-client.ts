@@ -879,6 +879,27 @@ class SupabaseDatabaseClient {
       }
       return data ?? [];
     }
+
+    async getFocusAggregates(daysBack: number = 90): Promise<any[]> {
+      const user = await this.getCurrentUser();
+      if (!user) return [];
+
+      const since = new Date();
+      since.setDate(since.getDate() - daysBack);
+
+      const { data, error } = await this.supabase
+        .from('focus_holds')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('started_at', since.toISOString())
+        .order('started_at', { ascending: false });
+
+      if (error) {
+        console.warn('Erreur chargement focus aggregates:', error.message);
+        return [];
+      }
+      return data ?? [];
     }
+  }
 
 export default SupabaseDatabaseClient;

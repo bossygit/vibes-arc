@@ -2,6 +2,9 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, Sparkles, RotateCcw } from 'lucide-react';
 import SupabaseDatabaseClient from '@/database/supabase-client';
+import { tierFor, feedbackFor, MILESTONES } from '@/utils/focusStatsUtils';
+import { syncFocusHabitOnSession } from '@/utils/focusHabitSync';
+import FocusDashboard from '@/components/focus/FocusDashboard';
 
 // ===================================================================
 // Focus 17/68 — Pratique de concentration sur une pensée unique
@@ -9,32 +12,12 @@ import SupabaseDatabaseClient from '@/database/supabase-client';
 // Règle des 17 secondes (Abraham-Hicks) : 17s = activation, 68s = ancrage
 // ===================================================================
 
-const MILESTONES = [17, 34, 51, 68];
-
 type Phase = 'setup' | 'countdown' | 'holding' | 'result';
 
 interface FocusSession {
   duration: number;
   intention: string;
   tier: number;
-}
-
-function tierFor(durationSec: number): number {
-  let tier = 0;
-  for (let i = 0; i < MILESTONES.length; i++) {
-    if (durationSec >= MILESTONES[i]) tier = i + 1;
-  }
-  return tier;
-}
-
-function feedbackFor(durationSec: number, tier: number): string {
-  const s = durationSec.toFixed(1);
-  if (tier === 0) {
-    const remaining = Math.max(0, 17 - durationSec).toFixed(0);
-    return `${s}s tenues. Encore ${remaining}s pour le premier palier (17s).`;
-  }
-  if (tier === 4) return `${s}s — cycle complet des 4 paliers atteint (68s).`;
-  return `${s}s — palier ${tier} atteint (${MILESTONES[tier - 1]}s).`;
 }
 
 // ─── Milestone Ring (anneau 4 segments) ──────────────────────────
@@ -200,6 +183,11 @@ const FocusHoldView: React.FC = () => {
 
     // Persister en arrière-plan
     saveFocusHold(duration, intention, currentTier);
+
+    // Sync habitude si palier ≥ 1 (au moins 17s)
+    if (currentTier >= 1) {
+      syncFocusHabitOnSession();
+    }
   };
 
   // Ref toujours à jour pour le listener clavier global
@@ -373,6 +361,9 @@ const FocusHoldView: React.FC = () => {
           ))}
         </div>
       )}
+
+      {/* Dashboard de tendance (Phase 3) */}
+      <FocusDashboard />
     </div>
   );
 };
