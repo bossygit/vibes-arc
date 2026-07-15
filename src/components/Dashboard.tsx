@@ -13,6 +13,7 @@ import MilestonesSection from './MilestonesSection';
 import RewardSection from './RewardSection';
 import OverallCalendar from './OverallCalendar';
 import MonthlySummary2026 from './MonthlySummary2026';
+import { MomentumBreakGate } from './MomentumBreakDialog';
 import { motion } from 'framer-motion';
 import { getCurrentDayIndex } from '@/utils/habitUtils';
 
@@ -96,6 +97,9 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="space-y-8">
+            {/* Rupture de momentum — bloquant doux si 3+ jours < 50% */}
+            <MomentumBreakGate habits={habits} todayIdx={todayIdxForStats} />
+
             {/* Inner Child Check-in — bloquant doux si non fait aujourd'hui */}
             <InnerChildGate onStart={() => setView('innerChild')} />
 
