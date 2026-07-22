@@ -12,6 +12,7 @@ import {
 import { motion } from 'framer-motion';
 import { EmotionalFrequency } from '@/types';
 import EmotionalTimeline from './EmotionalTimeline';
+import ProcessRecommender from './ProcessRecommender';
 
 // ============================================================
 // Échelle de guidance émotionnelle (Esther Hicks — 22 niveaux)
@@ -201,6 +202,14 @@ const MoodCheckin: React.FC = () => {
                             « {todayMood.notes} »
                         </p>
                     )}
+                    {todayMood?.causes && (
+                        <p className="mt-1 text-xs text-gray-400 pl-15">
+                            Causes : {todayMood.causes}
+                        </p>
+                    )}
+                    <div className="mt-3">
+                        <ProcessRecommender score={todayMood.score} compact />
+                    </div>
                 </motion.div>
             )}
 
@@ -272,11 +281,22 @@ const MoodCheckin: React.FC = () => {
                         >
                             <p className={`text-sm font-medium ${zoneConfig[zone].text} flex items-center gap-2`}>
                                 <span>{zoneConfig[zone].icon}</span>
-                                {zoneConfig[zone].label} — {selectedLevel?.score}/10
+                                {zoneConfig[zone].label} — {selectedLevel?.score}/22
                             </p>
                             <p className={`text-xs mt-1 ${zoneConfig[zone].text} opacity-80`}>
                                 {zoneConfig[zone].message}
                             </p>
+                        </motion.div>
+                    )}
+
+                    {/* Processus recommandés */}
+                    {selectedScore && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="mb-4"
+                        >
+                            <ProcessRecommender score={selectedScore} compact />
                         </motion.div>
                     )}
 
