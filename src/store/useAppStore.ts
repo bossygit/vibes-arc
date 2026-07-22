@@ -60,7 +60,7 @@ interface AppState {
     addDesire: (desire: Omit<Desire, 'id' | 'createdAt'>) => Promise<Desire>;
     updateDesire: (id: number, updates: Partial<Desire>) => void;
     deleteDesire: (id: number) => void;
-    saveMood: (score: EmotionalFrequency, dominantEmotion?: string, notes?: string) => Promise<void>;
+    saveMood: (score: EmotionalFrequency, dominantEmotion?: string, notes?: string, causes?: string) => Promise<void>;
     loadTodayMood: () => Promise<void>;
     loadMoods: (daysBack?: number) => Promise<void>;
     addAccuser: (accuser: Omit<Accuser, 'id' | 'createdAt' | 'progress' | 'startDayIndex'>) => Promise<Accuser>;
@@ -665,10 +665,10 @@ export const useAppStore = create<AppState>((set) => {
             }
         },
 
-        saveMood: async (score, dominantEmotion, notes) => {
+        saveMood: async (score, dominantEmotion, notes, causes) => {
             try {
                 const today = new Date().toISOString().slice(0, 10);
-                const mood = await db.saveDailyMood(today, score, dominantEmotion, notes);
+                const mood = await db.saveDailyMood(today, score, dominantEmotion, notes, causes);
                 set((state) => {
                     const existingIdx = state.dailyMoods.findIndex(m => m.date === today);
                     const dailyMoods = existingIdx >= 0

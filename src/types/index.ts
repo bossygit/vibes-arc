@@ -279,6 +279,7 @@ export interface DailyMood {
     score: EmotionalFrequency;       // 1-10
     dominantEmotion?: string;        // "anxiété", "gratitude", "frustration"...
     notes?: string;
+    causes?: string;                 // ce qui a influencé cet état (contexte, triggers)
     createdAt: string;
 }
 

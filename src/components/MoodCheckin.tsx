@@ -7,9 +7,11 @@ import {
     CheckCircle2,
     Save,
     Edit3,
+    Search,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { EmotionalFrequency, isAligned, isResisting } from '@/types';
+import EmotionalTimeline from './EmotionalTimeline';
 
 // ============================================================
 // Échelle vibratoire complète (Esther Hicks)
@@ -119,49 +121,6 @@ const FREQUENCY_SCALE: FrequencyLevel[] = [
 ];
 
 // ============================================================
-// Mood History Strip
-// ============================================================
-
-const MoodHistoryStrip: React.FC<{ moods: { date: string; score: EmotionalFrequency }[] }> = ({
-    moods,
-}) => {
-    if (moods.length === 0) return null;
-
-    return (
-        <div className="mt-3">
-            <p className="text-xs text-gray-400 mb-2 flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" />
-                7 derniers jours
-            </p>
-            <div className="flex gap-1.5">
-                {moods.slice(0, 7).reverse().map((m) => {
-                    const level = FREQUENCY_SCALE.find((l) => l.score === m.score);
-                    const day = new Date(m.date).toLocaleDateString('fr', { weekday: 'short' });
-                    return (
-                        <div
-                            key={m.date}
-                            className="flex-1 text-center"
-                            title={`${day}: ${level?.label} (${m.score}/10)`}
-                        >
-                            <div className="text-[10px] text-gray-400 mb-1">{day}</div>
-                            <div
-                                className="w-6 h-6 rounded-full mx-auto flex items-center justify-center text-xs"
-                                style={{ backgroundColor: level?.color + '20', color: level?.color }}
-                            >
-                                {level?.emoji}
-                            </div>
-                            <div className="text-[10px] font-medium mt-0.5" style={{ color: level?.color }}>
-                                {m.score}
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
-    );
-};
-
-// ============================================================
 // MoodCheckin
 // ============================================================
 
@@ -170,6 +129,7 @@ const MoodCheckin: React.FC = () => {
     const [selectedScore, setSelectedScore] = useState<EmotionalFrequency | null>(null);
     const [dominantEmotion, setDominantEmotion] = useState('');
     const [notes, setNotes] = useState('');
+    const [causes, setCauses] = useState('');
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [editing, setEditing] = useState(false);
@@ -184,6 +144,7 @@ const MoodCheckin: React.FC = () => {
             setSelectedScore(todayMood.score);
             setDominantEmotion(todayMood.dominantEmotion || '');
             setNotes(todayMood.notes || '');
+            setCauses(todayMood.causes || '');
         }
     }, [todayMood, editing]);
 
@@ -198,7 +159,8 @@ const MoodCheckin: React.FC = () => {
             await saveMood(
                 selectedScore,
                 dominantEmotion.trim() || undefined,
-                notes.trim() || undefined
+                notes.trim() || undefined,
+                causes.trim() || undefined
             );
             setSaved(true);
             setEditing(false);
@@ -418,6 +380,20 @@ const MoodCheckin: React.FC = () => {
                                 />
                             </div>
 
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+                                    <Search className="w-3 h-3" />
+                                    Causes (optionnel) — qu'est-ce qui a influencé cet état ?
+                                </label>
+                                <textarea
+                                    value={causes}
+                                    onChange={(e) => setCauses(e.target.value)}
+                                    placeholder="Client stressant, deadline non tenue, bonne nuit de sommeil, méditation du matin..."
+                                    rows={2}
+                                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none resize-none"
+                                />
+                            </div>
+
                             <button
                                 onClick={handleSave}
                                 disabled={saving || !selectedScore}
@@ -442,19 +418,13 @@ const MoodCheckin: React.FC = () => {
                 </motion.div>
             )}
 
-            {/* Last 7 days history */}
+            {/* Timeline 30 jours */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                 <h3 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-purple-500" />
-                    Historique vibratoire
+                    Territoire émotionnel — 30 derniers jours
                 </h3>
-                {dailyMoods.length > 0 ? (
-                    <MoodHistoryStrip moods={dailyMoods.slice(0, 7)} />
-                ) : (
-                    <p className="text-sm text-gray-400 text-center py-4">
-                        Pas encore d'historique. Fais ton premier check-in aujourd'hui.
-                    </p>
-                )}
+                <EmotionalTimeline moods={dailyMoods} daysBack={30} />
             </div>
 
             {/* Esther Hicks quote */}

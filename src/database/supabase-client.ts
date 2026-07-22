@@ -1005,7 +1005,8 @@ class SupabaseDatabaseClient {
         date: string,
         score: number,
         dominantEmotion?: string,
-        notes?: string
+        notes?: string,
+        causes?: string
     ): Promise<import('@/types').DailyMood> {
         const user = await this.getCurrentUser();
         if (!user) throw new Error('Utilisateur non authentifié');
@@ -1019,6 +1020,7 @@ class SupabaseDatabaseClient {
                     score,
                     dominant_emotion: dominantEmotion ?? null,
                     notes: notes ?? null,
+                    causes: causes ?? null,
                 },
                 { onConflict: 'user_id,date' }
             )
@@ -1033,6 +1035,7 @@ class SupabaseDatabaseClient {
             score: data.score as import('@/types').EmotionalFrequency,
             dominantEmotion: data.dominant_emotion,
             notes: data.notes,
+            causes: data.causes,
             createdAt: data.created_at,
         };
     }
@@ -1059,6 +1062,7 @@ class SupabaseDatabaseClient {
             score: m.score as import('@/types').EmotionalFrequency,
             dominantEmotion: m.dominant_emotion,
             notes: m.notes,
+            causes: m.causes,
             createdAt: m.created_at,
         }));
     }
@@ -1084,6 +1088,7 @@ class SupabaseDatabaseClient {
             score: data.score as import('@/types').EmotionalFrequency,
             dominantEmotion: data.dominant_emotion,
             notes: data.notes,
+            causes: data.causes,
             createdAt: data.created_at,
         };
     }
