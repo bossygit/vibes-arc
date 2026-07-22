@@ -22,6 +22,8 @@ import KarmicGardenView from '@/components/KarmicGardenView';
 import ControleEjaculationView from '@/components/ControleEjaculationView';
 import FocusHoldView from '@/components/FocusHoldView';
 import InnerChildCheckin from '@/components/InnerChildCheckin';
+import MoodCheckin from '@/components/MoodCheckin';
+import TribunalView from '@/components/TribunalView';
 import Celebration from '@/components/Celebration';
 import { getCurrentDayIndex, isHabitActiveOnDay, getHabitStartDayIndex } from '@/utils/habitUtils';
 import { useGameHabitSync } from '@/hooks/useGameHabitSync';
@@ -98,6 +100,10 @@ function App() {
                 return <InnerChildCheckin />;
             case 'focusHold':
                 return <FocusHoldView />;
+            case 'tribunal':
+                return <TribunalView />;
+            case 'moodCheckin':
+                return <MoodCheckin />;
             case 'accountSettings':
                 return <AccountSettingsView />;
             default:

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs, NotificationChannel, PrimingSession, EnvironmentMap, MilestoneAchievement, PendingMilestoneCelebration } from '@/types';
+import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs, NotificationChannel, PrimingSession, EnvironmentMap, MilestoneAchievement, PendingMilestoneCelebration, Desire, DailyMood, Accuser, EmotionalFrequency } from '@/types';
 import SupabaseDatabaseClient from '@/database/supabase-client';
 import { computePointsForAction, calculateHabitStats, isHabitActiveOnDay } from '@/utils/habitUtils';
 import { evaluateMilestones, detectNewAchievements } from '@/utils/milestoneUtils';
@@ -18,6 +18,11 @@ interface AppState {
     environments: EnvironmentMap[];
     milestoneAchievements: MilestoneAchievement[];
     pendingMilestoneCelebration: PendingMilestoneCelebration | null;
+    // v2 — Tribunal de la Vie
+    desires: Desire[];
+    dailyMoods: DailyMood[];
+    todayMood: DailyMood | null;
+    accusers: Accuser[];
 
     // Actions
     setView: (view: ViewType) => void;
@@ -51,6 +56,16 @@ interface AppState {
     updateEnvironment: (id: string, updates: Partial<Omit<EnvironmentMap, 'id' | 'createdAt'>>) => void;
     deleteEnvironment: (id: string) => void;
     clearMilestoneCelebration: () => void;
+    // v2 — Tribunal de la Vie
+    addDesire: (desire: Omit<Desire, 'id' | 'createdAt'>) => Promise<Desire>;
+    updateDesire: (id: number, updates: Partial<Desire>) => void;
+    deleteDesire: (id: number) => void;
+    saveMood: (score: EmotionalFrequency, dominantEmotion?: string, notes?: string) => Promise<void>;
+    loadTodayMood: () => Promise<void>;
+    loadMoods: (daysBack?: number) => Promise<void>;
+    addAccuser: (accuser: Omit<Accuser, 'id' | 'createdAt' | 'progress' | 'startDayIndex'>) => Promise<Accuser>;
+    toggleAccuserDay: (accuserId: number, dayIndex: number) => void;
+    deleteAccuser: (id: number) => void;
 }
 
 export const useAppStore = create<AppState>((set) => {
@@ -193,6 +208,24 @@ export const useAppStore = create<AppState>((set) => {
                 milestoneAchievements = [];
             }
 
+            // v2 — Charger les Désirs, Moods, et Accusateurs
+            let desires: Desire[] = [];
+            let dailyMoods: DailyMood[] = [];
+            let accusers: Accuser[] = [];
+            let todayMood: DailyMood | null = null;
+            try {
+                desires = await db.getDesires();
+            } catch { /* silencieux : les tables n'existent peut-être pas encore */ }
+            try {
+                dailyMoods = await db.getDailyMoods(90);
+            } catch { }
+            try {
+                todayMood = await db.getTodayMood();
+            } catch { }
+            try {
+                accusers = await db.getAccusers();
+            } catch { }
+
             const initialProgress = evaluateMilestones(habits, identities, milestoneAchievements);
             const retroactive = initialProgress.filter(
                 (p) =>
@@ -204,7 +237,7 @@ export const useAppStore = create<AppState>((set) => {
                 if (saved) milestoneAchievements = [saved, ...milestoneAchievements];
             }
 
-            set({ identities, habits, skipsByHabit, gamification, userPrefs, primingSessions, environments, milestoneAchievements });
+            set({ identities, habits, skipsByHabit, gamification, userPrefs, primingSessions, environments, milestoneAchievements, desires, dailyMoods, todayMood, accusers });
         } catch (error) {
             console.error('Erreur lors du chargement des données:', error);
             // En cas d'erreur, initialiser avec des tableaux vides
@@ -217,6 +250,10 @@ export const useAppStore = create<AppState>((set) => {
                 primingSessions: loadPrimingSessions(),
                 environments: loadEnvironments(),
                 milestoneAchievements: [],
+                desires: [],
+                dailyMoods: [],
+                todayMood: null,
+                accusers: [],
             });
         }
     };
@@ -237,6 +274,11 @@ export const useAppStore = create<AppState>((set) => {
         environments: loadEnvironments(),
         milestoneAchievements: [],
         pendingMilestoneCelebration: null,
+        // v2
+        desires: [],
+        dailyMoods: [],
+        todayMood: null,
+        accusers: [],
 
         // Actions
         setView: (view) => set({ view }),
@@ -571,5 +613,145 @@ export const useAppStore = create<AppState>((set) => {
         },
 
         clearMilestoneCelebration: () => set({ pendingMilestoneCelebration: null }),
+
+        // ============================================================
+        // VIBES ARC v2 — Tribunal de la Vie
+        // ============================================================
+
+        addDesire: async (desireData) => {
+            try {
+                const newDesire = await db.createDesire(
+                    desireData.title,
+                    desireData.type,
+                    desireData.linkedIdentityId,
+                    desireData.description,
+                    desireData.target
+                );
+                set((state) => ({
+                    desires: [...state.desires, newDesire],
+                }));
+                return newDesire;
+            } catch (error) {
+                console.error('Erreur lors de la création du désir:', error);
+                throw error;
+            }
+        },
+
+        updateDesire: async (id, updates) => {
+            try {
+                const success = await db.updateDesire(id, updates);
+                if (success) {
+                    set((state) => ({
+                        desires: state.desires.map(d =>
+                            d.id === id ? { ...d, ...updates } : d
+                        ),
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur lors de la mise à jour du désir:', error);
+            }
+        },
+
+        deleteDesire: async (id) => {
+            try {
+                const success = await db.deleteDesire(id);
+                if (success) {
+                    set((state) => ({
+                        desires: state.desires.filter(d => d.id !== id),
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur lors de la suppression du désir:', error);
+            }
+        },
+
+        saveMood: async (score, dominantEmotion, notes) => {
+            try {
+                const today = new Date().toISOString().slice(0, 10);
+                const mood = await db.saveDailyMood(today, score, dominantEmotion, notes);
+                set((state) => {
+                    const existingIdx = state.dailyMoods.findIndex(m => m.date === today);
+                    const dailyMoods = existingIdx >= 0
+                        ? state.dailyMoods.map((m, i) => i === existingIdx ? mood : m)
+                        : [mood, ...state.dailyMoods];
+                    return { dailyMoods, todayMood: mood };
+                });
+            } catch (error) {
+                console.error('Erreur lors de la sauvegarde du mood:', error);
+            }
+        },
+
+        loadTodayMood: async () => {
+            try {
+                const mood = await db.getTodayMood();
+                set({ todayMood: mood });
+            } catch {
+                // silencieux
+            }
+        },
+
+        loadMoods: async (daysBack = 90) => {
+            try {
+                const moods = await db.getDailyMoods(daysBack);
+                set({ dailyMoods: moods });
+            } catch {
+                // silencieux
+            }
+        },
+
+        addAccuser: async (accuserData) => {
+            try {
+                const newAccuser = await db.createAccuser(
+                    accuserData.name,
+                    accuserData.linkedDesireId,
+                    accuserData.totalDays
+                );
+                set((state) => ({
+                    accusers: [...state.accusers, newAccuser],
+                }));
+                return newAccuser;
+            } catch (error) {
+                console.error('Erreur lors de la création de l\'accusateur:', error);
+                throw error;
+            }
+        },
+
+        toggleAccuserDay: async (accuserId, dayIndex) => {
+            try {
+                const success = await db.toggleAccuserDay(accuserId, dayIndex);
+                if (success) {
+                    set((state) => ({
+                        accusers: state.accusers.map(a => {
+                            if (a.id === accuserId) {
+                                const newProgress = [...a.progress];
+                                if (dayIndex >= newProgress.length) {
+                                    const extended = [...newProgress, ...new Array(dayIndex - newProgress.length + 1).fill(false)];
+                                    extended[dayIndex] = !extended[dayIndex];
+                                    return { ...a, progress: extended, totalDays: extended.length };
+                                }
+                                newProgress[dayIndex] = !newProgress[dayIndex];
+                                return { ...a, progress: newProgress };
+                            }
+                            return a;
+                        }),
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur toggleAccuserDay:', error);
+            }
+        },
+
+        deleteAccuser: async (id) => {
+            try {
+                const success = await db.deleteAccuser(id);
+                if (success) {
+                    set((state) => ({
+                        accusers: state.accusers.filter(a => a.id !== id),
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur suppression accusateur:', error);
+            }
+        },
     };
 });

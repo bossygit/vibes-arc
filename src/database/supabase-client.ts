@@ -900,6 +900,335 @@ class SupabaseDatabaseClient {
       }
       return data ?? [];
     }
+
+    // ============================================================
+    // VIBES ARC v2 — Tribunal de la Vie
+    // ============================================================
+
+    // ===== DESIRES =====
+
+    async createDesire(
+        title: string,
+        type: 'avoir' | 'être',
+        linkedIdentityId: number,
+        description?: string,
+        target?: string
+    ): Promise<import('@/types').Desire> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { data, error } = await this.supabase
+            .from('desires')
+            .insert({
+                user_id: user.id,
+                title,
+                type,
+                description: description ?? null,
+                target: target ?? null,
+                linked_identity_id: linkedIdentityId,
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        return {
+            id: data.id,
+            title: data.title,
+            type: data.type,
+            description: data.description,
+            target: data.target,
+            linkedIdentityId: data.linked_identity_id,
+            createdAt: data.created_at,
+        };
+    }
+
+    async getDesires(): Promise<import('@/types').Desire[]> {
+        const user = await this.getCurrentUser();
+        if (!user) return [];
+
+        const { data, error } = await this.supabase
+            .from('desires')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        return (data || []).map((d: any) => ({
+            id: d.id,
+            title: d.title,
+            type: d.type,
+            description: d.description,
+            target: d.target,
+            linkedIdentityId: d.linked_identity_id,
+            createdAt: d.created_at,
+        }));
+    }
+
+    async updateDesire(id: number, updates: Partial<import('@/types').Desire>): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const payload: any = { updated_at: new Date().toISOString() };
+        if (updates.title !== undefined) payload.title = updates.title;
+        if (updates.type !== undefined) payload.type = updates.type;
+        if (updates.description !== undefined) payload.description = updates.description;
+        if (updates.target !== undefined) payload.target = updates.target;
+        if (updates.linkedIdentityId !== undefined) payload.linked_identity_id = updates.linkedIdentityId;
+
+        const { error } = await this.supabase
+            .from('desires')
+            .update(payload)
+            .eq('id', id)
+            .eq('user_id', user.id);
+
+        return !error;
+    }
+
+    async deleteDesire(id: number): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { error } = await this.supabase
+            .from('desires')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', user.id);
+
+        return !error;
+    }
+
+    // ===== DAILY MOODS =====
+
+    async saveDailyMood(
+        date: string,
+        score: number,
+        dominantEmotion?: string,
+        notes?: string
+    ): Promise<import('@/types').DailyMood> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { data, error } = await this.supabase
+            .from('daily_moods')
+            .upsert(
+                {
+                    user_id: user.id,
+                    date,
+                    score,
+                    dominant_emotion: dominantEmotion ?? null,
+                    notes: notes ?? null,
+                },
+                { onConflict: 'user_id,date' }
+            )
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        return {
+            id: data.id,
+            date: data.date,
+            score: data.score as import('@/types').EmotionalFrequency,
+            dominantEmotion: data.dominant_emotion,
+            notes: data.notes,
+            createdAt: data.created_at,
+        };
+    }
+
+    async getDailyMoods(daysBack: number = 90): Promise<import('@/types').DailyMood[]> {
+        const user = await this.getCurrentUser();
+        if (!user) return [];
+
+        const since = new Date();
+        since.setDate(since.getDate() - daysBack);
+
+        const { data, error } = await this.supabase
+            .from('daily_moods')
+            .select('*')
+            .eq('user_id', user.id)
+            .gte('date', since.toISOString().slice(0, 10))
+            .order('date', { ascending: false });
+
+        if (error) throw error;
+
+        return (data || []).map((m: any) => ({
+            id: m.id,
+            date: m.date,
+            score: m.score as import('@/types').EmotionalFrequency,
+            dominantEmotion: m.dominant_emotion,
+            notes: m.notes,
+            createdAt: m.created_at,
+        }));
+    }
+
+    async getTodayMood(): Promise<import('@/types').DailyMood | null> {
+        const user = await this.getCurrentUser();
+        if (!user) return null;
+
+        const today = new Date().toISOString().slice(0, 10);
+
+        const { data, error } = await this.supabase
+            .from('daily_moods')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('date', today)
+            .maybeSingle();
+
+        if (error || !data) return null;
+
+        return {
+            id: data.id,
+            date: data.date,
+            score: data.score as import('@/types').EmotionalFrequency,
+            dominantEmotion: data.dominant_emotion,
+            notes: data.notes,
+            createdAt: data.created_at,
+        };
+    }
+
+    // ===== ACCUSERS =====
+
+    async createAccuser(
+        name: string,
+        linkedDesireId: number,
+        totalDays: number = 92
+    ): Promise<import('@/types').Accuser> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { data, error } = await this.supabase
+            .from('accusers')
+            .insert({
+                user_id: user.id,
+                name,
+                linked_desire_id: linkedDesireId,
+                total_days: totalDays,
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        return {
+            id: data.id,
+            name: data.name,
+            linkedDesireId: data.linked_desire_id,
+            totalDays: data.total_days,
+            progress: new Array(totalDays).fill(false),
+            createdAt: data.created_at,
+            startDayIndex: (() => {
+                try {
+                    const base = new Date(2025, 9, 1);
+                    base.setHours(0, 0, 0, 0);
+                    const created = new Date(data.created_at);
+                    created.setHours(0, 0, 0, 0);
+                    return Math.max(0, Math.floor((created.getTime() - base.getTime()) / (1000 * 60 * 60 * 24)));
+                } catch {
+                    return 0;
+                }
+            })(),
+        };
+    }
+
+    async getAccusers(desireId?: number): Promise<import('@/types').Accuser[]> {
+        const user = await this.getCurrentUser();
+        if (!user) return [];
+
+        let query = this.supabase
+            .from('accusers')
+            .select('*')
+            .eq('user_id', user.id);
+
+        if (desireId !== undefined) {
+            query = query.eq('linked_desire_id', desireId);
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
+        if (error) throw error;
+
+        const result: import('@/types').Accuser[] = [];
+
+        for (const accuser of (data || [])) {
+            // Récupérer la progression
+            const { data: progressData } = await this.supabase
+                .from('accuser_progress')
+                .select('day_index, occurred')
+                .eq('accuser_id', accuser.id)
+                .order('day_index');
+
+            const progress = new Array(accuser.total_days).fill(false);
+            progressData?.forEach((p: any) => {
+                if (p.day_index < progress.length) {
+                    progress[p.day_index] = p.occurred;
+                }
+            });
+
+            result.push({
+                id: accuser.id,
+                name: accuser.name,
+                linkedDesireId: accuser.linked_desire_id,
+                totalDays: accuser.total_days,
+                progress,
+                createdAt: accuser.created_at,
+                startDayIndex: (() => {
+                    try {
+                        const base = new Date(2025, 9, 1);
+                        base.setHours(0, 0, 0, 0);
+                        const created = new Date(accuser.created_at);
+                        created.setHours(0, 0, 0, 0);
+                        return Math.max(0, Math.floor((created.getTime() - base.getTime()) / (1000 * 60 * 60 * 24)));
+                    } catch {
+                        return 0;
+                    }
+                })(),
+            });
+        }
+
+        return result;
+    }
+
+    async toggleAccuserDay(accuserId: number, dayIndex: number): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { data: current } = await this.supabase
+            .from('accuser_progress')
+            .select('occurred')
+            .eq('accuser_id', accuserId)
+            .eq('day_index', dayIndex)
+            .maybeSingle();
+
+        const newOccurred = !current?.occurred;
+
+        const { error } = await this.supabase
+            .from('accuser_progress')
+            .upsert(
+                {
+                    accuser_id: accuserId,
+                    day_index: dayIndex,
+                    occurred: newOccurred,
+                    occurred_at: newOccurred ? new Date().toISOString() : null,
+                },
+                { onConflict: 'accuser_id,day_index' }
+            );
+
+        return !error;
+    }
+
+    async deleteAccuser(id: number): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { error } = await this.supabase
+            .from('accusers')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', user.id);
+
+        return !error;
+    }
   }
 
 export default SupabaseDatabaseClient;

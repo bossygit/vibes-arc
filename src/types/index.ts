@@ -41,11 +41,11 @@ export interface Streak {
 export interface AppState {
     identities: Identity[];
     habits: Habit[];
-    view: 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'karmicGarden' | 'voieControle' | 'focusHold';
+    view: 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin';
     selectedHabitId: number | null;
 }
 
-export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold';
+export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin';
 
 // ===== Priming My Brain (système nerveux) =====
 
@@ -221,5 +221,125 @@ export interface PendingMilestoneCelebration {
     message: string;
     emoji: string;
     milestoneId: string;
+}
+
+// ============================================================
+// VIBES ARC v2 — Tribunal de la Vie + Nature Vibratoire
+// Architecture : Désir → Identité → Signaux → Preuves → Score
+// ============================================================
+
+// ---- Désir ----
+
+export type DesireType = 'avoir' | 'être';
+
+export interface Desire {
+    id: number;
+    title: string;                    // "Générer 10 000 000 FCFA" | "Être en paix avec mon passé"
+    type: DesireType;
+    description?: string;
+    target?: string;                  // Valeur mesurable (ex: "10 000 000 FCFA")
+    linkedIdentityId: number;         // L'identité requise pour recevoir ce désir
+    createdAt: string;
+}
+
+// ---- Fréquence vibratoire (Esther Hicks) ----
+
+export type EmotionalFrequency = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+// 1-3 : Résistance (peur, colère, dépression, insécurité)
+// 4-6 : Neutre (ennui, contentement tiède)
+// 7-8 : Alignement (espoir, optimisme, croyance)
+// 9-10: Plein alignement (joie, gratitude, appréciation, amour)
+
+export const EMOTIONAL_LABELS: Record<EmotionalFrequency, string> = {
+    1: 'Désespoir',
+    2: 'Peur / Insécurité',
+    3: 'Colère / Frustration',
+    4: 'Découragement',
+    5: 'Inquiétude',
+    6: 'Contentement tiède',
+    7: 'Espoir',
+    8: 'Optimisme / Croyance',
+    9: 'Joie / Passion',
+    10: 'Gratitude / Amour',
+};
+
+export function isAligned(score: EmotionalFrequency): boolean {
+    return score >= 7;
+}
+
+export function isResisting(score: EmotionalFrequency): boolean {
+    return score <= 3;
+}
+
+// ---- Check-in vibratoire quotidien ----
+
+export interface DailyMood {
+    id: number;
+    date: string;                    // ISO date (YYYY-MM-DD)
+    score: EmotionalFrequency;       // 1-10
+    dominantEmotion?: string;        // "anxiété", "gratitude", "frustration"...
+    notes?: string;
+    createdAt: string;
+}
+
+// ---- Accusateur (anti-habitude) ----
+
+export interface Accuser {
+    id: number;
+    name: string;                    // "Scrolling avant de dormir", "Dépense impulsive"
+    linkedDesireId: number;
+    totalDays: number;
+    progress: boolean[];             // true = l'accusation a eu lieu ce jour-là
+    createdAt: string;
+    startDayIndex?: number;
+}
+
+// ---- Preuves du jour (par Désir) ----
+
+export interface DailyEvidence {
+    date: string;                     // ISO date
+    desireId: number;
+    signalsCompleted: number;         // Nombre de signaux cochés
+    signalsTotal: number;             // Nombre total de signaux
+    moodScore: EmotionalFrequency;   // Fréquence vibratoire du jour
+    accusatorsActive: number;         // Nombre d'accusateurs actifs
+    isAligned: boolean;              // moodScore >= 7
+}
+
+// ---- Score de crédibilité (par Désir) ----
+
+export type Verdict = 'favorable' | 'mitigé' | 'défavorable';
+
+export interface CredibilityScore {
+    desireId: number;
+    actionScore: number;              // % de signaux complétés (0-100)
+    alignmentScore: number;           // % de jours alignés (mood >= 7)
+    accuserPenalty: number;           // % de jours avec accusateurs actifs (0-100)
+    total: number;                    // Score composite (0-100)
+    verdict: Verdict;                 // favorable: >=70 | mitigé: 40-69 | défavorable: <40
+    periodDays: number;               // Nombre de jours analysés
+}
+
+export function getVerdict(total: number): Verdict {
+    if (total >= 70) return 'favorable';
+    if (total >= 40) return 'mitigé';
+    return 'défavorable';
+}
+
+export const VERDICT_LABELS: Record<Verdict, string> = {
+    favorable: 'Dossier solide — le Tribunal penche en ta faveur',
+    mitigé: 'Dossier incomplet — le Tribunal attend plus de preuves',
+    défavorable: 'Dossier faible — les accusateurs dominent',
+};
+
+// ---- Vue "Tribunal" (dashboard par Désir) ----
+
+export interface DesireDashboard {
+    desire: Desire;
+    identityName: string;
+    signals: { id: number; name: string; streak: number; completionRate: number }[];
+    accusators: { id: number; name: string; activeDays: number }[];
+    credibility: CredibilityScore;
+    recentEvidence: DailyEvidence[];   // 7 derniers jours
 }
 
