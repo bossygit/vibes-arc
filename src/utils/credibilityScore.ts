@@ -144,7 +144,7 @@ export function buildDailyEvidence(
             signalsTotal,
             moodScore,
             accusatorsActive,
-            isAligned: moodScore >= 7,
+            isAligned: moodScore <= 7,
         });
     }
 
@@ -174,7 +174,7 @@ export function computeMoodCompletionCorrelation(
             alignedCount++;
         }
 
-        if (day.moodScore <= 3) {
+        if (day.moodScore >= 15) {
             resistingTotal += rate;
             resistingCount++;
         }

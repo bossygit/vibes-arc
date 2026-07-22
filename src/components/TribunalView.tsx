@@ -633,7 +633,7 @@ const DesireCard: React.FC<{
                                                     {correlation.alignedCompletionRate}%
                                                 </div>
                                                 <div className="text-xs text-gray-400 mt-0.5">
-                                                    Jours alignés (≥7)
+                                                    Jours alignés (≤7)
                                                 </div>
                                             </div>
                                             <div className="bg-white rounded-lg p-3 text-center">
@@ -641,7 +641,7 @@ const DesireCard: React.FC<{
                                                     {correlation.resistingCompletionRate}%
                                                 </div>
                                                 <div className="text-xs text-gray-400 mt-0.5">
-                                                    Jours en résistance (≤3)
+                                                    Jours en résistance (≥15)
                                                 </div>
                                             </div>
                                         </div>
@@ -715,7 +715,7 @@ const DesireCard: React.FC<{
                                                         className={`w-1.5 h-1.5 rounded-full mx-auto ${
                                                             day.isAligned
                                                                 ? 'bg-emerald-400'
-                                                                : day.moodScore <= 3
+                                                                : day.moodScore >= 15
                                                                 ? 'bg-rose-400'
                                                                 : 'bg-amber-400'
                                                         }`}

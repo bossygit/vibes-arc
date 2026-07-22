@@ -242,33 +242,57 @@ export interface Desire {
     createdAt: string;
 }
 
-// ---- Fréquence vibratoire (Esther Hicks) ----
+// ---- Fréquence vibratoire (Esther Hicks — 22 niveaux) ----
 
-export type EmotionalFrequency = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
-// 1-3 : Résistance (peur, colère, dépression, insécurité)
-// 4-6 : Neutre (ennui, contentement tiède)
-// 7-8 : Alignement (espoir, optimisme, croyance)
-// 9-10: Plein alignement (joie, gratitude, appréciation, amour)
+/**
+ * Échelle de guidance émotionnelle d'Abraham Hicks (Ask and It Is Given, Process #22).
+ *
+ * IMPORTANT : 1 = état le plus élevé (Joie), 22 = état le plus bas (Dépression/Peur).
+ * Plus le score est bas, plus tu es aligné avec ta Source.
+ */
+export type EmotionalFrequency = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22;
 
-export const EMOTIONAL_LABELS: Record<EmotionalFrequency, string> = {
-    1: 'Désespoir',
-    2: 'Peur / Insécurité',
-    3: 'Colère / Frustration',
-    4: 'Découragement',
-    5: 'Inquiétude',
-    6: 'Contentement tiède',
-    7: 'Espoir',
-    8: 'Optimisme / Croyance',
-    9: 'Joie / Passion',
-    10: 'Gratitude / Amour',
+export const EMOTIONAL_LABELS: Record<number, string> = {
+    1: 'Joie / Connaissance / Liberté / Amour',
+    2: 'Passion',
+    3: 'Enthousiasme / Ardeur / Bonheur',
+    4: 'Attente positive / Croyance',
+    5: 'Optimisme',
+    6: 'Espoir',
+    7: 'Contentement',
+    8: 'Ennui',
+    9: 'Pessimisme',
+    10: 'Frustration / Irritation / Impatience',
+    11: 'Accablement',
+    12: 'Déception',
+    13: 'Doute',
+    14: 'Inquiétude',
+    15: 'Blâme',
+    16: 'Découragement',
+    17: 'Colère',
+    18: 'Vengeance',
+    19: 'Haine / Rage',
+    20: 'Jalousie',
+    21: 'Insécurité / Culpabilité / Indignité',
+    22: 'Peur / Chagrin / Dépression / Impuissance',
 };
 
+/**
+ * Alignement : score 1-7 (Joie → Contentement)
+ * Résistance : score 15-22 (Blâme → Dépression)
+ */
 export function isAligned(score: EmotionalFrequency): boolean {
-    return score >= 7;
+    return score <= 7;
 }
 
 export function isResisting(score: EmotionalFrequency): boolean {
-    return score <= 3;
+    return score >= 15;
+}
+
+export function getAlignmentZone(score: EmotionalFrequency): 'alignement' | 'neutre' | 'résistance' {
+    if (score <= 7) return 'alignement';
+    if (score >= 15) return 'résistance';
+    return 'neutre';
 }
 
 // ---- Check-in vibratoire quotidien ----

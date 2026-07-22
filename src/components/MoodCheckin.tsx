@@ -10,11 +10,12 @@ import {
     Search,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { EmotionalFrequency, isAligned, isResisting } from '@/types';
+import { EmotionalFrequency } from '@/types';
 import EmotionalTimeline from './EmotionalTimeline';
 
 // ============================================================
-// Échelle vibratoire complète (Esther Hicks)
+// Échelle de guidance émotionnelle (Esther Hicks — 22 niveaux)
+// 1 = Joie/Liberté/Amour (haut), 22 = Peur/Dépression (bas)
 // ============================================================
 
 interface FrequencyLevel {
@@ -28,96 +29,28 @@ interface FrequencyLevel {
 }
 
 const FREQUENCY_SCALE: FrequencyLevel[] = [
-    {
-        score: 1,
-        label: 'Désespoir',
-        description: 'Impuissance, dépression, vide',
-        color: '#7f1d1d',
-        bgColor: 'bg-red-950',
-        borderColor: 'border-red-800',
-        emoji: '🕳️',
-    },
-    {
-        score: 2,
-        label: 'Peur / Insécurité',
-        description: 'Anxiété, doute, jalousie',
-        color: '#dc2626',
-        bgColor: 'bg-red-100',
-        borderColor: 'border-red-300',
-        emoji: '😰',
-    },
-    {
-        score: 3,
-        label: 'Colère / Frustration',
-        description: 'Irritation, impatience, blame',
-        color: '#ea580c',
-        bgColor: 'bg-orange-100',
-        borderColor: 'border-orange-300',
-        emoji: '😤',
-    },
-    {
-        score: 4,
-        label: 'Découragement',
-        description: 'Pessimisme, doute',
-        color: '#f59e0b',
-        bgColor: 'bg-amber-100',
-        borderColor: 'border-amber-300',
-        emoji: '😞',
-    },
-    {
-        score: 5,
-        label: 'Inquiétude',
-        description: 'Préoccupation, légère tension',
-        color: '#eab308',
-        bgColor: 'bg-yellow-100',
-        borderColor: 'border-yellow-300',
-        emoji: '😟',
-    },
-    {
-        score: 6,
-        label: 'Contentement tiède',
-        description: 'Neutre, stable, sans élan',
-        color: '#84cc16',
-        bgColor: 'bg-lime-100',
-        borderColor: 'border-lime-300',
-        emoji: '😐',
-    },
-    {
-        score: 7,
-        label: 'Espoir',
-        description: 'Attente positive, possibilité',
-        color: '#22c55e',
-        bgColor: 'bg-green-100',
-        borderColor: 'border-green-300',
-        emoji: '🌱',
-    },
-    {
-        score: 8,
-        label: 'Optimisme / Croyance',
-        description: 'Confiance, certitude intérieure',
-        color: '#06b6d4',
-        bgColor: 'bg-cyan-100',
-        borderColor: 'border-cyan-300',
-        emoji: '✨',
-    },
-    {
-        score: 9,
-        label: 'Joie / Passion',
-        description: 'Enthousiasme, énergie positive',
-        color: '#8b5cf6',
-        bgColor: 'bg-purple-100',
-        borderColor: 'border-purple-300',
-        emoji: '🔥',
-    },
-    {
-        score: 10,
-        label: 'Gratitude / Amour',
-        description: 'Appréciation, connexion, flow',
-        color: '#ec4899',
-        bgColor: 'bg-pink-100',
-        borderColor: 'border-pink-300',
-        emoji: '💖',
-    },
+    { score: 1,  label: 'Joie / Liberté / Amour',  description: 'Connaissance, empowerment, connexion pure',        color: '#fbbf24', bgColor: 'bg-amber-50',   borderColor: 'border-amber-200',   emoji: '☀️' },
+    { score: 2,  label: 'Passion',                  description: 'Énergie créatrice intense, flow',                 color: '#f59e0b', bgColor: 'bg-amber-50',   borderColor: 'border-amber-200',   emoji: '🔥' },
+    { score: 3,  label: 'Enthousiasme / Bonheur',   description: 'Ardeur, eagerness, légèreté',                    color: '#f97316', bgColor: 'bg-orange-50',  borderColor: 'border-orange-200',  emoji: '🎉' },
+    { score: 4,  label: 'Attente positive / Croyance', description: 'Certitude que les choses vont bien se passer', color: '#84cc16', bgColor: 'bg-lime-50',    borderColor: 'border-lime-200',    emoji: '✨' },
+    { score: 5,  label: 'Optimisme',                description: 'Vision positive, confiance en l\'avenir',         color: '#22c55e', bgColor: 'bg-green-50',   borderColor: 'border-green-200',   emoji: '🌤️' },
+    { score: 6,  label: 'Espoir',                   description: 'Possibilité, attente d\'un mieux',               color: '#10b981', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200', emoji: '🌱' },
+    { score: 7,  label: 'Contentement',             description: 'Satisfaction calme, paix intérieure',            color: '#06b6d4', bgColor: 'bg-cyan-50',    borderColor: 'border-cyan-200',    emoji: '😌' },
+    { score: 8,  label: 'Ennui',                    description: 'Désintérêt, manque de stimulation',              color: '#64748b', bgColor: 'bg-slate-50',   borderColor: 'border-slate-200',   emoji: '😐' },
+    { score: 9,  label: 'Pessimisme',               description: 'Attente du pire, vision sombre',                color: '#a1a1aa', bgColor: 'bg-zinc-50',    borderColor: 'border-zinc-200',    emoji: '😕' },
+    { score: 10, label: 'Frustration / Impatience', description: 'Irritation, impatience, tension',               color: '#eab308', bgColor: 'bg-yellow-50',  borderColor: 'border-yellow-200',  emoji: '😤' },
+    { score: 11, label: 'Accablement',              description: 'Trop de choses à gérer, submersion',            color: '#f97316', bgColor: 'bg-orange-50',  borderColor: 'border-orange-200',  emoji: '😫' },
+    { score: 12, label: 'Déception',                description: 'Attentes non comblées, tristesse légère',       color: '#ef4444', bgColor: 'bg-red-50',     borderColor: 'border-red-200',     emoji: '😞' },
+    { score: 13, label: 'Doute',                    description: 'Incertitude, remise en question',               color: '#dc2626', bgColor: 'bg-red-50',     borderColor: 'border-red-200',     emoji: '🤔' },
+    { score: 14, label: 'Inquiétude',               description: 'Préoccupation, anxiété légère',                 color: '#b91c1c', bgColor: 'bg-red-50',     borderColor: 'border-red-200',     emoji: '😟' },
+    { score: 15, label: 'Blâme',                    description: 'Accusation, reproche envers soi ou les autres', color: '#991b1b', bgColor: 'bg-red-100',    borderColor: 'border-red-300',     emoji: '👿' },
+    { score: 16, label: 'Découragement',            description: 'Perte d\'élan, pessimisme profond',             color: '#7f1d1d', bgColor: 'bg-red-100',    borderColor: 'border-red-300',     emoji: '😔' },
+    { score: 17, label: 'Colère',                   description: 'Rage contrôlée, indignation',                   color: '#dc2626', bgColor: 'bg-red-100',    borderColor: 'border-red-300',     emoji: '😡' },
+    { score: 18, label: 'Vengeance',                description: 'Désir de représailles, rumination',             color: '#b91c1c', bgColor: 'bg-red-100',    borderColor: 'border-red-300',     emoji: '💢' },
+    { score: 19, label: 'Haine / Rage',             description: 'Colère explosive, hostilité',                   color: '#991b1b', bgColor: 'bg-red-200',    borderColor: 'border-red-400',     emoji: '🤬' },
+    { score: 20, label: 'Jalousie',                 description: 'Envie, comparaison douloureuse',                color: '#7f1d1d', bgColor: 'bg-red-200',    borderColor: 'border-red-400',     emoji: '🥀' },
+    { score: 21, label: 'Insécurité / Culpabilité', description: 'Indignité, honte, peur du jugement',            color: '#581c87', bgColor: 'bg-purple-950', borderColor: 'border-purple-700',  emoji: '😰' },
+    { score: 22, label: 'Peur / Dépression',        description: 'Impuissance, désespoir, chagrin profond',       color: '#4a044e', bgColor: 'bg-purple-950', borderColor: 'border-purple-700',  emoji: '🕳️' },
 ];
 
 // ============================================================
@@ -178,11 +111,11 @@ const MoodCheckin: React.FC = () => {
 
     const isTodayChecked = todayMood !== null && !editing;
 
-    // Zone vibratoire du jour
+    // Zone vibratoire du jour (échelle inversée : 1=meilleur, 22=pire)
     const zone =
-        selectedScore && isAligned(selectedScore)
+        selectedScore && selectedScore <= 7
             ? 'alignement'
-            : selectedScore && isResisting(selectedScore)
+            : selectedScore && selectedScore >= 15
             ? 'résistance'
             : 'neutre';
 
@@ -192,21 +125,21 @@ const MoodCheckin: React.FC = () => {
             bg: 'from-emerald-500/10 to-green-500/10',
             text: 'text-emerald-700',
             icon: '📡',
-            message: 'Tu es en réception. Le Tribunal enregistre des preuves fortes.',
+            message: 'Tu es aligné avec ta Source. Le Tribunal enregistre des preuves fortes.',
         },
         neutre: {
             label: 'Zone neutre',
             bg: 'from-amber-500/10 to-yellow-500/10',
             text: 'text-amber-700',
             icon: '⏸️',
-            message: 'Ni résistance ni alignement fort. Les preuves sont tièdes.',
+            message: 'Ni pleinement aligné ni en forte résistance. Les preuves sont tièdes.',
         },
         résistance: {
             label: 'Zone de résistance',
             bg: 'from-red-500/10 to-orange-500/10',
             text: 'text-red-700',
             icon: '🚫',
-            message: 'Tu bloques la réception. Les accusateurs ont plus de poids aujourd\'hui.',
+            message: 'Tu résistes à ta connexion. Les accusateurs pèsent plus lourd aujourd\'hui.',
         },
     };
 

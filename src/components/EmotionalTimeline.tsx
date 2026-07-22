@@ -1,18 +1,30 @@
 import React, { useMemo, useState } from 'react';
 import { DailyMood } from '@/types';
 
-// Réimporter FREQUENCY_SCALE localement si pas exporté, ou utiliser EMOTIONAL_LABELS
+// Échelle 22 niveaux : 1=Joie (haut) → 22=Peur/Dépression (bas)
 const EMOTIONAL_LABELS_MAP: Record<number, { label: string; color: string; emoji: string }> = {
-    1: { label: 'Désespoir', color: '#7f1d1d', emoji: '🕳️' },
-    2: { label: 'Peur/Insécurité', color: '#dc2626', emoji: '😰' },
-    3: { label: 'Colère/Frustration', color: '#ea580c', emoji: '😤' },
-    4: { label: 'Découragement', color: '#f59e0b', emoji: '😞' },
-    5: { label: 'Inquiétude', color: '#eab308', emoji: '😟' },
-    6: { label: 'Contentement', color: '#84cc16', emoji: '😐' },
-    7: { label: 'Espoir', color: '#22c55e', emoji: '🌱' },
-    8: { label: 'Optimisme', color: '#06b6d4', emoji: '✨' },
-    9: { label: 'Joie/Passion', color: '#8b5cf6', emoji: '🔥' },
-    10: { label: 'Gratitude/Amour', color: '#ec4899', emoji: '💖' },
+    1:  { label: 'Joie/Liberté/Amour', color: '#fbbf24', emoji: '☀️' },
+    2:  { label: 'Passion',            color: '#f59e0b', emoji: '🔥' },
+    3:  { label: 'Enthousiasme',       color: '#f97316', emoji: '🎉' },
+    4:  { label: 'Croyance',           color: '#84cc16', emoji: '✨' },
+    5:  { label: 'Optimisme',          color: '#22c55e', emoji: '🌤️' },
+    6:  { label: 'Espoir',             color: '#10b981', emoji: '🌱' },
+    7:  { label: 'Contentement',       color: '#06b6d4', emoji: '😌' },
+    8:  { label: 'Ennui',              color: '#64748b', emoji: '😐' },
+    9:  { label: 'Pessimisme',         color: '#a1a1aa', emoji: '😕' },
+    10: { label: 'Frustration',        color: '#eab308', emoji: '😤' },
+    11: { label: 'Accablement',        color: '#f97316', emoji: '😫' },
+    12: { label: 'Déception',          color: '#ef4444', emoji: '😞' },
+    13: { label: 'Doute',              color: '#dc2626', emoji: '🤔' },
+    14: { label: 'Inquiétude',         color: '#b91c1c', emoji: '😟' },
+    15: { label: 'Blâme',              color: '#991b1b', emoji: '👿' },
+    16: { label: 'Découragement',      color: '#7f1d1d', emoji: '😔' },
+    17: { label: 'Colère',             color: '#dc2626', emoji: '😡' },
+    18: { label: 'Vengeance',          color: '#b91c1c', emoji: '💢' },
+    19: { label: 'Haine/Rage',         color: '#991b1b', emoji: '🤬' },
+    20: { label: 'Jalousie',           color: '#7f1d1d', emoji: '🥀' },
+    21: { label: 'Insécurité/Culpa.',  color: '#581c87', emoji: '😰' },
+    22: { label: 'Peur/Dépression',    color: '#4a044e', emoji: '🕳️' },
 };
 
 // ============================================================
@@ -34,9 +46,9 @@ function xForIndex(index: number, total: number): number {
 }
 
 function yForScore(score: number): number {
-    // score 1-10 mappé de bas en haut (1 = bas du graphe, 10 = haut)
-    const ratio = (score - 1) / 9; // 0 à 1
-    return PADDING_TOP + PLOT_HEIGHT - ratio * PLOT_HEIGHT;
+    // score 1-22 mappé de haut en bas (1 = haut du graphe = meilleur, 22 = bas = pire)
+    const ratio = (score - 1) / 21; // 0 (meilleur) à 1 (pire)
+    return PADDING_TOP + ratio * PLOT_HEIGHT;
 }
 
 // ============================================================
@@ -97,8 +109,8 @@ const EmotionalTimeline: React.FC<Props> = ({ moods, daysBack = 30 }) => {
         const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
         const min = Math.min(...scores);
         const max = Math.max(...scores);
-        const highDays = scores.filter((s) => s >= 7).length;
-        const lowDays = scores.filter((s) => s <= 3).length;
+        const highDays = scores.filter((s) => s <= 7).length;
+        const lowDays = scores.filter((s) => s >= 15).length;
         const trend = scores.length >= 2 ? scores[scores.length - 1] - scores[0] : 0;
         return { avg, min, max, highDays, lowDays, trend, total: scores.length };
     }, [periodMoods]);
@@ -151,34 +163,34 @@ const EmotionalTimeline: React.FC<Props> = ({ moods, daysBack = 30 }) => {
                     className="w-full h-auto"
                     preserveAspectRatio="xMidYMid meet"
                 >
-                    {/* Zones colorées de fond */}
-                    {/* Zone résistance (1-3) */}
+                    {/* Zones colorées de fond (échelle inversée) */}
+                    {/* Zone alignement (1-7) — haut du graphe */}
                     <rect
                         x={PADDING_LEFT}
                         y={PADDING_TOP}
                         width={PLOT_WIDTH}
-                        height={PLOT_HEIGHT * (3 / 9)}
-                        fill="#fef2f2"
+                        height={PLOT_HEIGHT * (7 / 21)}
+                        fill="#f0fdf4"
                     />
-                    {/* Zone neutre (4-6) */}
+                    {/* Zone neutre (8-14) — milieu */}
                     <rect
                         x={PADDING_LEFT}
-                        y={PADDING_TOP + PLOT_HEIGHT * (3 / 9)}
+                        y={PADDING_TOP + PLOT_HEIGHT * (7 / 21)}
                         width={PLOT_WIDTH}
-                        height={PLOT_HEIGHT * (3 / 9)}
+                        height={PLOT_HEIGHT * (7 / 21)}
                         fill="#fffbeb"
                     />
-                    {/* Zone alignement (7-10) */}
+                    {/* Zone résistance (15-22) — bas du graphe */}
                     <rect
                         x={PADDING_LEFT}
-                        y={PADDING_TOP + PLOT_HEIGHT * (6 / 9)}
+                        y={PADDING_TOP + PLOT_HEIGHT * (14 / 21)}
                         width={PLOT_WIDTH}
-                        height={PLOT_HEIGHT * (3 / 9)}
-                        fill="#f0fdf4"
+                        height={PLOT_HEIGHT * (7 / 21)}
+                        fill="#fef2f2"
                     />
 
                     {/* Lignes horizontales de référence */}
-                    {[3, 6, 8].map((score) => (
+                    {[7, 14].map((score) => (
                         <line
                             key={score}
                             x1={PADDING_LEFT}
@@ -191,8 +203,8 @@ const EmotionalTimeline: React.FC<Props> = ({ moods, daysBack = 30 }) => {
                         />
                     ))}
 
-                    {/* Labels Y */}
-                    {[1, 3, 5, 7, 9, 10].map((score) => (
+                    {/* Labels Y — repères clés */}
+                    {[1, 7, 14, 22].map((score) => (
                         <text
                             key={score}
                             x={PADDING_LEFT - 8}
@@ -322,19 +334,19 @@ const EmotionalTimeline: React.FC<Props> = ({ moods, daysBack = 30 }) => {
             {/* Insights */}
             {stats && (
                 <div className="text-xs text-gray-500 text-center space-y-1">
-                    {stats.trend > 0 && (
+                    {stats.trend < 0 && (
                         <p className="text-emerald-600">
-                            ↑ Tendance positive — tu t'élèves de {stats.trend.toFixed(1)} pts sur {stats.total} jours
+                            ↑ Tendance positive — tu t'élèves (baisse de {Math.abs(stats.trend).toFixed(1)} pts sur l'échelle)
                         </p>
                     )}
-                    {stats.trend < 0 && (
+                    {stats.trend > 0 && (
                         <p className="text-rose-600">
-                            ↓ Tendance négative — baisse de {Math.abs(stats.trend).toFixed(1)} pts. Vérifie tes causes.
+                            ↓ Tendance négative — tu descends de {stats.trend.toFixed(1)} pts. Vérifie tes causes.
                         </p>
                     )}
                     {stats.lowDays > stats.highDays && stats.lowDays > 5 && (
                         <p className="text-rose-500">
-                            ⚠️ {stats.lowDays} jours en résistance. Identifie les causes récurrentes.
+                            ⚠️ {stats.lowDays} jours en résistance (15+). Identifie les causes récurrentes.
                         </p>
                     )}
                 </div>
