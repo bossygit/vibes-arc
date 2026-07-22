@@ -88,15 +88,15 @@ export function computeCredibilityScore(
  */
 export function buildDailyEvidence(
     habits: { id: number; linkedIdentities: number[]; progress: boolean[]; startDayIndex?: number }[],
-    identityId: number,
+    identityIds: number[],
     moods: Map<string, EmotionalFrequency>,
     accusers: { id: number; progress: boolean[]; startDayIndex?: number }[],
     daysBack: number = 30
 ): DailyEvidence[] {
     const evidence: DailyEvidence[] = [];
 
-    // Filtrer les signaux liés à cette identité
-    const linkedHabits = habits.filter(h => h.linkedIdentities.includes(identityId));
+    // Filtrer les signaux liés à l'une des identités
+    const linkedHabits = habits.filter(h => h.linkedIdentities.some(id => identityIds.includes(id)));
 
     // Déterminer la plage de jours
     const today = new Date();

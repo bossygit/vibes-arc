@@ -238,7 +238,7 @@ export interface Desire {
     type: DesireType;
     description?: string;
     target?: string;                  // Valeur mesurable (ex: "10 000 000 FCFA")
-    linkedIdentityId: number;         // L'identité requise pour recevoir ce désir
+    linkedIdentityIds: number[];      // Les identités requises pour recevoir ce désir (multi)
     createdAt: string;
 }
 
@@ -361,7 +361,7 @@ export const VERDICT_LABELS: Record<Verdict, string> = {
 
 export interface DesireDashboard {
     desire: Desire;
-    identityName: string;
+    identityNames: string[];
     signals: { id: number; name: string; streak: number; completionRate: number }[];
     accusators: { id: number; name: string; activeDays: number }[];
     credibility: CredibilityScore;

@@ -623,7 +623,7 @@ export const useAppStore = create<AppState>((set) => {
                 const newDesire = await db.createDesire(
                     desireData.title,
                     desireData.type,
-                    desireData.linkedIdentityId,
+                    desireData.linkedIdentityIds,
                     desireData.description,
                     desireData.target
                 );

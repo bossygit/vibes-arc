@@ -140,7 +140,9 @@ const AddDesireModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const [title, setTitle] = useState('');
     const [type, setType] = useState<DesireType>('avoir');
     const [target, setTarget] = useState('');
-    const [linkedIdentityId, setLinkedIdentityId] = useState<number>(identities[0]?.id ?? 0);
+    const [selectedIdentityIds, setSelectedIdentityIds] = useState<number[]>(
+        identities.length > 0 ? [identities[0].id] : []
+    );
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
@@ -149,8 +151,8 @@ const AddDesireModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             setError('Donne un nom à ton désir');
             return;
         }
-        if (!linkedIdentityId) {
-            setError('Sélectionne une identité');
+        if (selectedIdentityIds.length === 0) {
+            setError('Sélectionne au moins une identité');
             return;
         }
         setLoading(true);
@@ -159,7 +161,7 @@ const AddDesireModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 title: title.trim(),
                 type,
                 target: target.trim() || undefined,
-                linkedIdentityId,
+                linkedIdentityIds: selectedIdentityIds,
             });
             onClose();
         } catch (err) {
@@ -167,6 +169,12 @@ const AddDesireModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const toggleIdentity = (id: number) => {
+        setSelectedIdentityIds((prev) =>
+            prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+        );
     };
 
     return (
@@ -244,20 +252,38 @@ const AddDesireModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     )}
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-600 mb-1">
-                            Identité requise
+                        <label className="block text-sm font-medium text-gray-600 mb-2">
+                            Identités requises (sélectionne une ou plusieurs)
                         </label>
-                        <select
-                            value={linkedIdentityId}
-                            onChange={(e) => setLinkedIdentityId(Number(e.target.value))}
-                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white"
-                        >
-                            {identities.map((id) => (
-                                <option key={id.id} value={id.id}>
-                                    {id.name}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                            {identities.map((ident) => {
+                                const isSelected = selectedIdentityIds.includes(ident.id);
+                                return (
+                                    <button
+                                        key={ident.id}
+                                        type="button"
+                                        onClick={() => toggleIdentity(ident.id)}
+                                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors ${
+                                            isSelected
+                                                ? 'bg-indigo-50 border border-indigo-200 text-indigo-700'
+                                                : 'bg-gray-50 border border-gray-100 text-gray-600 hover:bg-gray-100'
+                                        }`}
+                                    >
+                                        <span
+                                            className="w-3 h-3 rounded-full flex-shrink-0"
+                                            style={{ backgroundColor: ident.color }}
+                                        />
+                                        <span className="flex-1 truncate">{ident.name}</span>
+                                        {isSelected && (
+                                            <span className="text-indigo-500 text-xs font-bold">✓</span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-1">
+                            {selectedIdentityIds.length} identité{selectedIdentityIds.length > 1 ? 's' : ''} sélectionnée{selectedIdentityIds.length > 1 ? 's' : ''}
+                        </p>
                     </div>
 
                     <button
@@ -292,15 +318,15 @@ const DesireCard: React.FC<{
     onToggle: () => void;
 }> = ({ desire, evidence, score, expanded, onToggle }) => {
     const { identities, habits, accusers, addAccuser, toggleAccuserDay, deleteAccuser } = useAppStore();
-    const identity = identities.find((i) => i.id === desire.linkedIdentityId);
+    const linkedIdentityIds = desire.linkedIdentityIds;
     const [newAccuserName, setNewAccuserName] = useState('');
     const [addingAccuser, setAddingAccuser] = useState(false);
     const [showAddAccuser, setShowAddAccuser] = useState(false);
 
-    // Signaux liés à l'identité de ce désir
+    // Signaux liés à TOUTES les identités de ce désir
     const linkedHabits = useMemo(
-        () => habits.filter((h) => h.linkedIdentities.includes(desire.linkedIdentityId)),
-        [habits, desire.linkedIdentityId]
+        () => habits.filter((h) => h.linkedIdentities.some((iid) => linkedIdentityIds.includes(iid))),
+        [habits, linkedIdentityIds]
     );
 
     // Accusateurs liés à ce désir
@@ -386,13 +412,24 @@ const DesireCard: React.FC<{
                             )}
                         </div>
                         <h3 className="text-lg font-bold text-gray-800 truncate">{desire.title}</h3>
-                        {identity && (
-                            <p className="text-sm text-gray-400 mt-0.5 flex items-center gap-1">
-                                <span
-                                    className="inline-block w-2.5 h-2.5 rounded-full"
-                                    style={{ backgroundColor: identity.color }}
-                                />
-                                Identité : {identity.name}
+                        {desire.linkedIdentityIds.length > 0 && (
+                            <p className="text-sm text-gray-400 mt-0.5 flex items-center gap-1 flex-wrap">
+                                {desire.linkedIdentityIds.map((iid) => {
+                                    const ident = identities.find((i) => i.id === iid);
+                                    return ident ? (
+                                        <span key={iid} className="inline-flex items-center gap-1">
+                                            <span
+                                                className="inline-block w-2.5 h-2.5 rounded-full"
+                                                style={{ backgroundColor: ident.color }}
+                                            />
+                                            {ident.name}
+                                        </span>
+                                    ) : null;
+                                }).filter(Boolean).reduce((acc: React.ReactNode[], el, i, arr) => {
+                                    acc.push(el);
+                                    if (i < arr.length - 1) acc.push(<span key={`sep-${i}`} className="text-gray-300">·</span>);
+                                    return acc;
+                                }, [])}
                             </p>
                         )}
                     </div>
@@ -806,11 +843,11 @@ const TribunalView: React.FC = () => {
     const desireData = useMemo(() => {
         return desires.map((desire) => {
             const desireAccusers = accusers.filter((a) => a.linkedDesireId === desire.id);
-            const identityId = desire.linkedIdentityId;
+            const identityIds = desire.linkedIdentityIds;
 
             const evidence = buildDailyEvidence(
                 habits,
-                identityId,
+                identityIds,
                 moodMap,
                 desireAccusers,
                 30

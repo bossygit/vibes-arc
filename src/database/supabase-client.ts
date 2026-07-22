@@ -910,7 +910,7 @@ class SupabaseDatabaseClient {
     async createDesire(
         title: string,
         type: 'avoir' | 'être',
-        linkedIdentityId: number,
+        linkedIdentityIds: number[],
         description?: string,
         target?: string
     ): Promise<import('@/types').Desire> {
@@ -925,12 +925,23 @@ class SupabaseDatabaseClient {
                 type,
                 description: description ?? null,
                 target: target ?? null,
-                linked_identity_id: linkedIdentityId,
             })
             .select()
             .single();
 
         if (error) throw error;
+
+        // Insérer les liaisons dans la table junction
+        if (linkedIdentityIds.length > 0) {
+            const links = linkedIdentityIds.map((identityId) => ({
+                desire_id: data.id,
+                identity_id: identityId,
+            }));
+            const { error: linkError } = await this.supabase
+                .from('desire_identities')
+                .insert(links);
+            if (linkError) throw linkError;
+        }
 
         return {
             id: data.id,
@@ -938,7 +949,7 @@ class SupabaseDatabaseClient {
             type: data.type,
             description: data.description,
             target: data.target,
-            linkedIdentityId: data.linked_identity_id,
+            linkedIdentityIds,
             createdAt: data.created_at,
         };
     }
@@ -955,15 +966,27 @@ class SupabaseDatabaseClient {
 
         if (error) throw error;
 
-        return (data || []).map((d: any) => ({
-            id: d.id,
-            title: d.title,
-            type: d.type,
-            description: d.description,
-            target: d.target,
-            linkedIdentityId: d.linked_identity_id,
-            createdAt: d.created_at,
-        }));
+        const result: import('@/types').Desire[] = [];
+
+        for (const d of (data || [])) {
+            // Récupérer les identités liées
+            const { data: links } = await this.supabase
+                .from('desire_identities')
+                .select('identity_id')
+                .eq('desire_id', d.id);
+
+            result.push({
+                id: d.id,
+                title: d.title,
+                type: d.type,
+                description: d.description,
+                target: d.target,
+                linkedIdentityIds: (links || []).map((l: any) => l.identity_id),
+                createdAt: d.created_at,
+            });
+        }
+
+        return result;
     }
 
     async updateDesire(id: number, updates: Partial<import('@/types').Desire>): Promise<boolean> {
@@ -975,13 +998,32 @@ class SupabaseDatabaseClient {
         if (updates.type !== undefined) payload.type = updates.type;
         if (updates.description !== undefined) payload.description = updates.description;
         if (updates.target !== undefined) payload.target = updates.target;
-        if (updates.linkedIdentityId !== undefined) payload.linked_identity_id = updates.linkedIdentityId;
 
         const { error } = await this.supabase
             .from('desires')
             .update(payload)
             .eq('id', id)
             .eq('user_id', user.id);
+
+        if (error) return false;
+
+        // Mettre à jour les identités liées si fournies
+        if (updates.linkedIdentityIds !== undefined) {
+            await this.supabase
+                .from('desire_identities')
+                .delete()
+                .eq('desire_id', id);
+
+            if (updates.linkedIdentityIds.length > 0) {
+                const links = updates.linkedIdentityIds.map((identityId) => ({
+                    desire_id: id,
+                    identity_id: identityId,
+                }));
+                await this.supabase
+                    .from('desire_identities')
+                    .insert(links);
+            }
+        }
 
         return !error;
     }
