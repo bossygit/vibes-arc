@@ -239,7 +239,30 @@ export interface Desire {
     description?: string;
     target?: string;                  // Valeur mesurable (ex: "10 000 000 FCFA")
     linkedIdentityIds: number[];      // Les identités requises pour recevoir ce désir (multi)
+    motivation?: MotivationData;      // Données motivationnelles (raisons, NLP, etc.)
     createdAt: string;
+}
+
+// ============================================================
+// Système de motivation (psychologie comportementale + NLP)
+// ============================================================
+
+export interface Reason {
+    id: string;                       // uuid v4 généré côté client
+    text: string;                     // "Pour financer l'éducation de mes enfants"
+    category: 'pleasure' | 'pain';   // Plaisir à gagner ou douleur à éviter (Tony Robbins)
+    emotionTag?: EmotionalFrequency;  // Émotion associée (échelle 1-22)
+    intensity: number;                // 1-10 : à quel point cette raison te motive
+}
+
+export interface MotivationData {
+    reasons: Reason[];                // Liste des raisons
+    futureSelf: string;               // Description de la personne que tu deviens (NLP Future Pacing)
+    whatAtStake: string;              // Ce que tu perds si tu n'agis pas (Loss Aversion)
+    anchorTrigger: string;            // Ancre NLP : geste, mot, respiration
+    implementationIntention: string;  // "Quand [déclencheur], je ferai [action]" (Gollwitzer)
+    whoIsItFor: string;               // Pour qui tu fais ça (amplification de l'engagement)
+    firstStep: string;                // Prochaine action immédiate (Zeigarnik)
 }
 
 // ---- Fréquence vibratoire (Esther Hicks — 22 niveaux) ----

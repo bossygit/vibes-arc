@@ -950,6 +950,7 @@ class SupabaseDatabaseClient {
             description: data.description,
             target: data.target,
             linkedIdentityIds,
+            motivation: data.motivation || undefined,
             createdAt: data.created_at,
         };
     }
@@ -982,6 +983,7 @@ class SupabaseDatabaseClient {
                 description: d.description,
                 target: d.target,
                 linkedIdentityIds: (links || []).map((l: any) => l.identity_id),
+                motivation: d.motivation || undefined,
                 createdAt: d.created_at,
             });
         }
@@ -1024,6 +1026,19 @@ class SupabaseDatabaseClient {
                     .insert(links);
             }
         }
+
+        return !error;
+    }
+
+    async saveMotivation(desireId: number, motivation: import('@/types').MotivationData): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { error } = await this.supabase
+            .from('desires')
+            .update({ motivation, updated_at: new Date().toISOString() })
+            .eq('id', desireId)
+            .eq('user_id', user.id);
 
         return !error;
     }

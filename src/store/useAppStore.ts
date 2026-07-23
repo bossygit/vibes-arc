@@ -66,6 +66,7 @@ interface AppState {
     addAccuser: (accuser: Omit<Accuser, 'id' | 'createdAt' | 'progress' | 'startDayIndex'>) => Promise<Accuser>;
     toggleAccuserDay: (accuserId: number, dayIndex: number) => void;
     deleteAccuser: (id: number) => void;
+    saveMotivation: (desireId: number, motivation: import('@/types').MotivationData) => Promise<boolean>;
 }
 
 export const useAppStore = create<AppState>((set) => {
@@ -751,6 +752,23 @@ export const useAppStore = create<AppState>((set) => {
                 }
             } catch (error) {
                 console.error('Erreur suppression accusateur:', error);
+            }
+        },
+
+        saveMotivation: async (desireId, motivation) => {
+            try {
+                const success = await db.saveMotivation(desireId, motivation);
+                if (success) {
+                    set((state) => ({
+                        desires: state.desires.map(d =>
+                            d.id === desireId ? { ...d, motivation } : d
+                        ),
+                    }));
+                }
+                return success;
+            } catch (error) {
+                console.error('Erreur sauvegarde motivation:', error);
+                return false;
             }
         },
     };

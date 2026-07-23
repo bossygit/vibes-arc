@@ -17,6 +17,8 @@ import {
     Zap,
     Trash2,
     AlertTriangle,
+    Flame,
+    Edit3,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -35,6 +37,7 @@ import {
 } from '@/utils/credibilityScore';
 import { calculateHabitStats } from '@/utils/habitUtils';
 import ComplementaryEvidence, { useToolEvidence } from './ComplementaryEvidence';
+import { MotivationDisplay, MotivationEditor } from './MotivationEngine';
 
 // ============================================================
 // Helpers
@@ -322,6 +325,7 @@ const DesireCard: React.FC<{
     const [newAccuserName, setNewAccuserName] = useState('');
     const [addingAccuser, setAddingAccuser] = useState(false);
     const [showAddAccuser, setShowAddAccuser] = useState(false);
+    const [editingMotivation, setEditingMotivation] = useState(false);
 
     // Signaux liés à TOUTES les identités de ce désir
     const linkedHabits = useMemo(
@@ -711,6 +715,61 @@ const DesireCard: React.FC<{
 
                             {/* Preuves complémentaires (autres outils) */}
                             <ComplementaryEvidence />
+
+                            {/* Moteur de motivation */}
+                            {!editingMotivation ? (
+                                <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                            <Flame className="w-4 h-4 text-orange-500" />
+                                            Moteur de motivation
+                                        </h4>
+                                        <button
+                                            onClick={() => setEditingMotivation(true)}
+                                            className="text-xs text-orange-600 hover:text-orange-700 font-medium flex items-center gap-1"
+                                        >
+                                            <Edit3 className="w-3 h-3" />
+                                            {desire.motivation?.reasons?.length ? 'Modifier' : 'Configurer'}
+                                        </button>
+                                    </div>
+                                    {desire.motivation ? (
+                                        <MotivationDisplay motivation={desire.motivation} />
+                                    ) : (
+                                        <div
+                                            onClick={() => setEditingMotivation(true)}
+                                            className="text-center py-6 bg-orange-50 rounded-xl cursor-pointer hover:bg-orange-100 transition-colors border border-dashed border-orange-200"
+                                        >
+                                            <Flame className="w-6 h-6 text-orange-300 mx-auto mb-2" />
+                                            <p className="text-sm text-orange-600 font-medium">
+                                                Pas encore de moteur de motivation
+                                            </p>
+                                            <p className="text-xs text-orange-400 mt-1">
+                                                Définis tes raisons profondes, ton Future Self, tes enjeux...
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                            <Flame className="w-4 h-4 text-orange-500" />
+                                            Éditer la motivation
+                                        </h4>
+                                        <button
+                                            onClick={() => setEditingMotivation(false)}
+                                            className="text-xs text-gray-400 hover:text-gray-600"
+                                        >
+                                            ✕ Fermer
+                                        </button>
+                                    </div>
+                                    <MotivationEditor
+                                        desireId={desire.id}
+                                        motivation={desire.motivation}
+                                        onSave={() => setEditingMotivation(false)}
+                                    />
+                                </div>
+                            )}
 
                             {/* 7 derniers jours */}
                             {evidence.length > 0 && (
