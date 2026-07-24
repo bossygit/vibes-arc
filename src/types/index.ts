@@ -41,11 +41,11 @@ export interface Streak {
 export interface AppState {
     identities: Identity[];
     habits: Habit[];
-    view: 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin';
+    view: 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations';
     selectedHabitId: number | null;
 }
 
-export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin';
+export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations';
 
 // ===== Priming My Brain (système nerveux) =====
 
@@ -389,5 +389,38 @@ export interface DesireDashboard {
     accusators: { id: number; name: string; activeDays: number }[];
     credibility: CredibilityScore;
     recentEvidence: DailyEvidence[];   // 7 derniers jours
+}
+
+// ============================================================
+// Couche de visualisation immersive (Vibes World / VibesCanvas)
+// Types d'agrégation lisant le store existant (additif, Phase 1).
+// Le "Signal" du cahier des charges = Habit du modèle de données.
+// ============================================================
+
+/** Nœud Identité dans la visualisation (planète de la constellation). */
+export interface VizIdentityNode {
+    id: number;
+    name: string;
+    color: string;
+    signalIds: number[];          // habitudes liées
+    completedSignals: number;     // habitudes ayant au moins 1 jour coché
+    totalSignals: number;
+}
+
+/** Nœud Désir agrégé pour UniverseMode / TribunalMode. */
+export interface VizDesireNode {
+    id: number;
+    title: string;
+    type: DesireType;
+    identityNodes: VizIdentityNode[];
+}
+
+/** Objet de données unique passé au moteur de visualisation (le "VibesCanvas"). */
+export interface VibesData {
+    desires: VizDesireNode[];
+    identities: Identity[];
+    habits: Habit[];
+    accusers: Accuser[];
+    dailyMoods: DailyMood[];
 }
 
