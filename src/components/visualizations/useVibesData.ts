@@ -1,10 +1,11 @@
+import { useMemo } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { Identity, VibesData, VizDesireNode, VizIdentityNode } from '@/types';
 
 /**
- * Moteur de données unique pour la couche de visualisation (le « VibesCanvas »).
- * Lit le store Zustand et agrège l'objet VibesData attendu par UniverseMode / TribunalMode.
- * Aucune copie des données : on réutilise store, habits, accusers, moods tels quels.
+ * Single aggregation layer for Vibes World.
+ * Visualization components consume derived data here instead of reimplementing
+ * domain calculations themselves.
  */
 export function useVibesData(): VibesData {
     const desires = useAppStore((s) => s.desires);
@@ -13,28 +14,53 @@ export function useVibesData(): VibesData {
     const accusers = useAppStore((s) => s.accusers);
     const dailyMoods = useAppStore((s) => s.dailyMoods);
 
-    const desireNodes: VizDesireNode[] = desires.map((desire) => {
-        const identityNodes: VizIdentityNode[] = (desire.linkedIdentityIds ?? [])
-            .map((id) => identities.find((i) => i.id === id))
-            .filter((i): i is Identity => Boolean(i))
-            .map((identity) => {
-                const linkedHabits = habits.filter((h) => h.linkedIdentities.includes(identity.id));
-                return {
-                    id: identity.id,
-                    name: identity.name,
-                    color: identity.color,
-                    signalIds: linkedHabits.map((h) => h.id),
-                    completedSignals: linkedHabits.filter((h) => h.progress.some((p) => p)).length,
-                    totalSignals: linkedHabits.length,
-                };
-            });
-        return {
-            id: desire.id,
-            title: desire.title,
-            type: desire.type,
-            identityNodes,
-        };
-    });
+    return useMemo(() => {
+        const desireNodes: VizDesireNode[] = desires.map((desire) => {
+            const identityNodes: VizIdentityNode[] = (desire.linkedIdentityIds ?? [])
+                .map((id) => identities.find((identity) => identity.id === id))
+                .filter((identity): identity is Identity => Boolean(identity))
+                .map((identity) => {
+                    const linkedHabits = habits.filter((habit) =>
+                        habit.linkedIdentities.includes(identity.id)
+                    );
 
-    return { desires: desireNodes, identities, habits, accusers, dailyMoods };
+                    const evidenceCount = linkedHabits.reduce(
+                        (total, habit) => total + habit.progress.filter(Boolean).length,
+                        0
+                    );
+                    const completedSignals = linkedHabits.filter((habit) =>
+                        habit.progress.some(Boolean)
+                    ).length;
+                    const consistency = linkedHabits.length
+                        ? Math.round((completedSignals / linkedHabits.length) * 100)
+                        : 0;
+
+                    return {
+                        id: identity.id,
+                        name: identity.name,
+                        color: identity.color,
+                        signalIds: linkedHabits.map((habit) => habit.id),
+                        completedSignals,
+                        totalSignals: linkedHabits.length,
+                        evidenceCount,
+                        consistency,
+                    } as VizIdentityNode;
+                });
+
+            const evidenceCount = identityNodes.reduce(
+                (total, identity) => total + ((identity as VizIdentityNode & { evidenceCount?: number }).evidenceCount ?? 0),
+                0
+            );
+
+            return {
+                id: desire.id,
+                title: desire.title,
+                type: desire.type,
+                identityNodes,
+                evidenceCount,
+            } as VizDesireNode;
+        });
+
+        return { desires: desireNodes, identities, habits, accusers, dailyMoods };
+    }, [desires, identities, habits, accusers, dailyMoods]);
 }
