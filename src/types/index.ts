@@ -405,6 +405,8 @@ export interface VizIdentityNode {
     signalIds: number[];          // habitudes liées
     completedSignals: number;     // habitudes ayant au moins 1 jour coché
     totalSignals: number;
+    evidenceCount: number;        // total des progress entries cochées
+    consistency: number;          // % complétion (0-100)
 }
 
 /** Nœud Désir agrégé pour UniverseMode / TribunalMode. */
@@ -413,6 +415,7 @@ export interface VizDesireNode {
     title: string;
     type: DesireType;
     identityNodes: VizIdentityNode[];
+    evidenceCount: number;        // total des preuves cumulées sur toutes les identités
 }
 
 /** Objet de données unique passé au moteur de visualisation (le "VibesCanvas"). */

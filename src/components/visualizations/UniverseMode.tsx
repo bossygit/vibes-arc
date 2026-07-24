@@ -1,16 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { VizDesireNode, VizIdentityNode } from '@/types';
+import { VizDesireNode } from '@/types';
 
 const CX = 200;
 const CY = 200;
 const IDENTITY_RADIUS = 132;
 const SIGNAL_RADIUS = 38;
-
-type EvidenceIdentity = VizIdentityNode & {
-    evidenceCount?: number;
-    consistency?: number;
-};
 
 /**
  * UniverseMode — first Vibes World visualization.
@@ -18,13 +13,13 @@ type EvidenceIdentity = VizIdentityNode & {
  */
 const UniverseMode: React.FC<{ desire: VizDesireNode }> = ({ desire }) => {
     const [selectedIdentityId, setSelectedIdentityId] = useState<number | null>(null);
-    const identities = desire.identityNodes as EvidenceIdentity[];
+    const identities = desire.identityNodes;
     const count = identities.length;
     const selectedIdentity = identities.find((identity) => identity.id === selectedIdentityId) ?? null;
 
     const totalSignals = identities.reduce((sum, identity) => sum + identity.totalSignals, 0);
     const completedSignals = identities.reduce((sum, identity) => sum + identity.completedSignals, 0);
-    const evidenceCount = identities.reduce((sum, identity) => sum + (identity.evidenceCount ?? 0), 0);
+    const evidenceCount = identities.reduce((sum, identity) => sum + identity.evidenceCount, 0);
     const completion = totalSignals ? Math.round((completedSignals / totalSignals) * 100) : 0;
 
     const particles = useMemo(() => {
@@ -32,7 +27,7 @@ const UniverseMode: React.FC<{ desire: VizDesireNode }> = ({ desire }) => {
             const angle = (2 * Math.PI * i) / Math.max(count, 1) - Math.PI / 2;
             const ix = CX + IDENTITY_RADIUS * Math.cos(angle);
             const iy = CY + IDENTITY_RADIUS * Math.sin(angle);
-            const particleCount = Math.min(8, identity.evidenceCount ?? identity.completedSignals);
+            const particleCount = Math.min(8, identity.evidenceCount);
 
             return Array.from({ length: particleCount }).map((_, k) => ({
                 id: `${identity.id}-evidence-${k}`,
@@ -176,7 +171,7 @@ const UniverseMode: React.FC<{ desire: VizDesireNode }> = ({ desire }) => {
             </svg>
 
             <div className="w-full grid grid-cols-3 gap-2 text-center text-xs mt-1">
-                <div className="rounded-xl bg-indigo-50 p-2"><strong className="block text-indigo-700">{identityNodesTotal(identities)}</strong><span className="text-slate-500">identités</span></div>
+                <div className="rounded-xl bg-indigo-50 p-2"><strong className="block text-indigo-700">{identities.length}</strong><span className="text-slate-500">identités</span></div>
                 <div className="rounded-xl bg-purple-50 p-2"><strong className="block text-purple-700">{totalSignals}</strong><span className="text-slate-500">signaux</span></div>
                 <div className="rounded-xl bg-fuchsia-50 p-2"><strong className="block text-fuchsia-700">{evidenceCount}</strong><span className="text-slate-500">preuves</span></div>
             </div>
@@ -193,16 +188,16 @@ const UniverseMode: React.FC<{ desire: VizDesireNode }> = ({ desire }) => {
                             <div className="text-xs text-slate-500">Identité en construction</div>
                         </div>
                         <div className="text-right">
-                            <div className="font-bold text-indigo-600">{selectedIdentity.consistency ?? 0}%</div>
+                            <div className="font-bold text-indigo-600">{selectedIdentity.consistency}%</div>
                             <div className="text-[10px] text-slate-400">activation</div>
                         </div>
                     </div>
                     <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <motion.div className="h-full rounded-full" style={{ backgroundColor: selectedIdentity.color }} initial={{ width: 0 }} animate={{ width: `${selectedIdentity.consistency ?? 0}%` }} />
+                        <motion.div className="h-full rounded-full" style={{ backgroundColor: selectedIdentity.color }} initial={{ width: 0 }} animate={{ width: `${selectedIdentity.consistency}%` }} />
                     </div>
                     <div className="flex justify-between text-[11px] text-slate-500 mt-2">
                         <span>{selectedIdentity.completedSignals}/{selectedIdentity.totalSignals} signaux activés</span>
-                        <span>{selectedIdentity.evidenceCount ?? 0} preuves accumulées</span>
+                        <span>{selectedIdentity.evidenceCount} preuves accumulées</span>
                     </div>
                 </motion.div>
             )}
@@ -211,9 +206,5 @@ const UniverseMode: React.FC<{ desire: VizDesireNode }> = ({ desire }) => {
         </div>
     );
 };
-
-function identityNodesTotal(identities: VizIdentityNode[]) {
-    return identities.length;
-}
 
 export default UniverseMode;

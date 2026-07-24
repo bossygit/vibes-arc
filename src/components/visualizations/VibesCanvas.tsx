@@ -65,7 +65,7 @@ const VibesCanvas: React.FC = () => {
             <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-none">
                 {data.desires.map((desire) => {
                     const isActive = desire.id === selectedDesire?.id;
-                    const evidence = (desire as typeof desire & { evidenceCount?: number }).evidenceCount ?? 0;
+                    const evidence = desire.evidenceCount;
                     return (
                         <button
                             key={desire.id}

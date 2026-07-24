@@ -15,21 +15,21 @@ export function useVibesData(): VibesData {
     const dailyMoods = useAppStore((s) => s.dailyMoods);
 
     return useMemo(() => {
-        const desireNodes: VizDesireNode[] = desires.map((desire) => {
+        const desireNodes: VizDesireNode[] = (desires ?? []).map((desire) => {
             const identityNodes: VizIdentityNode[] = (desire.linkedIdentityIds ?? [])
-                .map((id) => identities.find((identity) => identity.id === id))
+                .map((id) => identities?.find((identity) => identity.id === id))
                 .filter((identity): identity is Identity => Boolean(identity))
                 .map((identity) => {
-                    const linkedHabits = habits.filter((habit) =>
-                        habit.linkedIdentities.includes(identity.id)
+                    const linkedHabits = (habits ?? []).filter((habit) =>
+                        (habit.linkedIdentities ?? []).includes(identity.id)
                     );
 
                     const evidenceCount = linkedHabits.reduce(
-                        (total, habit) => total + habit.progress.filter(Boolean).length,
+                        (total, habit) => total + (habit.progress?.filter(Boolean).length ?? 0),
                         0
                     );
                     const completedSignals = linkedHabits.filter((habit) =>
-                        habit.progress.some(Boolean)
+                        habit.progress?.some(Boolean)
                     ).length;
                     const consistency = linkedHabits.length
                         ? Math.round((completedSignals / linkedHabits.length) * 100)
@@ -44,11 +44,11 @@ export function useVibesData(): VibesData {
                         totalSignals: linkedHabits.length,
                         evidenceCount,
                         consistency,
-                    } as VizIdentityNode;
+                    };
                 });
 
             const evidenceCount = identityNodes.reduce(
-                (total, identity) => total + ((identity as VizIdentityNode & { evidenceCount?: number }).evidenceCount ?? 0),
+                (total, identity) => total + identity.evidenceCount,
                 0
             );
 
@@ -58,9 +58,15 @@ export function useVibesData(): VibesData {
                 type: desire.type,
                 identityNodes,
                 evidenceCount,
-            } as VizDesireNode;
+            };
         });
 
-        return { desires: desireNodes, identities, habits, accusers, dailyMoods };
+        return {
+            desires: desireNodes,
+            identities: identities ?? [],
+            habits: habits ?? [],
+            accusers: accusers ?? [],
+            dailyMoods: dailyMoods ?? [],
+        };
     }, [desires, identities, habits, accusers, dailyMoods]);
 }
