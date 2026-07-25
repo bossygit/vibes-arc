@@ -74,6 +74,10 @@ serve(async (req) => {
       return await handleNotificationLine(admin, req);
     }
 
+    if (req.method === "POST" && path.endsWith("/momentum-skip")) {
+      return await handleLogSkip(admin, req);
+    }
+
     if (req.method === "POST") {
       return await handleChat(admin, req);
     }
@@ -160,7 +164,15 @@ async function handleChat(
 
   const userContext = await buildUserContext(admin, userId);
 
-  const systemMessage = `${systemPrompt}\n\n📊 DONNÉES DE L'UTILISATEUR :\n${JSON.stringify(userContext, null, 2)}`;
+  // ─── Loop 3: inject momentum-break patterns into coach context ──
+  const momentumBreakContext = userContext.momentum_break_skips ?? [];
+  let momentumBreakNote = "";
+  if (momentumBreakContext.length > 0) {
+    const latest = momentumBreakContext[0];
+    momentumBreakNote = `\n📋 **Ruptures de momentum récentes** : ${momentumBreakContext.length} enregistré(s). Dernière : ${latest.date} — ${latest.tone_used} (consecutif: ${latest.consecutive_skips}, cette semaine: ${latest.week_skips}).`;
+  }
+
+  const systemMessage = `${systemPrompt}${momentumBreakNote}\n\n📊 DONNÉES DE L'UTILISATEUR :\n${JSON.stringify(userContext, null, 2)}`;
 
   let reply: string;
   try {
@@ -396,6 +408,49 @@ Créneau: ${body.slot ?? ""}`;
 }
 
 // ============================================================
+// POST /momentum-skip — log a skip event from the frontend
+// ============================================================
+
+interface MomentumSkipBody {
+  device_id?: string;
+  consecutive_skips: number;
+  week_skips: number;
+  tone_label: string;
+  tone_subtitle: string;
+}
+
+async function handleLogSkip(
+  admin: ReturnType<typeof createClient>,
+  req: Request,
+): Promise<Response> {
+  let body: MomentumSkipBody;
+  try {
+    body = await req.json() as MomentumSkipBody;
+  } catch {
+    return jsonResponse({ error: "Invalid JSON body" }, 400);
+  }
+
+  const deviceId = (body.device_id ?? "").trim();
+  if (!deviceId) return jsonResponse({ error: "device_id is required" }, 400);
+  const userId = await resolveUserId(admin, deviceId);
+  if (!userId) return jsonResponse({ error: "Device not linked" }, 403);
+
+  const { error } = await admin.from("momentum_break_skips").insert([
+    {
+      user_id: userId,
+      consecutive_skips: body.consecutive_skips,
+      week_skips: body.week_skips,
+      last_skip_tone: body.tone_label,
+      last_skip_subtitle: body.tone_subtitle,
+      last_skip_date: new Date().toISOString().split("T")[0],
+    },
+  ]);
+
+  if (error) return jsonResponse({ error: error.message }, 500);
+  return jsonResponse({ success: true });
+}
+
+// ============================================================
 // User context (habits + today + memory)
 // ============================================================
 
@@ -493,6 +548,23 @@ async function buildUserContext(
     restantes_aujourd_hui: today.restantes,
   };
   if (memory) context.mémoire = memory;
+
+  // ─── Momentum break data (loop 3): skip patterns visible to coach ──────────────
+  const { data: skipRows } = await admin
+    .from("momentum_break_skips")
+    .select("consecutive_skips, week_skips, last_skip_tone, last_skip_date")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  if (skipRows && skipRows.length > 0) {
+    context.momentum_break_skips = skipRows.map((r: any) => ({
+      consecutive_skips: r.consecutive_skips,
+      week_skips: r.week_skips,
+      tone_used: r.last_skip_tone,
+      date: r.last_skip_date,
+    }));
+  }
 
   return context;
 }
