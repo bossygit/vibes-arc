@@ -20,6 +20,7 @@ import ManifestationView from '@/components/ManifestationView';
 import CoachChat from '@/components/CoachChat';
 import KarmicGardenView from '@/components/KarmicGardenView';
 import ControleEjaculationView from '@/components/ControleEjaculationView';
+import PivotCoach from '@/components/PivotCoach';
 import FocusHoldView from '@/components/FocusHoldView';
 import InnerChildCheckin from '@/components/InnerChildCheckin';
 import MoodCheckin from '@/components/MoodCheckin';
@@ -101,6 +102,8 @@ function App() {
                 return <InnerChildCheckin />;
             case 'focusHold':
                 return <FocusHoldView />;
+            case 'pivotCoach':
+                return <PivotCoach />;
             case 'tribunal':
                 return <TribunalView />;
             case 'visualizations':
