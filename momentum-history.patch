@@ -1,0 +1,134 @@
+diff --git a/src/components/Dashboard.tsx b/src/components/Dashboard.tsx
+index cdeaa44..3e40d3c 100644
+--- a/src/components/Dashboard.tsx
++++ b/src/components/Dashboard.tsx
+@@ -13,7 +13,7 @@ import MilestonesSection from './MilestonesSection';
+ import RewardSection from './RewardSection';
+ import OverallCalendar from './OverallCalendar';
+ import MonthlySummary2026 from './MonthlySummary2026';
+-import { MomentumBreakGate } from './MomentumBreakDialog';
++import { MomentumBreakGate, MomentumBreakHistory } from './MomentumBreakDialog';
+ import { motion } from 'framer-motion';
+ import { getCurrentDayIndex } from '@/utils/habitUtils';
+ 
+@@ -100,6 +100,9 @@ const Dashboard: React.FC = () => {
+             {/* Rupture de momentum — bloquant doux si 3+ jours < 50% */}
+             <MomentumBreakGate habits={habits} todayIdx={todayIdxForStats} />
+ 
++            {/* Miroir : dernières raisons données, pour ne plus les enregistrer dans le vide */}
++            <MomentumBreakHistory />
++
+             {/* Inner Child Check-in — bloquant doux si non fait aujourd'hui */}
+             <InnerChildGate onStart={() => setView('innerChild')} />
+ 
+diff --git a/src/components/MomentumBreakDialog.tsx b/src/components/MomentumBreakDialog.tsx
+index 2162ea7..acea0cb 100644
+--- a/src/components/MomentumBreakDialog.tsx
++++ b/src/components/MomentumBreakDialog.tsx
+@@ -8,7 +8,7 @@
+  * avec possibilité de "passer" pour aujourd'hui.
+  */
+ 
+-import React, { useState } from 'react';
++import React, { useState, useEffect } from 'react';
+ import { AlertTriangle, ChevronDown, ChevronUp, Send } from 'lucide-react';
+ import { motion, AnimatePresence } from 'framer-motion';
+ import type { MomentumBreakResult } from '@/utils/momentumBreakUtils';
+@@ -22,7 +22,7 @@ const ENTRIES_KEY = 'vibes-arc-momentum-break-entries';
+ 
+ // ─── Types ───────────────────────────────────────────────────────────────────
+ 
+-interface MomentumBreakEntry {
++export interface MomentumBreakEntry {
+   date: string; // YYYY-MM-DD
+   reasons: string[];
+   customReason: string;
+@@ -31,7 +31,7 @@ interface MomentumBreakEntry {
+ 
+ // ─── Raisons suggérées ───────────────────────────────────────────────────────
+ 
+-const SUGGESTED_REASONS: { id: string; label: string; emoji: string }[] = [
++export const SUGGESTED_REASONS: { id: string; label: string; emoji: string }[] = [
+   { id: 'fatigue', label: 'Fatigue / Manque d\'énergie', emoji: '😴' },
+   { id: 'stress', label: 'Stress / Surcharge mentale', emoji: '😰' },
+   { id: 'deconnexion', label: 'Déconnexion de mes objectifs', emoji: '🔌' },
+@@ -49,7 +49,7 @@ function todayStr(): string {
+   return new Date().toISOString().slice(0, 10);
+ }
+ 
+-function loadEntries(): MomentumBreakEntry[] {
++export function loadEntries(): MomentumBreakEntry[] {
+   try {
+     const raw = localStorage.getItem(ENTRIES_KEY);
+     if (raw) return JSON.parse(raw);
+@@ -310,4 +310,70 @@ export const MomentumBreakGate: React.FC<MomentumBreakGateProps> = ({
+   );
+ };
+ 
++// ─── Historique (à afficher sur le Dashboard, comme miroir) ─────────────────
++
++/**
++ * MomentumBreakHistory — liste en lecture seule des 5 dernières raisons
++ * données au MomentumBreakDialog.
++ *
++ * Ferme la boucle : jusqu'ici, chaque réponse était enregistrée en
++ * localStorage puis jamais relue nulle part (ni ici, ni côté coach IA).
++ * Ce composant est la première étape : juste rendre visible ce qui existe déjà.
++ */
++export const MomentumBreakHistory: React.FC = () => {
++  const [entries, setEntries] = useState<MomentumBreakEntry[]>([]);
++
++  useEffect(() => {
++    setEntries(loadEntries());
++  }, []);
++
++  if (entries.length === 0) return null;
++
++  const last5 = [...entries]
++    .sort((a, b) => b.date.localeCompare(a.date))
++    .slice(0, 5);
++
++  const labelFor = (id: string) => SUGGESTED_REASONS.find((r) => r.id === id);
++
++  return (
++    <div className="card">
++      <p className="text-xs text-slate-400 mb-4 uppercase tracking-wide font-medium">
++        Derniers signaux de rupture
++      </p>
++      <ul className="space-y-3">
++        {last5.map((entry) => (
++          <li
++            key={entry.date}
++            className="text-sm border-b border-slate-100 last:border-0 pb-3 last:pb-0"
++          >
++            <span className="text-slate-500 font-medium">
++              {new Date(entry.date + 'T00:00:00').toLocaleDateString('fr-FR', {
++                weekday: 'short',
++                day: 'numeric',
++                month: 'short',
++              })}
++            </span>
++            {entry.reasons.length > 0 && (
++              <span className="ml-2 text-slate-700">
++                {entry.reasons
++                  .map((id) => {
++                    const r = labelFor(id);
++                    return r ? `${r.emoji} ${r.label}` : id;
++                  })
++                  .join(' · ')}
++              </span>
++            )}
++            {entry.customReason && (
++              <p className="text-slate-500 italic mt-1">"{entry.customReason}"</p>
++            )}
++            {entry.reasons.length === 0 && !entry.customReason && (
++              <span className="ml-2 text-slate-400 italic">Pas de raison notée</span>
++            )}
++          </li>
++        ))}
++      </ul>
++    </div>
++  );
++};
++
+ export default MomentumBreakDialog;

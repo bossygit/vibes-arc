@@ -6,32 +6,44 @@
  *
  * Inspiré par le InnerChildGate : affiché en haut du dashboard,
  * avec possibilité de "passer" pour aujourd'hui.
+ *
+ * Loop 2 (Mémoire sur le bouton Passer) :
+ * - Compte les skips consécutifs et hebdomadaires
+ * - Adapte le ton du bouton "Passer" selon le pattern de l'utilisateur
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AlertTriangle, ChevronDown, ChevronUp, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { MomentumBreakResult } from '@/utils/momentumBreakUtils';
 import { detectMomentumBreak } from '@/utils/momentumBreakUtils';
 import type { Habit } from '@/types';
 
-// ─── Storage keys ────────────────────────────────────────────────────────────
+// ─── Storage keys ────────────────────────────────────────────────────
 
 const DISMISSED_KEY = 'vibes-arc-momentum-break-dismissed';
 const ENTRIES_KEY = 'vibes-arc-momentum-break-entries';
+const SKIP_KEY = 'vibes-arc-momentum-break-skips';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────
 
-interface MomentumBreakEntry {
+export interface MomentumBreakEntry {
   date: string; // YYYY-MM-DD
   reasons: string[];
   customReason: string;
   createdAt: string; // ISO
 }
 
-// ─── Raisons suggérées ───────────────────────────────────────────────────────
+interface SkipRecord {
+  consecutive: number;
+  lastDate: string; // YYYY-MM-DD
+  lastWeekSkips: number;
+  weekStart: string; // YYYY-MM-DD of the Monday of the current week
+}
 
-const SUGGESTED_REASONS: { id: string; label: string; emoji: string }[] = [
+// ─── Raisons suggérées ──────────────────────────────────────────────
+
+export const SUGGESTED_REASONS: { id: string; label: string; emoji: string }[] = [
   { id: 'fatigue', label: 'Fatigue / Manque d\'énergie', emoji: '😴' },
   { id: 'stress', label: 'Stress / Surcharge mentale', emoji: '😰' },
   { id: 'deconnexion', label: 'Déconnexion de mes objectifs', emoji: '🔌' },
@@ -43,13 +55,21 @@ const SUGGESTED_REASONS: { id: string; label: string; emoji: string }[] = [
   { id: 'isolement', label: 'Isolement / Manque de soutien', emoji: '🫥' },
 ];
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────
 
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function loadEntries(): MomentumBreakEntry[] {
+function weekStart(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay(); // 0=Sun, 1=Mon
+  const diff = day === 0 ? 6 : day - 1;
+  d.setDate(d.getDate() - diff);
+  return d.toISOString().slice(0, 10);
+}
+
+export function loadEntries(): MomentumBreakEntry[] {
   try {
     const raw = localStorage.getItem(ENTRIES_KEY);
     if (raw) return JSON.parse(raw);
@@ -59,13 +79,81 @@ function loadEntries(): MomentumBreakEntry[] {
 
 function saveEntry(entry: MomentumBreakEntry) {
   const entries = loadEntries();
-  // Remplacer l'entrée du jour si elle existe déjà
   const filtered = entries.filter((e) => e.date !== entry.date);
   filtered.push(entry);
   localStorage.setItem(ENTRIES_KEY, JSON.stringify(filtered));
 }
 
-// ─── Props ───────────────────────────────────────────────────────────────────
+// ─── Skip tracking ──────────────────────────────────────────────────
+
+function loadSkipRecord(): SkipRecord {
+  try {
+    const raw = localStorage.getItem(SKIP_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return { consecutive: 0, lastDate: '', lastWeekSkips: 0, weekStart: weekStart(todayStr()) };
+}
+
+function saveSkipRecord(record: SkipRecord) {
+  localStorage.setItem(SKIP_KEY, JSON.stringify(record));
+}
+
+function recordSkip(): SkipRecord {
+  const record = loadSkipRecord();
+  const today = todayStr();
+  const currentWeekStart = weekStart(today);
+
+  // Reset week counter if we're in a new week
+  if (record.weekStart !== currentWeekStart) {
+    record.weekStart = currentWeekStart;
+    record.lastWeekSkips = 0;
+  }
+
+  // Check if it's a new day (consecutive reset)
+  if (record.lastDate && record.lastDate !== today) {
+    const lastDate = new Date(record.lastDate + 'T00:00:00');
+    const todayDate = new Date(today + 'T00:00:00');
+    const diffDays = Math.round((todayDate.getTime() - lastDate.getTime()) / 86400000);
+
+    if (diffDays === 1) {
+      record.consecutive++;
+    } else if (diffDays > 1) {
+      record.consecutive = 1;
+      record.lastWeekSkips = 0;
+    }
+    // diffDays <= 0 should not happen, but reset to be safe
+    if (diffDays <= 0) {
+      record.consecutive = 1;
+    }
+  } else if (!record.lastDate) {
+    record.consecutive = 1;
+  }
+
+  record.lastDate = today;
+  record.lastWeekSkips++;
+  saveSkipRecord(record);
+  return record;
+}
+
+function getSkipTone(consecutiveSkips: number, weekSkips: number): { label: string; subtitle: string } {
+  if (consecutiveSkips >= 3 || weekSkips >= 5) {
+    return {
+      label: '3ᵉ fois cette semaine — 20 secondes suffisent, ou je te laisse tranquille et on en reparle demain ?',
+      subtitle: "Tu connais ce refrain. Le bouton Passer a été cliqué plusieurs fois déjà cette semaine. Pas de jugement — juste une invitation à poser le doigt dessus, même 20 secondes.",
+    };
+  } else if (consecutiveSkips >= 2 || weekSkips >= 3) {
+    return {
+      label: 'Ça arrive. Tu passes, et demain on réessaie — 5 minutes suffisent.',
+      subtitle: 'Le pattern est clair : tu reviens toujours après un skip. C\'est la reprise qui compte, pas le skip.',
+    };
+  }
+  return {
+    label: 'Passer pour aujourd\'hui →',
+    subtitle: '',
+  };
+}
+
+// ─── Props ───────────────────────────────────────────────────────────
 
 interface MomentumBreakDialogProps {
   result: MomentumBreakResult;
@@ -73,7 +161,7 @@ interface MomentumBreakDialogProps {
   onSubmitted: () => void;
 }
 
-// ─── Composant ───────────────────────────────────────────────────────────────
+// ─── Composant ──────────────────────────────────────────────────────
 
 const MomentumBreakDialog: React.FC<MomentumBreakDialogProps> = ({
   result,
@@ -112,6 +200,21 @@ const MomentumBreakDialog: React.FC<MomentumBreakDialogProps> = ({
     }, 600);
   };
 
+  const handleDismiss = () => {
+    const skip = recordSkip();
+    const tone = getSkipTone(skip.consecutive, skip.lastWeekSkips);
+
+    // Stocker le ton utilisé pour éventuellement le relire côté IA plus tard
+    try {
+      localStorage.setItem('vibes-arc-last-skip-tone', JSON.stringify({ ...tone, date: todayStr() }));
+    } catch { /* ignore */ }
+
+    try {
+      localStorage.setItem(DISMISSED_KEY, todayStr());
+    } catch { /* ignore */ }
+    onDismiss();
+  };
+
   const lastGoodDate = result.lastGoodDate
     ? new Date(result.lastGoodDate + 'T00:00:00').toLocaleDateString('fr-FR', {
         weekday: 'long',
@@ -119,6 +222,9 @@ const MomentumBreakDialog: React.FC<MomentumBreakDialogProps> = ({
         month: 'long',
       })
     : null;
+
+  const skip = loadSkipRecord();
+  const tone = getSkipTone(skip.consecutive, skip.lastWeekSkips);
 
   return (
     <motion.section
@@ -238,12 +344,19 @@ const MomentumBreakDialog: React.FC<MomentumBreakDialogProps> = ({
                   Enregistrer et continuer
                 </button>
                 <button
-                  onClick={onDismiss}
+                  onClick={handleDismiss}
                   className="text-xs text-slate-400 hover:text-slate-500 transition py-2 px-3 rounded-lg hover:bg-white/60 whitespace-nowrap"
                 >
-                  Passer pour aujourd'hui →
+                  {tone.label}
                 </button>
               </div>
+
+              {/* Ton adaptatif sous le bouton Passer */}
+              {tone.subtitle && (
+                <p className="text-xs text-slate-400 italic text-center px-4">
+                  {tone.subtitle}
+                </p>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -259,7 +372,7 @@ const MomentumBreakDialog: React.FC<MomentumBreakDialogProps> = ({
   );
 };
 
-// ─── Composant Gate (à utiliser dans le Dashboard) ──────────────────────────
+// ─── Composant Gate (à utiliser dans le Dashboard) ──────────────────
 
 interface MomentumBreakGateProps {
   habits: Habit[];
@@ -283,15 +396,11 @@ export const MomentumBreakGate: React.FC<MomentumBreakGateProps> = ({
     }
   });
 
-  const handleDismiss = () => {
+  const handleSubmitted = () => {
     try {
       localStorage.setItem(DISMISSED_KEY, todayStr());
     } catch { /* ignore */ }
     setDismissed(true);
-  };
-
-  const handleSubmitted = () => {
-    handleDismiss();
   };
 
   // Si déjà dismissed aujourd'hui → on n'affiche rien
@@ -304,9 +413,80 @@ export const MomentumBreakGate: React.FC<MomentumBreakGateProps> = ({
   return (
     <MomentumBreakDialog
       result={result}
-      onDismiss={handleDismiss}
+      onDismiss={() => {
+        try {
+          localStorage.setItem(DISMISSED_KEY, todayStr());
+        } catch { /* ignore */ }
+        setDismissed(true);
+      }}
       onSubmitted={handleSubmitted}
     />
+  );
+};
+
+// ─── Historique (à afficher sur le Dashboard, comme miroir) ─────────
+
+/**
+ * MomentumBreakHistory — liste en lecture seule des 5 dernières raisons
+ * données au MomentumBreakDialog.
+ *
+ * Ferme la boucle : jusqu'ici, chaque réponse était enregistrée en
+ * localStorage puis jamais relue nulle part (ni ici, ni côté coach IA).
+ * Ce composant est la première étape : juste rendre visible ce qui existe déjà.
+ */
+export const MomentumBreakHistory: React.FC = () => {
+  const [entries, setEntries] = useState<MomentumBreakEntry[]>([]);
+
+  useEffect(() => {
+    setEntries(loadEntries());
+  }, []);
+
+  if (entries.length === 0) return null;
+
+  const last5 = [...entries]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 5);
+
+  const labelFor = (id: string) => SUGGESTED_REASONS.find((r) => r.id === id);
+
+  return (
+    <div className="card">
+      <p className="text-xs text-slate-400 mb-4 uppercase tracking-wide font-medium">
+        Derniers signaux de rupture
+      </p>
+      <ul className="space-y-3">
+        {last5.map((entry) => (
+          <li
+            key={entry.date}
+            className="text-sm border-b border-slate-100 last:border-0 pb-3 last:pb-0"
+          >
+            <span className="text-slate-500 font-medium">
+              {new Date(entry.date + 'T00:00:00').toLocaleDateString('fr-FR', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short',
+              })}
+            </span>
+            {entry.reasons.length > 0 && (
+              <span className="ml-2 text-slate-700">
+                {entry.reasons
+                  .map((id) => {
+                    const r = labelFor(id);
+                    return r ? `${r.emoji} ${r.label}` : id;
+                  })
+                  .join(' · ')}
+              </span>
+            )}
+            {entry.customReason && (
+              <p className="text-slate-500 italic mt-1">"{entry.customReason}"</p>
+            )}
+            {entry.reasons.length === 0 && !entry.customReason && (
+              <span className="ml-2 text-slate-400 italic">Pas de raison notée</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 };
 
