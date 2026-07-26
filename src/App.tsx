@@ -28,6 +28,7 @@ import TribunalView from '@/components/TribunalView';
 import VibesCanvas from '@/components/visualizations/VibesCanvas';
 import DailyAlignment from '@/components/DailyAlignment';
 import LifeExperiments from '@/components/LifeExperiments';
+import VibesInsights from '@/components/VibesInsights';
 import Celebration from '@/components/Celebration';
 import { getCurrentDayIndex, isHabitActiveOnDay, getHabitStartDayIndex } from '@/utils/habitUtils';
 import { useGameHabitSync } from '@/hooks/useGameHabitSync';
@@ -116,6 +117,8 @@ function App() {
                 return <DailyAlignment />;
             case 'lifeExperiments':
                 return <LifeExperiments />;
+            case 'vibesInsights':
+                return <VibesInsights />;
             case 'accountSettings':
                 return <AccountSettingsView />;
             default:

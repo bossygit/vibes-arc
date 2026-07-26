@@ -3,9 +3,10 @@ import { useAppStore } from '@/store/useAppStore';
 import SupabaseDatabaseClient from '@/database/supabase-client';
 import { Trophy, User, ChevronDown, Menu, X } from 'lucide-react';
 
-type NavKey = 'dashboard' | 'coachChat' | 'priming' | 'environment' | 'identities' | 'addHabit' | 'templates' | 'rewards' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'manifestation' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations' | 'pivotCoach' | 'dailyAlignment' | 'lifeExperiments';
+type NavKey = 'dashboard' | 'coachChat' | 'priming' | 'environment' | 'identities' | 'addHabit' | 'templates' | 'rewards' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'manifestation' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations' | 'pivotCoach' | 'dailyAlignment' | 'lifeExperiments' | 'vibesInsights';
 
 const directNav: { key: NavKey; label: string }[] = [
+    { key: 'vibesInsights', label: '🧠 Insights' },
     { key: 'dashboard', label: 'Dashboard' },
     { key: 'dailyAlignment', label: 'Daily Align' },
     { key: 'lifeExperiments', label: '🔬 Labo' },
