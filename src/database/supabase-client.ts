@@ -1291,6 +1291,96 @@ class SupabaseDatabaseClient {
 
         return !error;
     }
+
+    // ===== Daily Alignment (D15 — Morning Intention → Evening Evidence) =====
+
+    async getTodayAlignment(): Promise<import('@/types').DailyAlignmentEntry | null> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const today = new Date().toISOString().slice(0, 10);
+
+        const { data, error } = await this.supabase
+            .from('daily_alignments')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('date', today)
+            .maybeSingle();
+
+        if (error || !data) return null;
+
+        return {
+            date: data.date,
+            morning: data.morning ?? null,
+            evening: data.evening ?? null,
+        };
+    }
+
+    async getAlignmentHistory(daysBack: number = 30): Promise<import('@/types').DailyAlignmentEntry[]> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const sinceDate = new Date();
+        sinceDate.setDate(sinceDate.getDate() - daysBack);
+        const sinceStr = sinceDate.toISOString().slice(0, 10);
+
+        const { data, error } = await this.supabase
+            .from('daily_alignments')
+            .select('*')
+            .eq('user_id', user.id)
+            .gte('date', sinceStr)
+            .order('date', { ascending: false });
+
+        if (error || !data) return [];
+
+        return data.map((d: any) => ({
+            date: d.date,
+            morning: d.morning ?? null,
+            evening: d.evening ?? null,
+        }));
+    }
+
+    async saveMorningIntention(entry: import('@/types').MorningIntention): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const today = new Date().toISOString().slice(0, 10);
+
+        const { error } = await this.supabase
+            .from('daily_alignments')
+            .upsert(
+                {
+                    user_id: user.id,
+                    date: today,
+                    morning: entry,
+                    updated_at: new Date().toISOString(),
+                },
+                { onConflict: 'user_id,date' }
+            );
+
+        return !error;
+    }
+
+    async saveEveningEvidence(evidence: import('@/types').EveningEvidence): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const today = new Date().toISOString().slice(0, 10);
+
+        const { error } = await this.supabase
+            .from('daily_alignments')
+            .upsert(
+                {
+                    user_id: user.id,
+                    date: today,
+                    evening: evidence,
+                    updated_at: new Date().toISOString(),
+                },
+                { onConflict: 'user_id,date' }
+            );
+
+        return !error;
+    }
   }
 
 export default SupabaseDatabaseClient;

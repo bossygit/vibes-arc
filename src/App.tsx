@@ -26,6 +26,7 @@ import InnerChildCheckin from '@/components/InnerChildCheckin';
 import MoodCheckin from '@/components/MoodCheckin';
 import TribunalView from '@/components/TribunalView';
 import VibesCanvas from '@/components/visualizations/VibesCanvas';
+import DailyAlignment from '@/components/DailyAlignment';
 import Celebration from '@/components/Celebration';
 import { getCurrentDayIndex, isHabitActiveOnDay, getHabitStartDayIndex } from '@/utils/habitUtils';
 import { useGameHabitSync } from '@/hooks/useGameHabitSync';
@@ -110,6 +111,8 @@ function App() {
                 return <VibesCanvas />;
             case 'moodCheckin':
                 return <MoodCheckin />;
+            case 'dailyAlignment':
+                return <DailyAlignment />;
             case 'accountSettings':
                 return <AccountSettingsView />;
             default:

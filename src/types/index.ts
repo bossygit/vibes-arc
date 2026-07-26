@@ -38,14 +38,14 @@ export interface Streak {
     endDate: string;
 }
 
+export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations' | 'pivotCoach' | 'dailyAlignment';
+
 export interface AppState {
     identities: Identity[];
     habits: Habit[];
-    view: 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations' | 'pivotCoach';
+    view: ViewType;
     selectedHabitId: number | null;
 }
-
-export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations' | 'pivotCoach';
 
 // ===== Priming My Brain (système nerveux) =====
 
@@ -425,5 +425,39 @@ export interface VibesData {
     habits: Habit[];
     accusers: Accuser[];
     dailyMoods: DailyMood[];
+}
+
+// ============================================================
+// D15 — Daily Alignment (Morning Intention → Evening Evidence)
+// ============================================================
+
+export type AlignmentPhase = 'morning' | 'evening';
+
+export interface MorningIntention {
+    desireId: number;
+    desireTitle: string;
+    intention: string;               // La phrase d'intention : "Aujourd'hui, je choisis d'incarner..."
+    signalIds: number[];              // Les signaux (habitudes) que je m'engage à honorer
+    createdAt: string;                // ISO timestamp
+}
+
+export interface EveningEvidence {
+    signalsCompleted: number;         // Nombre de signaux cochés sur ceux engagés
+    signalsTotal: number;             // Nombre total de signaux engagés le matin
+    moodScore: number;                // Auto-évaluation rapide (1-10) — pas l'échelle 22 niveaux
+    moodNote: string;                 // "Pourquoi cette vibe aujourd'hui ?"
+    evidenceStatement: string;        // Une phrase : "J'ai prouvé X aujourd'hui"
+    createdAt: string;                // ISO timestamp
+}
+
+export interface DailyAlignmentEntry {
+    date: string;                     // YYYY-MM-DD
+    morning: MorningIntention | null;   // null = pas encore fait le matin
+    evening: EveningEvidence | null;   // null = pas encore fait le soir
+}
+
+export function getAlignmentPhase(hour?: number): AlignmentPhase {
+    const h = hour ?? new Date().getHours();
+    return h < 15 ? 'morning' : 'evening';
 }
 
