@@ -19,6 +19,7 @@ import {
     AlertTriangle,
     Flame,
     Edit3,
+    Save,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -29,6 +30,7 @@ import {
     EmotionalFrequency,
     VERDICT_LABELS,
     Verdict,
+    MotivationData,
 } from '@/types';
 import {
     buildDailyEvidence,
@@ -144,6 +146,7 @@ const AddDesireModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const [title, setTitle] = useState('');
     const [type, setType] = useState<DesireType>('avoir');
     const [target, setTarget] = useState('');
+    const [reasonsText, setReasonsText] = useState('');
     const [selectedIdentityIds, setSelectedIdentityIds] = useState<number[]>(
         identities.length > 0 ? [identities[0].id] : []
     );
@@ -161,7 +164,220 @@ const AddDesireModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         }
         setLoading(true);
         try {
+            // Construire la motivation à partir du texte des raisons
+            const motivation: MotivationData | undefined = reasonsText.trim()
+                ? {
+                    reasons: reasonsText
+                        .split('\n')
+                        .filter((line) => line.trim())
+                        .map((line, i) => ({
+                            id: `reason_${Date.now()}_${i}`,
+                            text: line.replace(/^[-•*]\s*/, '').trim(),
+                            category: 'pleasure' as const,
+                            intensity: 7,
+                        })),
+                    futureSelf: '',
+                    whatAtStake: '',
+                    anchorTrigger: '',
+                    implementationIntention: '',
+                    whoIsItFor: '',
+                    firstStep: '',
+                }
+                : undefined;
+
             await addDesire({
+                title: title.trim(),
+                type,
+                target: target.trim() || undefined,
+                linkedIdentityIds: selectedIdentityIds,
+                motivation,
+            });
+            onClose();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Erreur');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const toggleIdentity = (id: number) => {
+        setSelectedIdentityIds((prev) =>
+            prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+        );
+    };
+
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+            onClick={onClose}
+        >
+            <motion.div
+                initial={{ scale: 0.95, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <Scale className="w-5 h-5 text-indigo-600" />
+                    Nouveau Désir
+                </h2>
+
+                {error && (
+                    <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>
+                )}
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">
+                            Qu'est-ce que tu veux recevoir ?
+                        </label>
+                        <input
+                            type="text"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            placeholder="Générer 10 000 000 FCFA..."
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                            autoFocus
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-2">
+                            Type de désir
+                        </label>
+                        <div className="flex gap-2">
+                            {(['avoir', 'être'] as DesireType[]).map((t) => (
+                                <button
+                                    key={t}
+                                    onClick={() => setType(t)}
+                                    className={`flex-1 py-2.5 px-4 rounded-xl border text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                                        type === t
+                                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                                            : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                                    }`}
+                                >
+                                    {DESIRE_TYPE_ICONS[t]}
+                                    {DESIRE_TYPE_LABELS[t]}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {type === 'avoir' && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-600 mb-1">
+                                Valeur cible (optionnel)
+                            </label>
+                            <input
+                                type="text"
+                                value={target}
+                                onChange={(e) => setTarget(e.target.value)}
+                                placeholder="10 000 000 FCFA"
+                                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                            />
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">
+                            Pourquoi ce désir ? (optionnel)
+                        </label>
+                        <textarea
+                            value={reasonsText}
+                            onChange={(e) => setReasonsText(e.target.value)}
+                            placeholder={"- Pour financer l'éducation de mes enfants\n- Pour prouver que je peux le faire\n- Pour arrêter de survivre et commencer à vivre"}
+                            rows={3}
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-none text-sm"
+                        />
+                        <p className="text-[10px] text-gray-400 mt-1">
+                            Une raison par ligne. Tu pourras les enrichir plus tard (intensité, douleur/plaisir...).
+                        </p>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-2">
+                            Identités requises (sélectionne une ou plusieurs)
+                        </label>
+                        <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                            {identities.map((ident) => {
+                                const isSelected = selectedIdentityIds.includes(ident.id);
+                                return (
+                                    <button
+                                        key={ident.id}
+                                        type="button"
+                                        onClick={() => toggleIdentity(ident.id)}
+                                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors ${
+                                            isSelected
+                                                ? 'bg-indigo-50 border border-indigo-200 text-indigo-700'
+                                                : 'bg-gray-50 border border-gray-100 text-gray-600 hover:bg-gray-100'
+                                        }`}
+                                    >
+                                        <span
+                                            className="w-3 h-3 rounded-full flex-shrink-0"
+                                            style={{ backgroundColor: ident.color }}
+                                        />
+                                        <span className="flex-1 truncate">{ident.name}</span>
+                                        {isSelected && (
+                                            <span className="text-indigo-500 text-xs font-bold">✓</span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-1">
+                            {selectedIdentityIds.length} identité{selectedIdentityIds.length > 1 ? 's' : ''} sélectionnée{selectedIdentityIds.length > 1 ? 's' : ''}
+                        </p>
+                    </div>
+
+                    <button
+                        onClick={handleSubmit}
+                        disabled={loading}
+                        className="w-full py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                        {loading ? (
+                            'Création...'
+                        ) : (
+                            <>
+                                <Gavel className="w-4 h-4" />
+                                Ouvrir le dossier
+                            </>
+                        )}
+                    </button>
+                </div>
+            </motion.div>
+        </motion.div>
+    );
+};
+
+// ============================================================
+// Edit Desire Modal
+// ============================================================
+
+const EditDesireModal: React.FC<{ desire: Desire; onClose: () => void }> = ({ desire, onClose }) => {
+    const { identities, updateDesire } = useAppStore();
+    const [title, setTitle] = useState(desire.title);
+    const [type, setType] = useState<DesireType>(desire.type);
+    const [target, setTarget] = useState(desire.target || '');
+    const [selectedIdentityIds, setSelectedIdentityIds] = useState<number[]>(
+        desire.linkedIdentityIds.length > 0 ? [...desire.linkedIdentityIds] : identities.length > 0 ? [identities[0].id] : []
+    );
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    const handleSave = async () => {
+        if (!title.trim()) {
+            setError('Donne un nom à ton désir');
+            return;
+        }
+        if (selectedIdentityIds.length === 0) {
+            setError('Sélectionne au moins une identité');
+            return;
+        }
+        setLoading(true);
+        try {
+            await updateDesire(desire.id, {
                 title: title.trim(),
                 type,
                 target: target.trim() || undefined,
@@ -195,8 +411,8 @@ const AddDesireModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 onClick={(e) => e.stopPropagation()}
             >
                 <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Scale className="w-5 h-5 text-indigo-600" />
-                    Nouveau Désir
+                    <Edit3 className="w-5 h-5 text-indigo-600" />
+                    Modifier le Désir
                 </h2>
 
                 {error && (
@@ -290,20 +506,28 @@ const AddDesireModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         </p>
                     </div>
 
-                    <button
-                        onClick={handleSubmit}
-                        disabled={loading}
-                        className="w-full py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                        {loading ? (
-                            'Création...'
-                        ) : (
-                            <>
-                                <Gavel className="w-4 h-4" />
-                                Ouvrir le dossier
-                            </>
-                        )}
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={onClose}
+                            className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                        >
+                            Annuler
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            disabled={loading}
+                            className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {loading ? (
+                                'Sauvegarde...'
+                            ) : (
+                                <>
+                                    <Save className="w-4 h-4" />
+                                    Sauvegarder
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </div>
             </motion.div>
         </motion.div>
@@ -327,6 +551,7 @@ const DesireCard: React.FC<{
     const [addingAccuser, setAddingAccuser] = useState(false);
     const [showAddAccuser, setShowAddAccuser] = useState(false);
     const [editingMotivation, setEditingMotivation] = useState(false);
+    const [editingDesire, setEditingDesire] = useState(false);
 
     // Signaux liés à TOUTES les identités de ce désir
     const linkedHabits = useMemo(
@@ -417,8 +642,9 @@ const DesireCard: React.FC<{
                             )}
                         </div>
                         <h3 className="text-lg font-bold text-gray-800 truncate">{desire.title}</h3>
-                        {desire.linkedIdentityIds.length > 0 && (
-                            <p className="text-sm text-gray-400 mt-0.5 flex items-center gap-1 flex-wrap">
+                        <div className="flex items-center gap-2 mt-1">
+                            {desire.linkedIdentityIds.length > 0 && (
+                            <p className="text-sm text-gray-400 flex items-center gap-1 flex-wrap">
                                 {desire.linkedIdentityIds.map((iid) => {
                                     const ident = identities.find((i) => i.id === iid);
                                     return ident ? (
@@ -436,7 +662,15 @@ const DesireCard: React.FC<{
                                     return acc;
                                 }, [])}
                             </p>
-                        )}
+                            )}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setEditingDesire(true); }}
+                                className="p-1 text-gray-400 hover:text-indigo-600 transition-colors flex-shrink-0"
+                                title="Modifier le désir"
+                            >
+                                <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
                         <ScoreGauge score={score.total} size={64} />
@@ -838,6 +1072,14 @@ const DesireCard: React.FC<{
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Edit Desire Modal */}
+            {editingDesire && (
+                <EditDesireModal
+                    desire={desire}
+                    onClose={() => setEditingDesire(false)}
+                />
+            )}
         </motion.div>
     );
 };

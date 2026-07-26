@@ -912,20 +912,26 @@ class SupabaseDatabaseClient {
         type: 'avoir' | 'être',
         linkedIdentityIds: number[],
         description?: string,
-        target?: string
+        target?: string,
+        motivation?: import('@/types').MotivationData
     ): Promise<import('@/types').Desire> {
         const user = await this.getCurrentUser();
         if (!user) throw new Error('Utilisateur non authentifié');
 
+        const insertPayload: any = {
+            user_id: user.id,
+            title,
+            type,
+            description: description ?? null,
+            target: target ?? null,
+        };
+        if (motivation !== undefined) {
+            insertPayload.motivation = motivation;
+        }
+
         const { data, error } = await this.supabase
             .from('desires')
-            .insert({
-                user_id: user.id,
-                title,
-                type,
-                description: description ?? null,
-                target: target ?? null,
-            })
+            .insert(insertPayload)
             .select()
             .single();
 
@@ -950,7 +956,7 @@ class SupabaseDatabaseClient {
             description: data.description,
             target: data.target,
             linkedIdentityIds,
-            motivation: data.motivation || undefined,
+            motivation: data.motivation || motivation || undefined,
             createdAt: data.created_at,
         };
     }
