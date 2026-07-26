@@ -1017,10 +1017,16 @@ const DesireCard: React.FC<{
                             </div>
 
                             {/* Tribunal des Témoins */}
-                            <WitnessTreeView
-                                desire={desire}
-                                habits={habits}
-                            />
+                            <ErrorBoundary fallback={
+                                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700">
+                                    ⚠️ Les témoins n'ont pas pu être chargés. Rafraîchis la page ou vérifie la console.
+                                </div>
+                            }>
+                                <WitnessTreeView
+                                    desire={desire}
+                                    habits={habits}
+                                />
+                            </ErrorBoundary>
 
                             {/* Preuves complémentaires (autres outils) */}
                             <ComplementaryEvidence />

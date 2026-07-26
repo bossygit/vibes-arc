@@ -16,14 +16,12 @@ const LEVEL_LABELS: Record<WitnessLevel, string> = {
     monthly: 'Mois',
 };
 
-/** Messages des accusateurs par niveau */
 const ACCUSER_MESSAGES: Record<WitnessLevel, string> = {
     daily: 'Ce jour n\'a pas vu toutes les habitudes requises.',
     weekly: '7 jours consécutifs non atteints. L\'accusateur parle.',
     monthly: '4 semaines consécutives non atteintes. L\'accusateur parle.',
 };
 
-/** Messages des témoins par niveau */
 const WITNESS_MESSAGES: Record<WitnessLevel, string> = {
     daily: 'Témoin journalier — toutes les habitudes requises accomplies.',
     weekly: 'Témoin-semaine — 7 jours consécutifs. Le Tribunal écoute.',
@@ -41,27 +39,39 @@ interface WitnessTreeViewProps {
 }
 
 const WitnessTreeView: React.FC<WitnessTreeViewProps> = ({ desire, habits, className = '' }) => {
+    const requiredIds: number[] = desire?.requiredHabitIds ?? [];
+    const safeHabits: Habit[] = Array.isArray(habits) ? habits : [];
+
     const tree: WitnessTree = useMemo(() => {
-        const requiredIds = desire.requiredHabitIds ?? [];
         if (requiredIds.length === 0) {
             return {
-                desireId: desire.id,
+                desireId: desire?.id ?? 0,
                 daily: [],
                 weekly: [],
                 monthly: [],
                 highestWitnessLevel: null,
             };
         }
-        return computeWitnessTree({
-            desireId: desire.id,
-            requiredHabitIds: requiredIds,
-            habits,
-            daysBack: 90,
-        });
-    }, [desire, habits]);
+        try {
+            return computeWitnessTree({
+                desireId: desire?.id ?? 0,
+                requiredHabitIds: requiredIds,
+                habits: safeHabits,
+                daysBack: 90,
+            });
+        } catch (err) {
+            console.error('WitnessTreeView: computeWitnessTree failed', err);
+            return {
+                desireId: desire?.id ?? 0,
+                daily: [],
+                weekly: [],
+                monthly: [],
+                highestWitnessLevel: null,
+            };
+        }
+    }, [desire?.id, requiredIds.length, safeHabits.length]);
 
     // Pas encore configuré
-    const requiredIds = desire.requiredHabitIds ?? [];
     if (requiredIds.length === 0) {
         return (
             <div className={className}>
@@ -82,7 +92,6 @@ const WitnessTreeView: React.FC<WitnessTreeViewProps> = ({ desire, habits, class
 
     return (
         <div className={`space-y-4 ${className}`}>
-            {/* === DAILY LEVEL === */}
             <LevelRow
                 level="daily"
                 items={daily}
@@ -92,7 +101,6 @@ const WitnessTreeView: React.FC<WitnessTreeViewProps> = ({ desire, habits, class
                 )}
             />
 
-            {/* === WEEKLY LEVEL === */}
             <LevelRow
                 level="weekly"
                 items={weekly}
@@ -102,7 +110,6 @@ const WitnessTreeView: React.FC<WitnessTreeViewProps> = ({ desire, habits, class
                 )}
             />
 
-            {/* === MONTHLY LEVEL === */}
             {monthly.length > 0 && (
                 <LevelRow
                     level="monthly"
@@ -114,7 +121,6 @@ const WitnessTreeView: React.FC<WitnessTreeViewProps> = ({ desire, habits, class
                 />
             )}
 
-            {/* Voice — ce que dit le plus haut niveau */}
             <VoiceBanner tree={tree} />
         </div>
     );
@@ -132,9 +138,9 @@ interface LevelRowProps {
 }
 
 const LevelRow: React.FC<LevelRowProps> = ({ level, items, highestWitnessLevel, renderItem }) => {
-    if (items.length === 0) return null;
+    if (!items || items.length === 0) return null;
 
-    const completeCount = items.filter((i: any) => i.isComplete).length;
+    const completeCount = items.filter((i: any) => i?.isComplete).length;
     const allAccusers = completeCount === 0;
     const isHighest = highestWitnessLevel === level;
 
@@ -162,8 +168,11 @@ const LevelRow: React.FC<LevelRowProps> = ({ level, items, highestWitnessLevel, 
 // ============================================================
 
 const DailyDot: React.FC<{ witness: any; index: number }> = ({ witness, index }) => {
+    if (!witness) return null;
     const isComplete = witness.isComplete;
-    const date = new Date(witness.date + 'T00:00:00');
+    const dateStr = witness.date || '';
+    const date = new Date(dateStr + 'T00:00:00');
+    const dayIndex = isNaN(date.getTime()) ? 0 : (date.getDay() === 0 ? 6 : date.getDay() - 1);
 
     return (
         <motion.div
@@ -173,12 +182,12 @@ const DailyDot: React.FC<{ witness: any; index: number }> = ({ witness, index })
             className="flex flex-col items-center gap-0.5"
             title={
                 isComplete
-                    ? `${witness.date} — Témoin ✓\nHabitudes: ${witness.completedHabitIds.join(', ')}`
-                    : `${witness.date} — Accusateur\nManquantes: ${witness.missingHabitIds.join(', ')}`
+                    ? `${witness.date} — Témoin ✓\nHabitudes: ${(witness.completedHabitIds || []).join(', ')}`
+                    : `${witness.date} — Accusateur\nManquantes: ${(witness.missingHabitIds || []).join(', ')}`
             }
         >
             <span className="text-[9px] text-gray-400 leading-none">
-                {DAY_NAMES[date.getDay() === 0 ? 6 : date.getDay() - 1]}
+                {DAY_NAMES[dayIndex] || '?'}
             </span>
             <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
@@ -202,8 +211,10 @@ const DailyDot: React.FC<{ witness: any; index: number }> = ({ witness, index })
 // ============================================================
 
 const WeekBlock: React.FC<{ witness: any; index: number }> = ({ witness, index }) => {
+    if (!witness) return null;
     const isComplete = witness.isComplete;
-    const dailyCount = witness.dailyCount;
+    const dailyCount = witness.dailyCount ?? 0;
+    const weekStart = witness.weekStart || '';
 
     return (
         <motion.div
@@ -217,15 +228,15 @@ const WeekBlock: React.FC<{ witness: any; index: number }> = ({ witness, index }
             }`}
             title={
                 isComplete
-                    ? `Semaine du ${witness.weekStart} — Témoin-semaine ✨\n7/7 jours`
-                    : `Semaine du ${witness.weekStart} — Accusateur\n${dailyCount}/7 jours`
+                    ? `Semaine du ${weekStart} — Témoin-semaine ✨\n7/7 jours`
+                    : `Semaine du ${weekStart} — Accusateur\n${dailyCount}/7 jours`
             }
         >
             <div className="text-lg mb-0.5">
                 {isComplete ? <CheckCircle2 className="w-4 h-4 mx-auto" /> : <AlertTriangle className="w-3.5 h-3.5 mx-auto" />}
             </div>
             <div className="text-[9px] font-medium leading-tight">
-                {new Date(witness.weekStart + 'T00:00:00').toLocaleDateString('fr', { day: 'numeric', month: 'short' })}
+                {weekStart ? new Date(weekStart + 'T00:00:00').toLocaleDateString('fr', { day: 'numeric', month: 'short' }) : '?'}
             </div>
             <div className={`text-[10px] font-bold mt-0.5 ${isComplete ? 'text-emerald-600' : 'text-rose-400'}`}>
                 {dailyCount}/7
@@ -239,10 +250,11 @@ const WeekBlock: React.FC<{ witness: any; index: number }> = ({ witness, index }
 // ============================================================
 
 const MonthBlock: React.FC<{ witness: any; index: number }> = ({ witness, index }) => {
+    if (!witness) return null;
     const isComplete = witness.isComplete;
-    const weeklyCount = witness.weeklyCount;
-
-    const monthName = new Date(witness.monthStart + 'T00:00:00').toLocaleDateString('fr', { month: 'short' });
+    const weeklyCount = witness.weeklyCount ?? 0;
+    const monthStart = witness.monthStart || '';
+    const monthName = monthStart ? new Date(monthStart + 'T00:00:00').toLocaleDateString('fr', { month: 'short' }) : '?';
 
     return (
         <motion.div
@@ -282,24 +294,23 @@ const MonthBlock: React.FC<{ witness: any; index: number }> = ({ witness, index 
 const VoiceBanner: React.FC<{ tree: WitnessTree }> = ({ tree }) => {
     const { highestWitnessLevel, weekly, monthly } = tree;
 
-    // Déterminer quel niveau parle
     let voice: { level: WitnessLevel | null; message: string; isAccuser: boolean };
 
     if (highestWitnessLevel) {
-        // Un témoin existe à ce niveau → il parle en faveur
         voice = {
             level: highestWitnessLevel,
             message: WITNESS_MESSAGES[highestWitnessLevel],
             isAccuser: false,
         };
     } else {
-        // Aucun témoin → le plus haut niveau avec des accusateurs parle
-        const allWeeklyAccusers = weekly.length > 0 && weekly.every(w => w.isAccuser);
-        const allMonthlyAccusers = monthly.length > 0 && monthly.every(m => m.isAccuser);
+        const safeWeekly = Array.isArray(weekly) ? weekly : [];
+        const safeMonthly = Array.isArray(monthly) ? monthly : [];
+        const allWeeklyAccusers = safeWeekly.length > 0 && safeWeekly.every(w => w?.isAccuser);
+        const allMonthlyAccusers = safeMonthly.length > 0 && safeMonthly.every(m => m?.isAccuser);
 
-        if (allMonthlyAccusers || monthly.length > 0) {
+        if (allMonthlyAccusers || safeMonthly.length > 0) {
             voice = { level: 'monthly', message: ACCUSER_MESSAGES.monthly, isAccuser: true };
-        } else if (allWeeklyAccusers || weekly.length > 0) {
+        } else if (allWeeklyAccusers || safeWeekly.length > 0) {
             voice = { level: 'weekly', message: ACCUSER_MESSAGES.weekly, isAccuser: true };
         } else {
             voice = { level: 'daily', message: ACCUSER_MESSAGES.daily, isAccuser: true };
