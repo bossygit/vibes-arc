@@ -38,6 +38,7 @@ import {
 import { calculateHabitStats } from '@/utils/habitUtils';
 import ComplementaryEvidence, { useToolEvidence } from './ComplementaryEvidence';
 import { MotivationDisplay, MotivationEditor } from './MotivationEngine';
+import ErrorBoundary from './ErrorBoundary';
 
 // ============================================================
 // Helpers
@@ -457,18 +458,19 @@ const DesireCard: React.FC<{
             </div>
 
             {/* Expanded details */}
-            <AnimatePresence>
+            <AnimatePresence initial={false}>
                 {expanded && (
                     <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="overflow-hidden"
+                        key="expanded"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
                     >
-                        <div className="px-5 pb-5 space-y-5 border-t border-gray-100 pt-4">
-                            {/* Score détaillé */}
-                            <div>
+                        <ErrorBoundary>
+                            <div className="px-5 pb-5 space-y-5 border-t border-gray-100 pt-4">
+                                {/* Score détaillé */}
+                                <div>
                                 <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                                     <Gavel className="w-4 h-4" />
                                     Détail du dossier ({score.periodDays} jours)
@@ -831,7 +833,8 @@ const DesireCard: React.FC<{
                                     </div>
                                 </div>
                             )}
-                        </div>
+                            </div>
+                        </ErrorBoundary>
                     </motion.div>
                 )}
             </AnimatePresence>
