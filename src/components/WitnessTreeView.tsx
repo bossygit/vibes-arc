@@ -42,7 +42,8 @@ interface WitnessTreeViewProps {
 
 const WitnessTreeView: React.FC<WitnessTreeViewProps> = ({ desire, habits, className = '' }) => {
     const tree: WitnessTree = useMemo(() => {
-        if (desire.requiredHabitIds.length === 0) {
+        const requiredIds = desire.requiredHabitIds ?? [];
+        if (requiredIds.length === 0) {
             return {
                 desireId: desire.id,
                 daily: [],
@@ -53,14 +54,15 @@ const WitnessTreeView: React.FC<WitnessTreeViewProps> = ({ desire, habits, class
         }
         return computeWitnessTree({
             desireId: desire.id,
-            requiredHabitIds: desire.requiredHabitIds,
+            requiredHabitIds: requiredIds,
             habits,
             daysBack: 90,
         });
     }, [desire, habits]);
 
     // Pas encore configuré
-    if (desire.requiredHabitIds.length === 0) {
+    const requiredIds = desire.requiredHabitIds ?? [];
+    if (requiredIds.length === 0) {
         return (
             <div className={className}>
                 <div className="text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">

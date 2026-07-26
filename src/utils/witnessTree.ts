@@ -86,8 +86,10 @@ export function computeWitnessTree(input: ComputeWitnessTreeInput): WitnessTree 
         return emptyTree(desireId);
     }
 
-    // Filtrer les habitudes requises
-    const requiredHabits = habits.filter(h => requiredHabitIds.includes(h.id));
+    // Filtrer les habitudes requises (avec garde contre les données corrompues)
+    const requiredHabits = habits.filter(h => 
+        h && requiredHabitIds.includes(h.id) && Array.isArray(h.progress)
+    );
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
