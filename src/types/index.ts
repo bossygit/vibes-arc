@@ -38,7 +38,7 @@ export interface Streak {
     endDate: string;
 }
 
-export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations' | 'pivotCoach' | 'dailyAlignment';
+export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations' | 'pivotCoach' | 'dailyAlignment' | 'lifeExperiments';
 
 export interface AppState {
     identities: Identity[];
@@ -459,5 +459,53 @@ export interface DailyAlignmentEntry {
 export function getAlignmentPhase(hour?: number): AlignmentPhase {
     const h = hour ?? new Date().getHours();
     return h < 15 ? 'morning' : 'evening';
+}
+
+// ============================================================
+// D17 — Life Experiment Engine
+// ============================================================
+
+export type ExperimentStatus = 'draft' | 'active' | 'completed' | 'archived';
+
+export interface ExperimentDayEntry {
+    date: string;                         // YYYY-MM-DD
+    values: Record<string, number>;       // metric key → score (1-10)
+    notes?: string;
+}
+
+export interface LifeExperiment {
+    id: number;
+    title: string;
+    hypothesis: string;                   // "Si je fais X, alors Y s'améliore"
+    desireId?: number;                    // Lien optionnel vers un Désir
+    metrics: string[];                    // Clés des métriques choisies
+    startDate: string;                    // YYYY-MM-DD
+    endDate: string;                      // startDate + 6 jours (7 jours total)
+    status: ExperimentStatus;
+    entries: ExperimentDayEntry[];        // JSONB stocké
+    conclusion?: string;                  // Réflexion de fin
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface ExperimentMetricDef {
+    key: string;
+    label: string;
+    icon: string;
+    description: string;
+}
+
+export const DEFAULT_EXPERIMENT_METRICS: ExperimentMetricDef[] = [
+    { key: 'mood', label: 'Humeur', icon: '😊', description: 'État émotionnel général' },
+    { key: 'energy', label: 'Énergie', icon: '⚡', description: 'Niveau d\'énergie physique et mentale' },
+    { key: 'behavior', label: 'Comportement', icon: '🎯', description: 'Alignement avec les habitudes cibles' },
+    { key: 'performance', label: 'Performance', icon: '📈', description: 'Productivité et accomplissements' },
+    { key: 'momentum', label: 'Momentum', icon: '🌊', description: 'Élan et confiance dans le processus' },
+];
+
+export function getMetricDef(key: string): ExperimentMetricDef {
+    return DEFAULT_EXPERIMENT_METRICS.find((m) => m.key === key) ?? {
+        key, label: key, icon: '📊', description: '',
+    };
 }
 

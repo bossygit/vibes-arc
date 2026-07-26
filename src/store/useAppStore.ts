@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs, NotificationChannel, PrimingSession, EnvironmentMap, MilestoneAchievement, PendingMilestoneCelebration, Desire, DailyMood, Accuser, EmotionalFrequency } from '@/types';
+import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs, NotificationChannel, PrimingSession, EnvironmentMap, MilestoneAchievement, PendingMilestoneCelebration, Desire, DailyMood, Accuser, EmotionalFrequency, LifeExperiment, ExperimentDayEntry, ExperimentStatus } from '@/types';
 import SupabaseDatabaseClient from '@/database/supabase-client';
 import { computePointsForAction, calculateHabitStats, isHabitActiveOnDay } from '@/utils/habitUtils';
 import { evaluateMilestones, detectNewAchievements } from '@/utils/milestoneUtils';
@@ -23,6 +23,8 @@ interface AppState {
     dailyMoods: DailyMood[];
     todayMood: DailyMood | null;
     accusers: Accuser[];
+    // D17 — Life Experiment Engine
+    experiments: LifeExperiment[];
 
     // Actions
     setView: (view: ViewType) => void;
@@ -67,6 +69,13 @@ interface AppState {
     toggleAccuserDay: (accuserId: number, dayIndex: number) => void;
     deleteAccuser: (id: number) => void;
     saveMotivation: (desireId: number, motivation: import('@/types').MotivationData) => Promise<boolean>;
+    // D17 — Life Experiment Engine
+    loadExperiments: () => Promise<void>;
+    createExperiment: (data: Omit<LifeExperiment, 'id' | 'createdAt' | 'updatedAt' | 'entries' | 'status'>) => Promise<LifeExperiment>;
+    updateExperiment: (id: number, updates: Partial<LifeExperiment>) => Promise<void>;
+    deleteExperiment: (id: number) => Promise<void>;
+    recordExperimentDay: (experimentId: number, entry: ExperimentDayEntry) => Promise<void>;
+    completeExperiment: (id: number, conclusion: string) => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set) => {
@@ -227,6 +236,12 @@ export const useAppStore = create<AppState>((set) => {
                 accusers = await db.getAccusers();
             } catch { }
 
+            // D17 — Charger les expériences
+            let experiments: LifeExperiment[] = [];
+            try {
+                experiments = await db.getExperiments();
+            } catch { }
+
             const initialProgress = evaluateMilestones(habits, identities, milestoneAchievements);
             const retroactive = initialProgress.filter(
                 (p) =>
@@ -238,7 +253,7 @@ export const useAppStore = create<AppState>((set) => {
                 if (saved) milestoneAchievements = [saved, ...milestoneAchievements];
             }
 
-            set({ identities, habits, skipsByHabit, gamification, userPrefs, primingSessions, environments, milestoneAchievements, desires, dailyMoods, todayMood, accusers });
+            set({ identities, habits, skipsByHabit, gamification, userPrefs, primingSessions, environments, milestoneAchievements, desires, dailyMoods, todayMood, accusers, experiments });
         } catch (error) {
             console.error('Erreur lors du chargement des données:', error);
             // En cas d'erreur, initialiser avec des tableaux vides
@@ -255,6 +270,7 @@ export const useAppStore = create<AppState>((set) => {
                 dailyMoods: [],
                 todayMood: null,
                 accusers: [],
+                experiments: [],
             });
         }
     };
@@ -280,6 +296,8 @@ export const useAppStore = create<AppState>((set) => {
         dailyMoods: [],
         todayMood: null,
         accusers: [],
+        // D17
+        experiments: [],
 
         // Actions
         setView: (view) => set({ view }),
@@ -769,6 +787,93 @@ export const useAppStore = create<AppState>((set) => {
             } catch (error) {
                 console.error('Erreur sauvegarde motivation:', error);
                 return false;
+            }
+        },
+
+        // ===== D17 — Life Experiment Engine =====
+
+        loadExperiments: async () => {
+            try {
+                const experiments = await db.getExperiments();
+                set({ experiments });
+            } catch {
+                // silencieux
+            }
+        },
+
+        createExperiment: async (data: Omit<LifeExperiment, 'id' | 'createdAt' | 'updatedAt' | 'entries' | 'status'>) => {
+            try {
+                const experiment = await db.createExperiment(data);
+                set((state) => ({
+                    experiments: [...state.experiments, experiment],
+                }));
+                return experiment;
+            } catch (error) {
+                console.error('Erreur création expérience:', error);
+                throw error;
+            }
+        },
+
+        updateExperiment: async (id: number, updates: Partial<LifeExperiment>) => {
+            try {
+                const success = await db.updateExperiment(id, updates);
+                if (success) {
+                    set((state) => ({
+                        experiments: state.experiments.map(e =>
+                            e.id === id ? { ...e, ...updates } : e
+                        ),
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur mise à jour expérience:', error);
+            }
+        },
+
+        deleteExperiment: async (id: number) => {
+            try {
+                const success = await db.deleteExperiment(id);
+                if (success) {
+                    set((state) => ({
+                        experiments: state.experiments.filter(e => e.id !== id),
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur suppression expérience:', error);
+            }
+        },
+
+        recordExperimentDay: async (experimentId: number, entry: ExperimentDayEntry) => {
+            try {
+                const success = await db.recordExperimentDay(experimentId, entry);
+                if (success) {
+                    set((state) => ({
+                        experiments: state.experiments.map(e => {
+                            if (e.id !== experimentId) return e;
+                            const existing = (e.entries ?? []).filter(ee => ee.date !== entry.date);
+                            return { ...e, entries: [...existing, entry] };
+                        }),
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur enregistrement jour expérience:', error);
+            }
+        },
+
+        completeExperiment: async (id: number, conclusion: string) => {
+            try {
+                const success = await db.updateExperiment(id, {
+                    status: 'completed',
+                    conclusion,
+                } as any);
+                if (success) {
+                    set((state) => ({
+                        experiments: state.experiments.map(e =>
+                            e.id === id ? { ...e, status: 'completed' as ExperimentStatus, conclusion } : e
+                        ),
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur complétion expérience:', error);
             }
         },
     };

@@ -1381,6 +1381,137 @@ class SupabaseDatabaseClient {
 
         return !error;
     }
-  }
+
+    // ===== D17 — Life Experiment Engine =====
+
+    async getExperiments(): Promise<import('@/types').LifeExperiment[]> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { data, error } = await this.supabase
+            .from('life_experiments')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (error || !data) return [];
+
+        return data.map((d: any) => ({
+            id: d.id,
+            title: d.title,
+            hypothesis: d.hypothesis ?? '',
+            desireId: d.desire_id ?? undefined,
+            metrics: d.metrics ?? ['mood', 'energy', 'behavior', 'performance', 'momentum'],
+            startDate: d.start_date,
+            endDate: d.end_date,
+            status: d.status ?? 'draft',
+            entries: Array.isArray(d.entries) ? d.entries : [],
+            conclusion: d.conclusion ?? '',
+            createdAt: d.created_at,
+            updatedAt: d.updated_at,
+        }));
+    }
+
+    async createExperiment(data: Omit<import('@/types').LifeExperiment, 'id' | 'createdAt' | 'updatedAt' | 'entries' | 'status'>): Promise<import('@/types').LifeExperiment> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { data: experiment, error } = await this.supabase
+            .from('life_experiments')
+            .insert({
+                user_id: user.id,
+                title: data.title,
+                hypothesis: data.hypothesis ?? '',
+                desire_id: data.desireId ?? null,
+                metrics: data.metrics ?? ['mood', 'energy', 'behavior', 'performance', 'momentum'],
+                start_date: data.startDate,
+                end_date: data.endDate,
+                status: 'draft',
+                entries: [],
+            })
+            .select()
+            .single();
+
+        if (error || !experiment) throw error ?? new Error('Création échouée');
+
+        return {
+            id: experiment.id,
+            title: experiment.title,
+            hypothesis: experiment.hypothesis ?? '',
+            desireId: experiment.desire_id ?? undefined,
+            metrics: experiment.metrics ?? ['mood', 'energy', 'behavior', 'performance', 'momentum'],
+            startDate: experiment.start_date,
+            endDate: experiment.end_date,
+            status: experiment.status ?? 'draft',
+            entries: [],
+            conclusion: '',
+            createdAt: experiment.created_at,
+            updatedAt: experiment.updated_at,
+        };
+    }
+
+    async updateExperiment(id: number, updates: Partial<import('@/types').LifeExperiment>): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const dbUpdates: Record<string, any> = {};
+        if (updates.title !== undefined) dbUpdates.title = updates.title;
+        if (updates.hypothesis !== undefined) dbUpdates.hypothesis = updates.hypothesis;
+        if (updates.desireId !== undefined) dbUpdates.desire_id = updates.desireId;
+        if (updates.metrics !== undefined) dbUpdates.metrics = updates.metrics;
+        if (updates.startDate !== undefined) dbUpdates.start_date = updates.startDate;
+        if (updates.endDate !== undefined) dbUpdates.end_date = updates.endDate;
+        if (updates.status !== undefined) dbUpdates.status = updates.status;
+        if (updates.entries !== undefined) dbUpdates.entries = updates.entries;
+        if (updates.conclusion !== undefined) dbUpdates.conclusion = updates.conclusion;
+        dbUpdates.updated_at = new Date().toISOString();
+
+        const { error } = await this.supabase
+            .from('life_experiments')
+            .update(dbUpdates)
+            .eq('id', id)
+            .eq('user_id', user.id);
+
+        return !error;
+    }
+
+    async deleteExperiment(id: number): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { error } = await this.supabase
+            .from('life_experiments')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', user.id);
+
+        return !error;
+    }
+
+    async recordExperimentDay(experimentId: number, entry: import('@/types').ExperimentDayEntry): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        // Récupérer l'expérience existante
+        const { data: experiment } = await this.supabase
+            .from('life_experiments')
+            .select('entries')
+            .eq('id', experimentId)
+            .eq('user_id', user.id)
+            .single();
+
+        const currentEntries: import('@/types').ExperimentDayEntry[] = experiment?.entries ?? [];
+        const filtered = currentEntries.filter((e: any) => e.date !== entry.date);
+        const newEntries = [...filtered, entry];
+
+        const { error } = await this.supabase
+            .from('life_experiments')
+            .update({ entries: newEntries, updated_at: new Date().toISOString() })
+            .eq('id', experimentId)
+            .eq('user_id', user.id);
+
+        return !error;
+    }
+}
 
 export default SupabaseDatabaseClient;
