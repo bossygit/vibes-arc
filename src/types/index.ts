@@ -239,6 +239,7 @@ export interface Desire {
     description?: string;
     target?: string;                  // Valeur mesurable (ex: "10 000 000 FCFA")
     linkedIdentityIds: number[];      // Les identités requises pour recevoir ce désir (multi)
+    requiredHabitIds: number[];       // 🆕 Habitudes qui, cochées ENSEMBLE, produisent un témoin journalier
     motivation?: MotivationData;      // Données motivationnelles (raisons, NLP, etc.)
     createdAt: string;
 }
@@ -379,6 +380,53 @@ export const VERDICT_LABELS: Record<Verdict, string> = {
     mitigé: 'Dossier incomplet — le Tribunal attend plus de preuves',
     défavorable: 'Dossier faible — les accusateurs dominent',
 };
+
+// ============================================================
+// Tribunal des Témoins (Witness System)
+// ============================================================
+
+export type WitnessLevel = 'daily' | 'weekly' | 'monthly';
+
+/** Un jour où toutes les habitudes requises pour un Désir ont été cochées (ou pas). */
+export interface DailyWitness {
+    date: string;                    // ISO date (YYYY-MM-DD)
+    desireId: number;
+    isComplete: boolean;             // true = TOUTES les habitudes requises cochées
+    completedHabitIds: number[];     // lesquelles ont été faites
+    missingHabitIds: number[];       // lesquelles manquent
+    /** true si le jour est incomplet → le jour devient un accusateur */
+    isAccuser: boolean;
+}
+
+/** Consolidation de 7 DailyWitness consécutifs. */
+export interface WeeklyWitness {
+    weekStart: string;               // ISO date du lundi de cette semaine
+    desireId: number;
+    isComplete: boolean;             // true = 7 daily witnesses consécutifs
+    dailyCount: number;              // combien de jours avec témoin sur 7
+    /** true si < 7 → accusateur-semaine */
+    isAccuser: boolean;
+}
+
+/** Consolidation de 4 WeeklyWitness consécutifs. */
+export interface MonthlyWitness {
+    monthStart: string;              // ISO date du 1er du mois
+    desireId: number;
+    isComplete: boolean;             // true = 4 weekly witnesses consécutifs
+    weeklyCount: number;             // combien de semaines avec témoin sur 4
+    /** true si < 4 → accusateur-mois */
+    isAccuser: boolean;
+}
+
+/** L'arbre complet des témoins pour un Désir. */
+export interface WitnessTree {
+    desireId: number;
+    daily: DailyWitness[];           // 7 derniers jours (du plus ancien au plus récent)
+    weekly: WeeklyWitness[];         // 4 dernières semaines
+    monthly: MonthlyWitness[];       // mois en cours et précédents
+    /** Le plus haut niveau où un témoin complet existe. null = accusateurs à tous les niveaux. */
+    highestWitnessLevel: WitnessLevel | null;
+}
 
 // ---- Vue "Tribunal" (dashboard par Désir) ----
 

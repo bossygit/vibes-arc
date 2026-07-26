@@ -40,6 +40,7 @@ import {
 import { calculateHabitStats } from '@/utils/habitUtils';
 import ComplementaryEvidence, { useToolEvidence } from './ComplementaryEvidence';
 import { MotivationDisplay, MotivationEditor } from './MotivationEngine';
+import WitnessTreeView from './WitnessTreeView';
 import ErrorBoundary from './ErrorBoundary';
 
 // ============================================================
@@ -190,6 +191,7 @@ const AddDesireModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 type,
                 target: target.trim() || undefined,
                 linkedIdentityIds: selectedIdentityIds,
+                requiredHabitIds: [],       // 🆕 sera configuré après création
                 motivation,
             });
             onClose();
@@ -356,15 +358,24 @@ const AddDesireModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 // ============================================================
 
 const EditDesireModal: React.FC<{ desire: Desire; onClose: () => void }> = ({ desire, onClose }) => {
-    const { identities, updateDesire } = useAppStore();
+    const { identities, habits, updateDesire } = useAppStore();
     const [title, setTitle] = useState(desire.title);
     const [type, setType] = useState<DesireType>(desire.type);
     const [target, setTarget] = useState(desire.target || '');
     const [selectedIdentityIds, setSelectedIdentityIds] = useState<number[]>(
         desire.linkedIdentityIds.length > 0 ? [...desire.linkedIdentityIds] : identities.length > 0 ? [identities[0].id] : []
     );
+    const [selectedRequiredHabitIds, setSelectedRequiredHabitIds] = useState<number[]>(
+        desire.requiredHabitIds || []
+    );
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+
+    // Habitudes liées aux identités sélectionnées
+    const availableHabits = useMemo(
+        () => habits.filter((h) => h.linkedIdentities.some((iid) => selectedIdentityIds.includes(iid))),
+        [habits, selectedIdentityIds]
+    );
 
     const handleSave = async () => {
         if (!title.trim()) {
@@ -382,6 +393,7 @@ const EditDesireModal: React.FC<{ desire: Desire; onClose: () => void }> = ({ de
                 type,
                 target: target.trim() || undefined,
                 linkedIdentityIds: selectedIdentityIds,
+                requiredHabitIds: selectedRequiredHabitIds,
             });
             onClose();
         } catch (err) {
@@ -397,6 +409,12 @@ const EditDesireModal: React.FC<{ desire: Desire; onClose: () => void }> = ({ de
         );
     };
 
+    const toggleRequiredHabit = (habitId: number) => {
+        setSelectedRequiredHabitIds((prev) =>
+            prev.includes(habitId) ? prev.filter((h) => h !== habitId) : [...prev, habitId]
+        );
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0 }}
@@ -407,7 +425,7 @@ const EditDesireModal: React.FC<{ desire: Desire; onClose: () => void }> = ({ de
             <motion.div
                 initial={{ scale: 0.95, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
-                className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md"
+                className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
             >
                 <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -504,6 +522,55 @@ const EditDesireModal: React.FC<{ desire: Desire; onClose: () => void }> = ({ de
                         <p className="text-[10px] text-gray-400 mt-1">
                             {selectedIdentityIds.length} identité{selectedIdentityIds.length > 1 ? 's' : ''} sélectionnée{selectedIdentityIds.length > 1 ? 's' : ''}
                         </p>
+                    </div>
+
+                    {/* 🆕 Habitudes requises pour les témoins */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-2">
+                            Habitudes requises pour un témoin
+                        </label>
+                        <p className="text-[10px] text-gray-400 mb-2">
+                            Ces habitudes doivent <strong>toutes</strong> être cochées le même jour pour produire un témoin journalier. Une seule manquante = accusateur.
+                        </p>
+                        {availableHabits.length > 0 ? (
+                            <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                                {availableHabits.map((habit) => {
+                                    const isSelected = selectedRequiredHabitIds.includes(habit.id);
+                                    return (
+                                        <button
+                                            key={habit.id}
+                                            type="button"
+                                            onClick={() => toggleRequiredHabit(habit.id)}
+                                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors ${
+                                                isSelected
+                                                    ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                                                    : 'bg-gray-50 border border-gray-100 text-gray-600 hover:bg-gray-100'
+                                            }`}
+                                        >
+                                            <span className="flex-1 truncate">{habit.name}</span>
+                                            <span className={`text-xs ${habit.type === 'stop' ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                                {habit.type === 'start' ? 'start' : 'stop'}
+                                            </span>
+                                            {isSelected && (
+                                                <span className="text-emerald-500 text-xs font-bold">✓</span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-gray-400 py-2 text-center bg-gray-50 rounded-lg">
+                                {selectedIdentityIds.length === 0
+                                    ? 'Sélectionne d\'abord des identités'
+                                    : 'Aucune habitude liée aux identités sélectionnées'}
+                            </p>
+                        )}
+                        {selectedRequiredHabitIds.length > 0 && (
+                            <p className="text-[10px] text-emerald-600 mt-1 font-medium">
+                                {selectedRequiredHabitIds.length} habitude{selectedRequiredHabitIds.length > 1 ? 's' : ''} requise{selectedRequiredHabitIds.length > 1 ? 's' : ''} →
+                                un témoin = {selectedRequiredHabitIds.map(id => availableHabits.find(h => h.id === id)?.name).filter(Boolean).join(' + ')}
+                            </p>
+                        )}
                     </div>
 
                     <div className="flex gap-2">
@@ -948,6 +1015,12 @@ const DesireCard: React.FC<{
                                     </p>
                                 )}
                             </div>
+
+                            {/* Tribunal des Témoins */}
+                            <WitnessTreeView
+                                desire={desire}
+                                habits={habits}
+                            />
 
                             {/* Preuves complémentaires (autres outils) */}
                             <ComplementaryEvidence />

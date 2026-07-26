@@ -956,6 +956,7 @@ class SupabaseDatabaseClient {
             description: data.description,
             target: data.target,
             linkedIdentityIds,
+            requiredHabitIds: [],       // 🆕 sera peuplé via desire_required_habits
             motivation: data.motivation || motivation || undefined,
             createdAt: data.created_at,
         };
@@ -989,6 +990,7 @@ class SupabaseDatabaseClient {
                 description: d.description,
                 target: d.target,
                 linkedIdentityIds: (links || []).map((l: any) => l.identity_id),
+                requiredHabitIds: [],       // 🆕 sera peuplé via desire_required_habits
                 motivation: d.motivation || undefined,
                 createdAt: d.created_at,
             });
