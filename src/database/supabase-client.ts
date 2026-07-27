@@ -983,6 +983,12 @@ class SupabaseDatabaseClient {
                 .select('identity_id')
                 .eq('desire_id', d.id);
 
+            // Récupérer les habitudes requises pour les témoins
+            const { data: requiredLinks } = await this.supabase
+                .from('desire_required_habits')
+                .select('habit_id')
+                .eq('desire_id', d.id);
+
             result.push({
                 id: d.id,
                 title: d.title,
@@ -990,7 +996,7 @@ class SupabaseDatabaseClient {
                 description: d.description,
                 target: d.target,
                 linkedIdentityIds: (links || []).map((l: any) => l.identity_id),
-                requiredHabitIds: [],       // 🆕 sera peuplé via desire_required_habits
+                requiredHabitIds: (requiredLinks || []).map((l: any) => l.habit_id),
                 motivation: d.motivation || undefined,
                 createdAt: d.created_at,
             });
@@ -1032,6 +1038,24 @@ class SupabaseDatabaseClient {
                 await this.supabase
                     .from('desire_identities')
                     .insert(links);
+            }
+        }
+
+        // Mettre à jour les habitudes requises pour les témoins si fournies
+        if (updates.requiredHabitIds !== undefined) {
+            await this.supabase
+                .from('desire_required_habits')
+                .delete()
+                .eq('desire_id', id);
+
+            if (updates.requiredHabitIds.length > 0) {
+                const requiredLinks = updates.requiredHabitIds.map((habitId) => ({
+                    desire_id: id,
+                    habit_id: habitId,
+                }));
+                await this.supabase
+                    .from('desire_required_habits')
+                    .insert(requiredLinks);
             }
         }
 
