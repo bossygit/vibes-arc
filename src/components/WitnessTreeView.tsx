@@ -69,7 +69,14 @@ const WitnessTreeView: React.FC<WitnessTreeViewProps> = ({ desire, habits, class
                 highestWitnessLevel: null,
             };
         }
-    }, [desire?.id, requiredIds.length, safeHabits.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        desire?.id,
+        // Recompute when requiredHabitIds content changes (not just length)
+        requiredIds.join(','),
+        // Recompute when ANY habit's progress changes
+        safeHabits.map(h => `${h.id}:${h.progress?.length ?? 0}:${h.progress?.filter(Boolean).length ?? 0}`).join('|'),
+    ]);
 
     // Pas encore configuré
     if (requiredIds.length === 0) {
