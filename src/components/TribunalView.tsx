@@ -612,13 +612,14 @@ const DesireCard: React.FC<{
     expanded: boolean;
     onToggle: () => void;
 }> = ({ desire, evidence, score, expanded, onToggle }) => {
-    const { identities, habits, accusers, addAccuser, toggleAccuserDay, deleteAccuser } = useAppStore();
+    const { identities, habits, accusers, addAccuser, toggleAccuserDay, deleteAccuser, deleteDesire } = useAppStore();
     const linkedIdentityIds = desire.linkedIdentityIds;
     const [newAccuserName, setNewAccuserName] = useState('');
     const [addingAccuser, setAddingAccuser] = useState(false);
     const [showAddAccuser, setShowAddAccuser] = useState(false);
     const [editingMotivation, setEditingMotivation] = useState(false);
     const [editingDesire, setEditingDesire] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
 
     // Signaux liés à TOUTES les identités de ce désir
     const linkedHabits = useMemo(
@@ -683,6 +684,14 @@ const DesireCard: React.FC<{
         }
     };
 
+    const handleDeleteDesire = async () => {
+        try {
+            await deleteDesire(desire.id);
+        } catch (err) {
+            console.error('Erreur suppression désir:', err);
+        }
+    };
+
     return (
         <motion.div
             layout
@@ -741,6 +750,32 @@ const DesireCard: React.FC<{
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
                         <ScoreGauge score={score.total} size={64} />
+                        {/* Delete button with confirmation */}
+                        {!confirmDelete ? (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
+                                className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"
+                                title="Supprimer ce désir"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        ) : (
+                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                <span className="text-xs text-red-600 font-medium">Confirmer ?</span>
+                                <button
+                                    onClick={handleDeleteDesire}
+                                    className="px-2 py-1 bg-red-600 text-white rounded text-xs font-bold hover:bg-red-700 transition-colors"
+                                >
+                                    Supprimer
+                                </button>
+                                <button
+                                    onClick={() => setConfirmDelete(false)}
+                                    className="px-2 py-1 bg-gray-200 text-gray-600 rounded text-xs hover:bg-gray-300 transition-colors"
+                                >
+                                    Non
+                                </button>
+                            </div>
+                        )}
                         {expanded ? (
                             <ChevronUp className="w-5 h-5 text-gray-400" />
                         ) : (
