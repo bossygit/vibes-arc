@@ -645,7 +645,8 @@ export const useAppStore = create<AppState>((set) => {
                     desireData.linkedIdentityIds,
                     desireData.description,
                     desireData.target,
-                    desireData.motivation
+                    desireData.motivation,
+                    desireData.requiredHabitIds
                 );
                 set((state) => ({
                     desires: [...state.desires, newDesire],

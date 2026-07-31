@@ -913,7 +913,8 @@ class SupabaseDatabaseClient {
         linkedIdentityIds: number[],
         description?: string,
         target?: string,
-        motivation?: import('@/types').MotivationData
+        motivation?: import('@/types').MotivationData,
+        requiredHabitIds?: number[]
     ): Promise<import('@/types').Desire> {
         const user = await this.getCurrentUser();
         if (!user) throw new Error('Utilisateur non authentifié');
@@ -937,7 +938,7 @@ class SupabaseDatabaseClient {
 
         if (error) throw error;
 
-        // Insérer les liaisons dans la table junction
+        // Insérer les liaisons dans la table junction desire_identities
         if (linkedIdentityIds.length > 0) {
             const links = linkedIdentityIds.map((identityId) => ({
                 desire_id: data.id,
@@ -949,6 +950,18 @@ class SupabaseDatabaseClient {
             if (linkError) throw linkError;
         }
 
+        // Insérer les habitudes requises dans desire_required_habits
+        if (requiredHabitIds && requiredHabitIds.length > 0) {
+            const requiredLinks = requiredHabitIds.map((habitId) => ({
+                desire_id: data.id,
+                habit_id: habitId,
+            }));
+            const { error: requiredError } = await this.supabase
+                .from('desire_required_habits')
+                .insert(requiredLinks);
+            if (requiredError) throw requiredError;
+        }
+
         return {
             id: data.id,
             title: data.title,
@@ -956,7 +969,7 @@ class SupabaseDatabaseClient {
             description: data.description,
             target: data.target,
             linkedIdentityIds,
-            requiredHabitIds: [],       // 🆕 sera peuplé via desire_required_habits
+            requiredHabitIds: requiredHabitIds || [],
             motivation: data.motivation || motivation || undefined,
             createdAt: data.created_at,
         };
