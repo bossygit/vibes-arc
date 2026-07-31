@@ -230,6 +230,8 @@ export interface PendingMilestoneCelebration {
 
 // ---- Désir ----
 
+export type DesireStatus = 'active' | 'closed';
+
 export type DesireType = 'avoir' | 'être';
 
 export interface Desire {
@@ -241,7 +243,9 @@ export interface Desire {
     linkedIdentityIds: number[];      // Les identités requises pour recevoir ce désir (multi)
     requiredHabitIds: number[];       // 🆕 Habitudes qui, cochées ENSEMBLE, produisent un témoin journalier
     motivation?: MotivationData;      // Données motivationnelles (raisons, NLP, etc.)
+    status?: DesireStatus;            // 'active' = en cours, 'closed' = dossier gagné
     createdAt: string;
+    updatedAt?: string;
 }
 
 // ============================================================
@@ -385,7 +389,7 @@ export const VERDICT_LABELS: Record<Verdict, string> = {
 // Tribunal des Témoins (Witness System)
 // ============================================================
 
-export type WitnessLevel = 'daily' | 'weekly' | 'monthly';
+export type WitnessLevel = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 /** Un jour où toutes les habitudes requises pour un Désir ont été cochées (ou pas). */
 export interface DailyWitness {
@@ -424,8 +428,19 @@ export interface WitnessTree {
     daily: DailyWitness[];           // 7 derniers jours (du plus ancien au plus récent)
     weekly: WeeklyWitness[];         // 4 dernières semaines
     monthly: MonthlyWitness[];       // mois en cours et précédents
+    yearly?: YearlyWitness[];        // années accumulées
     /** Le plus haut niveau où un témoin complet existe. null = accusateurs à tous les niveaux. */
     highestWitnessLevel: WitnessLevel | null;
+}
+
+/** Consolidation de 12 MonthlyWitness (année complète de témoins). */
+export interface YearlyWitness {
+    yearStart: string;                // ISO date du 1er janvier
+    desireId: number;
+    isComplete: boolean;             // true = 12 monthly witnesses complètes
+    monthlyCount: number;             // combien de mois avec témoin sur l'année
+    /** true si < 12 → accusateur-année */
+    isAccuser: boolean;
 }
 
 // ---- Vue "Tribunal" (dashboard par Désir) ----

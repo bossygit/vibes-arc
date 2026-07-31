@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { Eye, EyeOff, AlertTriangle, CheckCircle2, Layers, Lock } from 'lucide-react';
-import { Desire, Habit, WitnessTree, WitnessLevel } from '@/types';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AlertTriangle, CheckCircle2, Layers, Lock, Scale } from 'lucide-react';
+import { Desire, Habit, WitnessLevel } from '@/types';
 import { computeWitnessTree } from '@/utils/witnessTree';
+import type { EvidenceEngineResult } from '@/utils/witnessTree';
 
 // ============================================================
 // Constants
@@ -14,22 +15,17 @@ const LEVEL_LABELS: Record<WitnessLevel, string> = {
     daily: 'Jours',
     weekly: 'Semaines',
     monthly: 'Mois',
+    yearly: 'Années',
 };
 
-const ACCUSER_MESSAGES: Record<WitnessLevel, string> = {
-    daily: 'Ce jour n\'a pas vu toutes les habitudes requises.',
-    weekly: '7 jours consécutifs non atteints. L\'accusateur parle.',
-    monthly: '4 semaines consécutives non atteintes. L\'accusateur parle.',
-};
-
-const WITNESS_MESSAGES: Record<WitnessLevel, string> = {
-    daily: 'Témoin journalier — toutes les habitudes requises accomplies.',
-    weekly: 'Témoin-semaine — 7 jours consécutifs. Le Tribunal écoute.',
-    monthly: 'Témoin-mois — 4 semaines consécutives. Dossier solide.',
+const VERDICT_LABELS: Record<'favorable' | 'mitigé' | 'défavorable', string> = {
+    favorable: 'Dossier solide — le Tribunal penche en ta faveur',
+    mitigé: 'Dossier incomplet — le Tribunal attend plus de preuves',
+    défavorable: 'Dossier faible — les accusateurs dominent',
 };
 
 // ============================================================
-// WitnessTreeView
+// WitnessTreeView — Interface principale du Tribunal des Témoins
 // ============================================================
 
 interface WitnessTreeViewProps {
@@ -42,13 +38,15 @@ const WitnessTreeView: React.FC<WitnessTreeViewProps> = ({ desire, habits, class
     const requiredIds: number[] = desire?.requiredHabitIds ?? [];
     const safeHabits: Habit[] = Array.isArray(habits) ? habits : [];
 
-    const tree: WitnessTree = useMemo(() => {
+    const engine: EvidenceEngineResult = useMemo(() => {
         if (requiredIds.length === 0) {
             return {
                 desireId: desire?.id ?? 0,
-                daily: [],
-                weekly: [],
-                monthly: [],
+                witnesses: { daily: [], weekly: [], monthly: [], yearly: [] },
+                accusers: { daily: [], weekly: [], monthly: [], yearly: [] },
+                credibilityScore: 0,
+                dominantSide: 'balanced' as const,
+                verdict: 'défavorable' as const,
                 highestWitnessLevel: null,
             };
         }
@@ -63,18 +61,18 @@ const WitnessTreeView: React.FC<WitnessTreeViewProps> = ({ desire, habits, class
             console.error('WitnessTreeView: computeWitnessTree failed', err);
             return {
                 desireId: desire?.id ?? 0,
-                daily: [],
-                weekly: [],
-                monthly: [],
+                witnesses: { daily: [], weekly: [], monthly: [], yearly: [] },
+                accusers: { daily: [], weekly: [], monthly: [], yearly: [] },
+                credibilityScore: 0,
+                dominantSide: 'balanced' as const,
+                verdict: 'défavorable' as const,
                 highestWitnessLevel: null,
             };
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         desire?.id,
-        // Recompute when requiredHabitIds content changes (not just length)
         requiredIds.join(','),
-        // Recompute when ANY habit's progress changes
         safeHabits.map(h => `${h.id}:${h.progress?.length ?? 0}:${h.progress?.filter(Boolean).length ?? 0}`).join('|'),
     ]);
 
@@ -95,83 +93,193 @@ const WitnessTreeView: React.FC<WitnessTreeViewProps> = ({ desire, habits, class
         );
     }
 
-    const { daily, weekly, monthly, highestWitnessLevel } = tree;
-
     return (
         <div className={`space-y-4 ${className}`}>
-            <LevelRow
-                level="daily"
-                items={daily}
-                highestWitnessLevel={highestWitnessLevel}
-                renderItem={(w, i) => (
-                    <DailyDot key={w.date} witness={w} index={i} />
-                )}
-            />
+            {/* Compteur de preuves */}
+            <EvidenceSummary engine={engine} />
 
-            <LevelRow
-                level="weekly"
-                items={weekly}
-                highestWitnessLevel={highestWitnessLevel}
-                renderItem={(w, i) => (
-                    <WeekBlock key={w.weekStart} witness={w} index={i} />
-                )}
-            />
+            {/* Témoins et Accusateurs par niveau */}
+            <AnimatePresence>
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-5"
+                >
+                    {/* Niveau Jour */}
+                    <EvidenceLevelRow
+                        level="daily"
+                        witnesses={engine.witnesses.daily}
+                        accusers={engine.accusers.daily}
+                        renderWitness={(w, i) => <DailyDot key={w.date} witness={w} index={i} />}
+                        renderAccuser={(w, i) => <DailyDot key={`acc-${w.date}`} witness={w} index={i + 100} />}
+                    />
 
-            {monthly.length > 0 && (
-                <LevelRow
-                    level="monthly"
-                    items={monthly}
-                    highestWitnessLevel={highestWitnessLevel}
-                    renderItem={(w, i) => (
-                        <MonthBlock key={w.monthStart} witness={w} index={i} />
-                    )}
-                />
-            )}
+                    {/* Niveau Semaine */}
+                    <EvidenceLevelRow
+                        level="weekly"
+                        witnesses={engine.witnesses.weekly}
+                        accusers={engine.accusers.weekly}
+                        renderWitness={(w, i) => <WeekBlock key={w.weekStart} witness={w} index={i} />}
+                        renderAccuser={(w, i) => <WeekBlock key={`acc-${w.weekStart}`} witness={w} index={i + 100} />}
+                    />
 
-            <VoiceBanner tree={tree} />
+                    {/* Niveau Mois */}
+                    <EvidenceLevelRow
+                        level="monthly"
+                        witnesses={engine.witnesses.monthly}
+                        accusers={engine.accusers.monthly}
+                        renderWitness={(w, i) => <MonthBlock key={w.monthStart} witness={w} index={i} />}
+                        renderAccuser={(w, i) => <MonthBlock key={`acc-${w.monthStart}`} witness={w} index={i + 100} />}
+                    />
+
+                    {/* Niveau Année (si présent) */}
+                    {(engine.witnesses.yearly?.length || 0) > 0 || (engine.accusers.yearly?.length || 0) > 0 ? (
+                        <EvidenceLevelRow
+                            level="yearly"
+                            witnesses={engine.witnesses.yearly ?? []}
+                            accusers={engine.accusers.yearly ?? []}
+                            renderWitness={(w, i) => <YearBlock key={w.yearStart} witness={w} index={i} />}
+                            renderAccuser={(w, i) => <YearBlock key={`acc-${w.yearStart}`} witness={w} index={i + 100} />}
+                        />
+                    ) : null}
+                </motion.div>
+            </AnimatePresence>
+
+            {/* Verdict */}
+            <VerdictBanner engine={engine} />
         </div>
     );
 };
 
 // ============================================================
-// LevelRow
+// EvidenceSummary — Compter et comparer témoins vs accusateurs
 // ============================================================
 
-interface LevelRowProps {
+const EvidenceSummary: React.FC<{ engine: EvidenceEngineResult }> = ({ engine }) => {
+    const witnessCount =
+        engine.witnesses.daily.length +
+        engine.witnesses.weekly.length +
+        engine.witnesses.monthly.length +
+        (engine.witnesses.yearly?.length ?? 0);
+    const accuserCount =
+        engine.accusers.daily.length +
+        engine.accusers.weekly.length +
+        engine.accusers.monthly.length +
+        (engine.accusers.yearly?.length ?? 0);
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-4 text-sm"
+        >
+            <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <span className="font-semibold text-emerald-700">{witnessCount} témoins</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-500" />
+                <span className="font-semibold text-rose-700">{accuserCount} accusateurs</span>
+            </div>
+            <div className="flex-1 h-px bg-gray-200" />
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+                <Scale className="w-3 h-3" />
+                Crédibilité : <span className="font-bold text-gray-700">{engine.credibilityScore}%</span>
+            </div>
+        </motion.div>
+    );
+};
+
+// ============================================================
+// EvidenceLevelRow — Affiche témoins ET accusateurs côte à côte
+// ============================================================
+
+interface EvidenceLevelRowProps {
     level: WitnessLevel;
-    items: any[];
-    highestWitnessLevel: WitnessLevel | null;
-    renderItem: (item: any, index: number) => React.ReactNode;
+    witnesses: any[];
+    accusers: any[];
+    renderWitness: (item: any, index: number) => React.ReactNode;
+    renderAccuser: (item: any, index: number) => React.ReactNode;
 }
 
-const LevelRow: React.FC<LevelRowProps> = ({ level, items, highestWitnessLevel, renderItem }) => {
-    if (!items || items.length === 0) return null;
-
-    const completeCount = items.filter((i: any) => i?.isComplete).length;
-    const allAccusers = completeCount === 0;
-    const isHighest = highestWitnessLevel === level;
+const EvidenceLevelRow: React.FC<EvidenceLevelRowProps> = ({
+    level,
+    witnesses,
+    accusers,
+    renderWitness,
+    renderAccuser,
+}) => {
+    // N'affiche rien si les deux listes sont vides
+    if (!witnesses.length && !accusers.length) return null;
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
                     <Layers className="w-3 h-3" />
                     {LEVEL_LABELS[level]}
                 </span>
-                <span className={`text-xs font-medium ${allAccusers ? 'text-rose-500' : 'text-emerald-600'}`}>
-                    {completeCount}/{items.length}
-                    {isHighest && ' ✨'}
-                </span>
+                <div className="flex items-center gap-3 text-xs">
+                    <span className="text-emerald-600 font-medium">
+                        {witnesses.length} témoin{witnesses.length > 1 ? 's' : ''}
+                    </span>
+                    <span className="text-rose-600 font-medium">
+                        {accusers.length} accusateur{accusers.length > 1 ? 's' : ''}
+                    </span>
+                </div>
             </div>
-            <div className="flex gap-1.5">
-                {items.map((item, i) => renderItem(item, i))}
+            <div className="flex gap-1.5 flex-wrap">
+                {/* Témoins d'abord */}
+                {witnesses.map((w, i) => renderWitness(w, i))}
+                {/* Accusateurs ensuite */}
+                {accusers.map((a, i) => renderAccuser(a, i))}
             </div>
         </div>
     );
 };
 
 // ============================================================
-// DailyDot
+// VerdictBanner — Le verdict textuel du Tribunal
+// ============================================================
+
+const VerdictBanner: React.FC<{ engine: EvidenceEngineResult }> = ({ engine }) => {
+    const dominantLabel = engine.dominantSide === 'witness' 
+        ? 'Les témoins dominent' 
+        : engine.dominantSide === 'accuser' 
+        ? 'Les accusateurs dominent' 
+        : 'Le procès est encore partagé';
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="rounded-xl p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100"
+        >
+            <div className="flex items-center gap-3 mb-2">
+                <Scale className="w-5 h-5 text-indigo-600" />
+                <h4 className="font-bold text-gray-800">Verdict du Tribunal</h4>
+            </div>
+            
+            <div className="mb-2">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Crédibilité
+                </span>
+                <div className="text-2xl font-bold text-indigo-700 mt-0.5">
+                    {engine.credibilityScore}%
+                </div>
+            </div>
+
+            <div className="space-y-1.5 text-sm text-gray-700">
+                <p className="font-medium">{VERDICT_LABELS[engine.verdict as keyof typeof VERDICT_LABELS]}</p>
+                <p className="text-xs text-gray-500">{dominantLabel}</p>
+            </div>
+        </motion.div>
+    );
+};
+
+// ============================================================
+// DailyDot — Point du calendrier journalier
 // ============================================================
 
 const DailyDot: React.FC<{ witness: any; index: number }> = ({ witness, index }) => {
@@ -185,7 +293,7 @@ const DailyDot: React.FC<{ witness: any; index: number }> = ({ witness, index })
         <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            transition={{ delay: index * 0.03, type: 'spring', stiffness: 200 }}
+            transition={{ delay: (index % 100) * 0.03, type: 'spring', stiffness: 200 }}
             className="flex flex-col items-center gap-0.5"
             title={
                 isComplete
@@ -214,7 +322,7 @@ const DailyDot: React.FC<{ witness: any; index: number }> = ({ witness, index })
 };
 
 // ============================================================
-// WeekBlock
+// WeekBlock — Bloc de semaine
 // ============================================================
 
 const WeekBlock: React.FC<{ witness: any; index: number }> = ({ witness, index }) => {
@@ -227,22 +335,22 @@ const WeekBlock: React.FC<{ witness: any; index: number }> = ({ witness, index }
         <motion.div
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.2 + index * 0.05, type: 'spring', stiffness: 150 }}
-            className={`flex-1 rounded-lg p-2 text-center border-2 transition-colors ${
+            transition={{ delay: (index % 100) * 0.05, type: 'spring', stiffness: 150 }}
+            className={`flex-1 min-w-[60px] rounded-lg p-2 text-center border-2 transition-colors ${
                 isComplete
                     ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
                     : 'bg-rose-50 border-rose-200 text-rose-500'
             }`}
             title={
                 isComplete
-                    ? `Semaine du ${weekStart} — Témoin-semaine ✨\n7/7 jours`
+                    ? `Semaine du ${weekStart} — Témoin ✨\n7/7 jours`
                     : `Semaine du ${weekStart} — Accusateur\n${dailyCount}/7 jours`
             }
         >
             <div className="text-lg mb-0.5">
                 {isComplete ? <CheckCircle2 className="w-4 h-4 mx-auto" /> : <AlertTriangle className="w-3.5 h-3.5 mx-auto" />}
             </div>
-            <div className="text-[9px] font-medium leading-tight">
+            <div className="text-[9px] font-medium leading-tight truncate">
                 {weekStart ? new Date(weekStart + 'T00:00:00').toLocaleDateString('fr', { day: 'numeric', month: 'short' }) : '?'}
             </div>
             <div className={`text-[10px] font-bold mt-0.5 ${isComplete ? 'text-emerald-600' : 'text-rose-400'}`}>
@@ -253,7 +361,7 @@ const WeekBlock: React.FC<{ witness: any; index: number }> = ({ witness, index }
 };
 
 // ============================================================
-// MonthBlock
+// MonthBlock — Bloc de mois
 // ============================================================
 
 const MonthBlock: React.FC<{ witness: any; index: number }> = ({ witness, index }) => {
@@ -267,21 +375,19 @@ const MonthBlock: React.FC<{ witness: any; index: number }> = ({ witness, index 
         <motion.div
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.4 + index * 0.08, type: 'spring', stiffness: 150 }}
-            className={`flex-1 rounded-lg p-2.5 text-center border-2 transition-colors ${
+            transition={{ delay: (index % 100) * 0.08, type: 'spring', stiffness: 150 }}
+            className={`flex-1 min-w-[60px] rounded-lg p-2.5 text-center border-2 transition-colors ${
                 isComplete
                     ? 'bg-emerald-100 border-emerald-400 text-emerald-800 shadow-sm shadow-emerald-100'
                     : 'bg-rose-50 border-rose-200 text-rose-500'
             }`}
             title={
                 isComplete
-                    ? `${monthName} — Témoin-mois ✨\n4/4 semaines`
+                    ? `${monthName} — Témoin ✨\n4/4 semaines`
                     : `${monthName} — Accusateur\n${weeklyCount}/4 semaines`
             }
         >
-            <div className="text-sm font-bold mb-0.5">
-                {monthName}
-            </div>
+            <div className="text-sm font-bold mb-0.5">{monthName}</div>
             {isComplete ? (
                 <CheckCircle2 className="w-4 h-4 mx-auto text-emerald-600" />
             ) : (
@@ -295,57 +401,40 @@ const MonthBlock: React.FC<{ witness: any; index: number }> = ({ witness, index 
 };
 
 // ============================================================
-// VoiceBanner — la voix du Tribunal
+// YearBlock — Bloc d'année
 // ============================================================
 
-const VoiceBanner: React.FC<{ tree: WitnessTree }> = ({ tree }) => {
-    const { highestWitnessLevel, weekly, monthly } = tree;
-
-    let voice: { level: WitnessLevel | null; message: string; isAccuser: boolean };
-
-    if (highestWitnessLevel) {
-        voice = {
-            level: highestWitnessLevel,
-            message: WITNESS_MESSAGES[highestWitnessLevel],
-            isAccuser: false,
-        };
-    } else {
-        const safeWeekly = Array.isArray(weekly) ? weekly : [];
-        const safeMonthly = Array.isArray(monthly) ? monthly : [];
-        const allWeeklyAccusers = safeWeekly.length > 0 && safeWeekly.every(w => w?.isAccuser);
-        const allMonthlyAccusers = safeMonthly.length > 0 && safeMonthly.every(m => m?.isAccuser);
-
-        if (allMonthlyAccusers || safeMonthly.length > 0) {
-            voice = { level: 'monthly', message: ACCUSER_MESSAGES.monthly, isAccuser: true };
-        } else if (allWeeklyAccusers || safeWeekly.length > 0) {
-            voice = { level: 'weekly', message: ACCUSER_MESSAGES.weekly, isAccuser: true };
-        } else {
-            voice = { level: 'daily', message: ACCUSER_MESSAGES.daily, isAccuser: true };
-        }
-    }
+const YearBlock: React.FC<{ witness: any; index: number }> = ({ witness, index }) => {
+    if (!witness) return null;
+    const isComplete = witness.isComplete;
+    const monthlyCount = witness.monthlyCount ?? 0;
+    const yearStart = witness.yearStart || '';
+    const yearLabel = yearStart ? new Date(yearStart + 'T00:00:00').getFullYear() : '?';
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className={`rounded-xl p-3 text-sm flex items-start gap-2.5 ${
-                voice.isAccuser
-                    ? 'bg-rose-50 border border-rose-200 text-rose-700'
-                    : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: (index % 100) * 0.08, type: 'spring', stiffness: 150 }}
+            className={`flex-1 min-w-[60px] rounded-lg p-2.5 text-center border-2 transition-colors ${
+                isComplete
+                    ? 'bg-indigo-100 border-indigo-400 text-indigo-800 shadow-sm shadow-indigo-100'
+                    : 'bg-rose-50 border-rose-200 text-rose-500'
             }`}
+            title={
+                isComplete
+                    ? `Année ${yearLabel} — Témoin ✨\n12/12 mois`
+                    : `Année ${yearLabel} — Accusateur\n${monthlyCount}/12 mois`
+            }
         >
-            {voice.isAccuser ? (
-                <EyeOff className="w-4 h-4 mt-0.5 flex-shrink-0 text-rose-400" />
+            <div className="text-sm font-bold mb-0.5">20{yearLabel.toString().slice(-2)}</div>
+            {isComplete ? (
+                <CheckCircle2 className="w-4 h-4 mx-auto text-indigo-600" />
             ) : (
-                <Eye className="w-4 h-4 mt-0.5 flex-shrink-0 text-emerald-500" />
+                <AlertTriangle className="w-3.5 h-3.5 mx-auto" />
             )}
-            <div>
-                <p className="font-semibold text-xs uppercase tracking-wide opacity-70 mb-0.5">
-                    {voice.isAccuser ? 'L\'Accusateur parle' : 'Le Témoin parle'}
-                    {voice.level && ` — niveau ${LEVEL_LABELS[voice.level]}`}
-                </p>
-                <p className="text-sm leading-relaxed">{voice.message}</p>
+            <div className={`text-[10px] font-bold mt-0.5 ${isComplete ? 'text-indigo-600' : 'text-rose-400'}`}>
+                {monthlyCount}/12 mois
             </div>
         </motion.div>
     );

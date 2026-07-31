@@ -20,6 +20,7 @@ import {
     Flame,
     Edit3,
     Save,
+    Lock,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -674,7 +675,7 @@ const DesireCard: React.FC<{
     expanded: boolean;
     onToggle: () => void;
 }> = ({ desire, evidence, score, expanded, onToggle }) => {
-    const { identities, habits, accusers, addAccuser, toggleAccuserDay, deleteAccuser, deleteDesire } = useAppStore();
+    const { identities, habits, accusers, addAccuser, toggleAccuserDay, deleteAccuser, deleteDesire, closeDesire } = useAppStore();
     const linkedIdentityIds = desire.linkedIdentityIds;
     const [newAccuserName, setNewAccuserName] = useState('');
     const [addingAccuser, setAddingAccuser] = useState(false);
@@ -700,6 +701,16 @@ const DesireCard: React.FC<{
         () => computeMoodCompletionCorrelation(evidence),
         [evidence]
     );
+
+    const handleCloseDesire = async () => {
+        if (window.confirm(`Clôturer le dossier "${desire.title}" ? \n\nCela marquera ce désir comme achevé. Tu pourras le rouvrir plus tard depuis le filtre "Dossiers fermés".`)) {
+            try {
+                await closeDesire(desire.id);
+            } catch (err) {
+                console.error('Erreur clôture désir:', err);
+            }
+        }
+    };
 
     const verdictStyle = VERDICT_COLORS[score.verdict];
 
@@ -852,6 +863,18 @@ const DesireCard: React.FC<{
                 >
                     {verdictStyle.icon}
                     <span className="font-medium">{VERDICT_LABELS[score.verdict]}</span>
+                    {/* Bouton Clôturer le dossier (visible uniquement si verdict favorable) */}\n                    {score.verdict === 'favorable' && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleCloseDesire();
+                            }}
+                            className="ml-auto p-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100 rounded transition-colors"
+                            title="Clôturer ce dossier"
+                        >
+                            <Lock className="w-3.5 h-3.5" />
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -1298,6 +1321,7 @@ const TribunalView: React.FC = () => {
     const { desires, habits, dailyMoods, accusers } = useAppStore();
     const [showAddModal, setShowAddModal] = useState(false);
     const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+    const [showClosed, setShowClosed] = useState(false); // filtre : afficher/masquer les dossiers fermés
 
     // Outils complémentaires → bonus d'alignement
     const { activeToolCount } = useToolEvidence();
@@ -1321,7 +1345,10 @@ const TribunalView: React.FC = () => {
 
     // Compute evidence and scores per desire
     const desireData = useMemo(() => {
-        return desires.map((desire) => {
+        const filtered = showClosed 
+            ? desires 
+            : desires.filter(d => d.status !== 'closed');
+        return filtered.map((desire) => {
             const desireAccusers = accusers.filter((a) => a.linkedDesireId === desire.id);
             const identityIds = desire.linkedIdentityIds;
 
@@ -1371,6 +1398,20 @@ const TribunalView: React.FC = () => {
                     >
                         <Plus className="w-4 h-4" />
                         Nouveau désir
+                    </button>
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                    <div className="flex-1 h-px bg-white/20" />
+                    <button
+                        onClick={() => setShowClosed(!showClosed)}
+                        className={`text-xs px-2 py-1 rounded-full transition-all ${
+                            showClosed
+                                ? 'bg-white/20 text-white'
+                                : 'text-white/50 hover:text-white hover:bg-white/10'
+                        }`}
+                        title={showClosed ? "Masquer les dossiers fermés" : "Afficher les dossiers fermés"}
+                    >
+                        Dossiers fermés
                     </button>
                 </div>
             </section>

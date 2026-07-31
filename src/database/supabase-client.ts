@@ -971,7 +971,9 @@ class SupabaseDatabaseClient {
             linkedIdentityIds,
             requiredHabitIds: requiredHabitIds || [],
             motivation: data.motivation || motivation || undefined,
+            status: data.status || 'active',
             createdAt: data.created_at,
+            updatedAt: data.updated_at,
         };
     }
 
@@ -1011,7 +1013,9 @@ class SupabaseDatabaseClient {
                 linkedIdentityIds: (links || []).map((l: any) => l.identity_id),
                 requiredHabitIds: (requiredLinks || []).map((l: any) => l.habit_id),
                 motivation: d.motivation || undefined,
+                status: d.status || 'active',
                 createdAt: d.created_at,
+                updatedAt: d.updated_at,
             });
         }
 
@@ -1027,6 +1031,7 @@ class SupabaseDatabaseClient {
         if (updates.type !== undefined) payload.type = updates.type;
         if (updates.description !== undefined) payload.description = updates.description;
         if (updates.target !== undefined) payload.target = updates.target;
+        if (updates.status !== undefined) payload.status = updates.status;
 
         const { error } = await this.supabase
             .from('desires')

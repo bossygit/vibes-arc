@@ -61,6 +61,8 @@ interface AppState {
     // v2 — Tribunal de la Vie
     addDesire: (desire: Omit<Desire, 'id' | 'createdAt'>) => Promise<Desire>;
     updateDesire: (id: number, updates: Partial<Desire>) => void;
+    closeDesire: (id: number) => Promise<void>;
+    reopenDesire: (id: number) => Promise<void>;
     deleteDesire: (id: number) => void;
     saveMood: (score: EmotionalFrequency, dominantEmotion?: string, notes?: string, causes?: string) => Promise<void>;
     loadTodayMood: () => Promise<void>;
@@ -670,6 +672,36 @@ export const useAppStore = create<AppState>((set) => {
                 }
             } catch (error) {
                 console.error('Erreur lors de la mise à jour du désir:', error);
+            }
+        },
+
+        closeDesire: async (id) => {
+            try {
+                const success = await db.updateDesire(id, { status: 'closed' });
+                if (success) {
+                    set((state) => ({
+                        desires: state.desires.map(d =>
+                            d.id === id ? { ...d, status: 'closed' } : d
+                        ),
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur lors de la clôture du désir:', error);
+            }
+        },
+
+        reopenDesire: async (id) => {
+            try {
+                const success = await db.updateDesire(id, { status: 'active' });
+                if (success) {
+                    set((state) => ({
+                        desires: state.desires.map(d =>
+                            d.id === id ? { ...d, status: 'active' } : d
+                        ),
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur lors de la réouverture du désir:', error);
             }
         },
 
