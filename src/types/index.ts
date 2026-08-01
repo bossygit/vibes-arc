@@ -4,6 +4,16 @@ export interface Identity {
     description?: string;
     color: string;
     createdAt: string;
+    /** Croyances fondamentales que cette identité incarne */
+    coreBeliefs?: string[];
+    /** Pratiques quotidiennes associées à cette identité */
+    dailyPractices?: string[];
+    /** Habitude déclaratives (texte libre) associées à cette identité */
+    habits?: string[];
+    /** Citations inspirantes liées à cette identité */
+    quotes?: string[];
+    /** Signaux comportementaux observables (traits de personnalité) */
+    behavioralSignals?: string[];
 }
 
 export interface Habit {

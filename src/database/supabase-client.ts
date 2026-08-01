@@ -9,6 +9,11 @@ interface SupabaseIdentity {
     color?: string;
     created_at: string;
     user_id: string;
+    core_beliefs?: string[] | string | null;
+    daily_practices?: string[] | string | null;
+    habits?: string[] | string | null;
+    quotes?: string[] | string | null;
+    behavioral_signals?: string[] | string | null;
 }
 
 class SupabaseDatabaseClient {
@@ -78,7 +83,13 @@ class SupabaseDatabaseClient {
 
     // ===== IDENTITIES =====
 
-    async createIdentity(name: string, description?: string, color: string = 'blue'): Promise<Identity> {
+    async createIdentity(name: string, description?: string, color: string = 'blue', fields?: {
+        coreBeliefs?: string[];
+        dailyPractices?: string[];
+        habits?: string[];
+        quotes?: string[];
+        behavioralSignals?: string[];
+    }): Promise<Identity> {
         const user = await this.getCurrentUser();
         if (!user) throw new Error('Utilisateur non authentifié');
 
@@ -89,19 +100,45 @@ class SupabaseDatabaseClient {
                 description,
                 color,
                 user_id: user.id,
+                core_beliefs: fields?.coreBeliefs ?? null,
+                daily_practices: fields?.dailyPractices ?? null,
+                habits: fields?.habits ?? null,
+                quotes: fields?.quotes ?? null,
+                behavioral_signals: fields?.behavioralSignals ?? null,
             })
             .select()
             .single();
 
         if (error) throw error;
 
+        return this.mapIdentity(data);
+    }
+
+    // ========== IDENTITIES HELPERS ==========
+    private mapIdentity(data: SupabaseIdentity): Identity {
         return {
             id: data.id,
             name: data.name,
             description: data.description,
-            color: data.color,
+            color: data.color || 'blue',
             createdAt: data.created_at,
+            coreBeliefs: this.parseStringArray(data.core_beliefs),
+            dailyPractices: this.parseStringArray(data.daily_practices),
+            habits: this.parseStringArray(data.habits),
+            quotes: this.parseStringArray(data.quotes),
+            behavioralSignals: this.parseStringArray(data.behavioral_signals),
         };
+    }
+
+    private parseStringArray(val: string[] | string | null | undefined): string[] | undefined {
+        if (val === null || val === undefined) return undefined;
+        if (Array.isArray(val)) return val;
+        try {
+            const parsed = JSON.parse(val);
+            return Array.isArray(parsed) ? parsed : undefined;
+        } catch {
+            return undefined;
+        }
     }
 
     async getIdentities(): Promise<Identity[]> {
@@ -116,16 +153,16 @@ class SupabaseDatabaseClient {
 
         if (error) throw error;
 
-        return data.map((item: SupabaseIdentity) => ({
-            id: item.id,
-            name: item.name,
-            description: item.description,
-            color: item.color || 'blue',
-            createdAt: item.created_at,
-        }));
+        return data.map((item: SupabaseIdentity) => this.mapIdentity(item));
     }
 
-    async updateIdentity(id: number, name: string, description?: string): Promise<boolean> {
+    async updateIdentity(id: number, name: string, description?: string, fields?: {
+        coreBeliefs?: string[];
+        dailyPractices?: string[];
+        habits?: string[];
+        quotes?: string[];
+        behavioralSignals?: string[];
+    }): Promise<boolean> {
         const user = await this.getCurrentUser();
         if (!user) throw new Error('Utilisateur non authentifié');
 
@@ -135,7 +172,12 @@ class SupabaseDatabaseClient {
                 name,
                 description,
                 updated_at: new Date().toISOString(),
-            })
+                core_beliefs: fields?.coreBeliefs ?? null,
+                daily_practices: fields?.dailyPractices ?? null,
+                habits: fields?.habits ?? null,
+                quotes: fields?.quotes ?? null,
+                behavioral_signals: fields?.behavioralSignals ?? null,
+            } as any)
             .eq('id', id)
             .eq('user_id', user.id);
 
@@ -448,7 +490,18 @@ class SupabaseDatabaseClient {
 
             if (data.identities && Array.isArray(data.identities)) {
                 for (const identity of data.identities) {
-                    await this.createIdentity(identity.name, identity.description, identity.color);
+                    await this.createIdentity(
+                        identity.name,
+                        identity.description,
+                        identity.color,
+                        {
+                            coreBeliefs: identity.coreBeliefs,
+                            dailyPractices: identity.dailyPractices,
+                            habits: identity.habits,
+                            quotes: identity.quotes,
+                            behavioralSignals: identity.behavioralSignals,
+                        }
+                    );
                 }
             }
 

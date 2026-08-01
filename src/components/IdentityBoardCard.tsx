@@ -99,6 +99,32 @@ const IdentityBoardCard: React.FC<IdentityBoardCardProps> = ({
                 <p className="text-sm text-slate-600 mb-3 leading-relaxed">{identity.description}</p>
             )}
 
+            {identity.coreBeliefs && identity.coreBeliefs.length > 0 && (
+                <div className="mb-3">
+                    <p className="text-xs font-semibold text-slate-500 uppercase mb-1.5">Croyances</p>
+                    <ul className="text-xs text-slate-600 space-y-0.5">
+                        {identity.coreBeliefs.map((b, i) => (
+                            <li key={i} className="before:content-['•'] before:text-indigo-500">
+                                {b}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            {identity.dailyPractices && identity.dailyPractices.length > 0 && (
+                <div className="mb-3">
+                    <p className="text-xs font-semibold text-slate-500 uppercase mb-1.5">Pratiques quotidiennes</p>
+                    <ul className="text-xs text-slate-600 space-y-0.5">
+                        {identity.dailyPractices.map((p, i) => (
+                            <li key={i} className="before:content-['—'] before:text-slate-400">
+                                {p}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
             <div className="mb-4">
                 <div className="flex items-center justify-between text-xs text-slate-600 mb-1">
                     <span className="flex items-center gap-1">

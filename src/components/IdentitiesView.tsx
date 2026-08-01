@@ -22,7 +22,16 @@ const IdentitiesView: React.FC = () => {
         setView,
     } = useAppStore();
 
-    const [newIdentity, setNewIdentity] = useState({ name: '', description: '', color: 'indigo' });
+    const [newIdentity, setNewIdentity] = useState({
+        name: '',
+        description: '',
+        color: 'indigo',
+        coreBeliefs: [] as string[],
+        dailyPractices: [] as string[],
+        habits: [] as string[],
+        quotes: [] as string[],
+        behavioralSignals: [] as string[],
+    });
     const [editingIdentity, setEditingIdentity] = useState<Identity | null>(null);
     const [selectedHabitId, setSelectedHabitId] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -53,7 +62,16 @@ const IdentitiesView: React.FC = () => {
 
         try {
             await addIdentity(newIdentity);
-            setNewIdentity({ name: '', description: '', color: 'indigo' });
+            setNewIdentity({
+                name: '',
+                description: '',
+                color: 'indigo',
+                coreBeliefs: [],
+                dailyPractices: [],
+                habits: [],
+                quotes: [],
+                behavioralSignals: [],
+            });
             setShowAddForm(false);
         } catch (err) {
             console.error('Erreur lors de l\'ajout:', err);
@@ -63,8 +81,14 @@ const IdentitiesView: React.FC = () => {
         }
     };
 
-    const handleUpdateIdentity = (id: number, name: string, description?: string) => {
-        updateIdentity(id, name, description);
+    const handleUpdateIdentity = (id: number, name: string, description?: string, fields?: {
+        coreBeliefs?: string[];
+        dailyPractices?: string[];
+        habits?: string[];
+        quotes?: string[];
+        behavioralSignals?: string[];
+    }) => {
+        updateIdentity(id, name, description, fields);
         setEditingIdentity(null);
     };
 

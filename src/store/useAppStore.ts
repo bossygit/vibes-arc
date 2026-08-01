@@ -30,7 +30,18 @@ interface AppState {
     setView: (view: ViewType) => void;
     setSelectedHabit: (habitId: number | null) => void;
     addIdentity: (identity: Omit<Identity, 'id' | 'createdAt'>) => Promise<Identity>;
-    updateIdentity: (id: number, name: string, description?: string) => void;
+    updateIdentity: (
+        id: number,
+        name: string,
+        description?: string,
+        fields?: {
+            coreBeliefs?: string[];
+            dailyPractices?: string[];
+            habits?: string[];
+            quotes?: string[];
+            behavioralSignals?: string[];
+        }
+    ) => void;
     deleteIdentity: (id: number) => void;
     addHabit: (habit: Omit<Habit, 'id' | 'createdAt' | 'progress'>) => Promise<Habit>;
     deleteHabit: (id: number) => void;
@@ -307,7 +318,18 @@ export const useAppStore = create<AppState>((set) => {
 
         addIdentity: async (identityData) => {
             try {
-                const newIdentity = await db.createIdentity(identityData.name, identityData.description, identityData.color);
+                const newIdentity = await db.createIdentity(
+                    identityData.name,
+                    identityData.description,
+                    identityData.color,
+                    {
+                        coreBeliefs: identityData.coreBeliefs,
+                        dailyPractices: identityData.dailyPractices,
+                        habits: identityData.habits,
+                        quotes: identityData.quotes,
+                        behavioralSignals: identityData.behavioralSignals,
+                    }
+                );
                 set((state) => ({
                     identities: [...state.identities, newIdentity],
                 }));
@@ -317,14 +339,19 @@ export const useAppStore = create<AppState>((set) => {
                 throw error;
             }
         },
-
-        updateIdentity: async (id, name, description) => {
+        updateIdentity: async (id, name, description, fields) => {
             try {
-                const success = await db.updateIdentity(id, name, description);
+                const success = await db.updateIdentity(id, name, description, {
+                    coreBeliefs: fields?.coreBeliefs,
+                    dailyPractices: fields?.dailyPractices,
+                    habits: fields?.habits,
+                    quotes: fields?.quotes,
+                    behavioralSignals: fields?.behavioralSignals,
+                });
                 if (success) {
                     set((state) => ({
                         identities: state.identities.map(i =>
-                            i.id === id ? { ...i, name, description } : i
+                            i.id === id ? { ...i, name, description, ...fields } : i
                         ),
                     }));
                 }

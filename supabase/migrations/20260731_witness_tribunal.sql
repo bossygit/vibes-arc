@@ -23,9 +23,18 @@ COMMENT ON TABLE desire_required_habits IS
 -- RLS via desires
 ALTER TABLE desire_required_habits ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users manage own desire_required_habits" ON desire_required_habits
-    FOR ALL USING (
-        EXISTS (SELECT 1 FROM desires d WHERE d.id = desire_required_habits.desire_id AND d.user_id = auth.uid())
-    ) WITH CHECK (
-        EXISTS (SELECT 1 FROM desires d WHERE d.id = desire_required_habits.desire_id AND d.user_id = auth.uid())
-    );
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policy 
+        WHERE tablename = 'desire_required_habits' 
+        AND policyname = 'Users manage own desire_required_habits'
+    ) THEN
+        CREATE POLICY "Users manage own desire_required_habits" ON desire_required_habits
+            FOR ALL USING (
+                EXISTS (SELECT 1 FROM desires d WHERE d.id = desire_required_habits.desire_id AND d.user_id = auth.uid())
+            ) WITH CHECK (
+                EXISTS (SELECT 1 FROM desires d WHERE d.id = desire_required_habits.desire_id AND d.user_id = auth.uid())
+            );
+    END IF;
+END $$;
