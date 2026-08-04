@@ -1485,6 +1485,76 @@ class SupabaseDatabaseClient {
         return !error;
     }
 
+    // ===== Segment Intending (Process #11 — jeu de pré-pavage) =====
+
+    private mapSegmentEntry(d: any): import('@/types').SegmentIntendingEntry {
+        return {
+            id: d.id,
+            date: d.date,
+            segmentKey: d.segment_key ?? 'custom',
+            segmentLabel: d.segment_label,
+            context: d.context ?? undefined,
+            intentions: Array.isArray(d.intentions) ? d.intentions : [],
+            chosenIntention: d.chosen_intention ?? undefined,
+            outcome: d.outcome ?? undefined,
+            emotionalSetpoint: d.emotional_setpoint ?? undefined,
+            createdAt: d.created_at,
+        };
+    }
+
+    async getSegmentIntendingEntries(limit: number = 30): Promise<import('@/types').SegmentIntendingEntry[]> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { data, error } = await this.supabase
+            .from('segment_intending_entries')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (error || !data) return [];
+        return data.map((d: any) => this.mapSegmentEntry(d));
+    }
+
+    async saveSegmentIntendingEntry(
+        entry: import('@/types').SegmentIntendingDraft & { intentions: string[]; chosenIntention?: string }
+    ): Promise<number | null> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { data, error } = await this.supabase
+            .from('segment_intending_entries')
+            .insert({
+                user_id: user.id,
+                date: new Date().toISOString().slice(0, 10),
+                segment_key: entry.segmentKey,
+                segment_label: entry.segmentLabel,
+                context: entry.context ?? null,
+                intentions: entry.intentions,
+                chosen_intention: entry.chosenIntention ?? null,
+                emotional_setpoint: entry.emotionalSetpoint ?? null,
+            })
+            .select('id')
+            .single();
+
+        if (error || !data) return null;
+        return data.id as number;
+    }
+
+    async updateSegmentOutcome(id: number, outcome: string): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { error } = await this.supabase
+            .from('segment_intending_entries')
+            .update({ outcome, updated_at: new Date().toISOString() })
+            .eq('id', id)
+            .eq('user_id', user.id);
+
+        return !error;
+    }
+
     // ===== D17 — Life Experiment Engine =====
 
     async getExperiments(): Promise<import('@/types').LifeExperiment[]> {

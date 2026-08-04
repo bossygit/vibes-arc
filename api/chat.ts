@@ -97,6 +97,91 @@ function parsePartnerSuggestions(reply: string): string[] {
     return match[1].split('|').map((s) => s.trim()).filter(Boolean).slice(0, 3);
 }
 
+// ─── Supabase REST helpers (inlined — LIMITE Vercel Hobby : 12 fonctions max,
+// tout vit dans /api/chat.ts, aucune nouvelle route API) ─────────────────────
+
+function sbHeaders() {
+    const url = process.env.SUPABASE_URL!;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    return {
+        url,
+        headers: {
+            apikey: key,
+            Authorization: 'Bearer ' + key,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+        },
+    };
+}
+
+function buildPostgrestQueryString(params: Record<string, string>): string {
+    const parts: string[] = [];
+    for (const [key, rawValue] of Object.entries(params)) {
+        const encKey = encodeURIComponent(key);
+        if (key === 'select') {
+            parts.push(`${encKey}=${encodeURIComponent(rawValue)}`);
+        } else {
+            parts.push(`${encKey}=${rawValue}`);
+        }
+    }
+    return parts.join('&');
+}
+
+async function sbGet<T = Record<string, unknown>[]>(
+    table: string,
+    params: Record<string, string>
+): Promise<{ data: T | null; error: string | null }> {
+    try {
+        const { url, headers } = sbHeaders();
+        const qs = buildPostgrestQueryString(params);
+        const r = await fetch(`${url}/rest/v1/${table}?${qs}`, { headers });
+        if (!r.ok) return { data: null, error: await r.text() };
+        return { data: (await r.json()) as T, error: null };
+    } catch (e) {
+        return { data: null, error: String(e) };
+    }
+}
+
+async function sbPost(
+    table: string,
+    body: unknown,
+    prefer = 'return=minimal'
+): Promise<{ error: string | null; data?: unknown }> {
+    try {
+        const { url, headers } = sbHeaders();
+        const r = await fetch(`${url}/rest/v1/${table}`, {
+            method: 'POST',
+            headers: { ...headers, Prefer: prefer },
+            body: JSON.stringify(body),
+        });
+        if (!r.ok) return { error: await r.text() };
+        const text = await r.text();
+        return { error: null, data: text ? JSON.parse(text) : null };
+    } catch (e) {
+        return { error: String(e) };
+    }
+}
+
+/** Résout device_id → user_id via device_widgets (pattern iOS : onglet Liaison). */
+async function resolveUserId(deviceId: string): Promise<string | null> {
+    const { data, error } = await sbGet<Record<string, unknown>[]>('device_widgets', {
+        select: 'user_id',
+        device_id: `eq.${deviceId}`,
+    });
+    if (error || !data || data.length === 0) return null;
+    return (data[0].user_id as string) ?? null;
+}
+
+async function loadSegmentHistory(userId: string, limit = 10): Promise<unknown[]> {
+    const { data } = await sbGet<Record<string, unknown>[]>('segment_intending_entries', {
+        select: 'date,segment_label,context,chosen_intention,outcome',
+        user_id: `eq.${userId}`,
+        order: 'created_at.desc',
+        limit: String(limit),
+    });
+    return data ?? [];
+}
+
 function stripPartnerSuggestionsLine(reply: string): string {
     return reply.replace(/\n?PARTNER_SUGGESTIONS:.+$/im, '').trim();
 }
@@ -225,7 +310,7 @@ interface ChatMessage {
 interface ChatRequest {
     messages?: ChatMessage[];
     userContext?: string;
-    mode?: 'karmic' | 'controle';
+    mode?: 'karmic' | 'controle' | 'segment-intending';
     step?: KarmicCoachStep | ControleCoachStep;
     draft?: KarmicCoachRequestContext['draft'];
     qualities?: KarmicCoachRequestContext['qualities'];
@@ -235,6 +320,17 @@ interface ChatRequest {
     exerciseId?: ControleCoachContext['exerciseId'];
     sessionLog?: ControleCoachContext['sessionLog'];
     phaseIndex?: ControleCoachContext['phaseIndex'];
+    segment?: SegmentIntendingContext;
+    action?: 'save' | 'intentions';
+    deviceId?: string;
+    entry?: {
+        segmentKey: string;
+        segmentLabel: string;
+        context?: string;
+        intentions?: string[];
+        chosenIntention?: string;
+        emotionalSetpoint?: number;
+    };
 }
 
 async function handleKarmicCoach(body: ChatRequest, res: VercelResponse) {
@@ -306,14 +402,115 @@ async function handleControleCoach(body: ChatRequest, res: VercelResponse) {
     return res.status(200).json({ reply: reply.trim() });
 }
 
+// ─── Segment Intending (Process #11 — Esther Hicks, Ask and It Is Given pp. 217-224) ──
+
+interface SegmentIntendingContext {
+    segmentKey: string;
+    segmentLabel: string;
+    context?: string;
+    emotionalSetpoint?: number;   // 1-22 (idéal 4-11)
+    history?: {
+        date: string;
+        segmentLabel: string;
+        context?: string;
+        chosenIntention?: string;
+        outcome?: string;
+    }[];
+}
+
+function buildSegmentIntendingSystemPrompt(): string {
+    return [
+        'Tu es le Guide Segment Intending — expert du Processus #11 d\'Esther Hicks (Ask and It Is Given, pp. 217-224).',
+        'Tu aides l\'utilisateur à PRÉ-PAVER la vibration du segment de journée qu\'il s\'apprête à vivre, AVANT d\'y entrer.',
+        '',
+        'ENSEIGNEMENTS DE RÉFÉRENCE (Abraham) :',
+        '- Le but est de définir la caractéristique vibratoire du segment à venir : « pré-paver son chemin vibratoire ».',
+        '- Formule d\'intention : « This is what I want from this period of my life experience. I want it and I expect it. » — au présent, avec attente.',
+        '- Un seul segment à la fois : « Qu\'est-ce que je veux MAINTENANT ? » Vouloir tout à la fois = confusion. La spécificité apporte clarté, pouvoir et vitesse.',
+        '- Selective Sifter : le ressenti EST le point d\'attraction. On attire ce que l\'on SE SENT. Chaque intention doit d\'abord changer le ressenti.',
+        '- Un segment change dès que les intentions changent : téléphone, véhicule, entrée dans une pièce, repas, coucher, réveil.',
+        '- Gate émotionnel : le processus a le plus de valeur entre (4) Attente positive/Croyance et (11) Accablement. Si l\'utilisateur est en mauvaise humeur, NE PAS forcer — suggérer de pivoter d\'abord (Processus du Pivot) puis revenir.',
+        '- Si le segment concerne quelque chose que l\'utilisateur n\'a jamais aimé faire (personne difficile, corvée), le Segment Intending n\'est pas le meilleur outil : orienter vers un processus plus lourd (Processus #13-#22) plutôt que forcer une intention positive.',
+        '- Si aucune intention positive ne vient facilement : NE PAS forcer. Changer de sujet, appliquer un autre processus plus tard.',
+        '',
+        'TA MISSION : proposer exactement 3 intentions, une par ligne, format strict :',
+        'INTENTION 1: <intention>',
+        'INTENTION 2: <intention>',
+        'INTENTION 3: <intention>',
+        'RÈGLES DES INTENTIONS :',
+        '- Chaque intention : UNE phrase, au présent, avec attente (« je », verbe au présent), 10-25 mots.',
+        '- Orientée RESSENTI d\'abord (comment l\'utilisateur veut se sentir pendant le segment), puis comportement.',
+        '- Concrète et spécifique au segment décrit (pas générique).',
+        '- Jamais de culpabilisation, jamais de « il faut », jamais de peur.',
+        '- Si l\'historique montre des intentions déjà choisies pour ce segment, varie et affine : ne répète pas mot pour mot.',
+        'Réponds en français. Aucun texte hors des 3 lignes INTENTION.',
+    ].join('\n');
+}
+
+function buildSegmentIntendingUserPrompt(ctx: SegmentIntendingContext): string {
+    const lines = [
+        `Segment : ${ctx.segmentLabel} (clé: ${ctx.segmentKey})`,
+        ctx.context ? `Contexte : ${ctx.context}` : 'Contexte : (non précisé)',
+        ctx.emotionalSetpoint
+            ? `Set-point émotionnel actuel : ${ctx.emotionalSetpoint}/22 (${ctx.emotionalSetpoint <= 7 ? 'aligné' : ctx.emotionalSetpoint <= 11 ? 'ok pour ce processus' : 'résistance — vérifier le gate'})`
+            : 'Set-point émotionnel : (non précisé)',
+    ];
+    if (ctx.history && ctx.history.length > 0) {
+        const last = ctx.history.slice(0, 10);
+        lines.push('', 'HISTORIQUE RÉCENT (pour personnaliser et ne pas répéter) :');
+        for (const h of last) {
+            lines.push(
+                `- [${h.date}] ${h.segmentLabel}${h.context ? ` — ${h.context}` : ''}${h.chosenIntention ? ` | intention choisie: ${h.chosenIntention}` : ''}${h.outcome ? ` | résultat: ${h.outcome}` : ''}`
+            );
+        }
+    }
+    lines.push('', 'Propose 3 intentions pour CE segment, au présent, avec attente.');
+    return lines.join('\n');
+}
+
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(200).end();
+
+    // ── GET /api/chat?deviceId=xxx — historique Segment Intending (iOS) ──
+    if (req.method === 'GET') {
+        const deviceId = (req.query.deviceId as string | undefined)?.trim();
+        if (!deviceId) return res.status(400).json({ error: 'Missing deviceId' });
+        try {
+            const userId = await resolveUserId(deviceId);
+            if (!userId) return res.status(200).json({ entries: [] });
+
+            const { data, error } = await sbGet<Record<string, unknown>[]>('segment_intending_entries', {
+                select: '*',
+                user_id: `eq.${userId}`,
+                order: 'created_at.desc',
+                limit: '30',
+            });
+            if (error) return res.status(500).json({ error: 'History failed', detail: error });
+
+            const entries = (data ?? []).map((d) => ({
+                id: d.id,
+                date: d.date,
+                segmentKey: d.segment_key,
+                segmentLabel: d.segment_label,
+                context: d.context ?? undefined,
+                intentions: Array.isArray(d.intentions) ? d.intentions : [],
+                chosenIntention: d.chosen_intention ?? undefined,
+                outcome: d.outcome ?? undefined,
+                emotionalSetpoint: d.emotional_setpoint ?? undefined,
+                createdAt: d.created_at,
+            }));
+            return res.status(200).json({ entries });
+        } catch (e: any) {
+            return res.status(500).json({ error: 'History failed', details: String(e?.message ?? e) });
+        }
+    }
+
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
@@ -325,6 +522,66 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (body.mode === 'controle') {
             return await handleControleCoach(body, res);
+        }
+
+        if (body.mode === 'segment-intending') {
+            const { segment, action, deviceId, entry } = body;
+
+            // ── Action 'save' : enregistrer une entrée (iOS via deviceId) ──
+            if (action === 'save') {
+                if (!deviceId) return res.status(400).json({ error: 'deviceId requis pour save' });
+                const userId = await resolveUserId(deviceId);
+                if (!userId) {
+                    return res.status(403).json({ error: 'Appareil non lié. Lie ton appareil dans l\'onglet Liaison.' });
+                }
+                if (!entry?.segmentKey || !entry?.segmentLabel) {
+                    return res.status(400).json({ error: 'entry (segmentKey + segmentLabel) requis' });
+                }
+                const { error, data } = await sbPost(
+                    'segment_intending_entries',
+                    {
+                        user_id: userId,
+                        date: new Date().toISOString().slice(0, 10),
+                        segment_key: entry.segmentKey,
+                        segment_label: entry.segmentLabel,
+                        context: entry.context ?? null,
+                        intentions: entry.intentions ?? [],
+                        chosen_intention: entry.chosenIntention ?? null,
+                        emotional_setpoint: entry.emotionalSetpoint ?? null,
+                    },
+                    'return=representation'
+                );
+                if (error) return res.status(500).json({ error: 'Insert failed', detail: error });
+                return res.status(200).json({ ok: true, entry: Array.isArray(data) ? data[0] : data });
+            }
+
+            if (!segment?.segmentKey || !segment?.segmentLabel) {
+                return res.status(400).json({ error: 'segment (segmentKey + segmentLabel) requis' });
+            }
+
+            // Historique : fourni par le web (body.segment.history) OU résolu depuis la DB (iOS via deviceId)
+            let history: SegmentIntendingContext['history'] = segment.history ?? [];
+            if (history.length === 0 && deviceId) {
+                const userId = await resolveUserId(deviceId);
+                if (userId) history = (await loadSegmentHistory(userId, 10)) as SegmentIntendingContext['history'];
+            }
+
+            const rawReply = await callOllama(
+                [
+                    { role: 'system', content: buildSegmentIntendingSystemPrompt() },
+                    { role: 'user', content: buildSegmentIntendingUserPrompt({ ...segment, history }) },
+                ],
+                SPECIALIZED_COACH_OPTS
+            );
+
+            const intentions = rawReply
+                .split('\n')
+                .map((l) => l.trim())
+                .filter((l) => /^INTENTION\s*\d*\s*:/i.test(l))
+                .map((l) => l.replace(/^INTENTION\s*\d*\s*:\s*/i, '').trim())
+                .filter(Boolean);
+
+            return res.status(200).json({ reply: rawReply.trim(), intentions });
         }
 
         const { messages, userContext } = body;

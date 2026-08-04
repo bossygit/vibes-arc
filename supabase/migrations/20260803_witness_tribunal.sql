@@ -26,7 +26,7 @@ ALTER TABLE desire_required_habits ENABLE ROW LEVEL SECURITY;
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_policy 
+        SELECT 1 FROM pg_policies 
         WHERE tablename = 'desire_required_habits' 
         AND policyname = 'Users manage own desire_required_habits'
     ) THEN

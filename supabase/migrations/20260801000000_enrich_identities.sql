@@ -14,9 +14,18 @@ ALTER TABLE identities ADD COLUMN IF NOT EXISTS behavioral_signals JSONB DEFAULT
 ALTER TABLE identities ENABLE ROW LEVEL SECURITY;
 
 -- 3. Policy RLS (au cas où elle n'existerait pas)
-CREATE POLICY IF NOT EXISTS "Users manage own identities" ON identities
-    FOR ALL USING (auth.uid()::text = user_id::text)
-    WITH CHECK (auth.uid()::text = user_id::text);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE tablename = 'identities'
+        AND policyname = 'Users manage own identities'
+    ) THEN
+        CREATE POLICY "Users manage own identities" ON identities
+            FOR ALL USING (auth.uid()::text = user_id::text)
+            WITH CHECK (auth.uid()::text = user_id::text);
+    END IF;
+END $$;
 
 COMMENT ON COLUMN identities.core_beliefs IS 'Croyances fondamentales que cette identité incarne';
 COMMENT ON COLUMN identities.daily_practices IS 'Pratiques quotidiennes associées à cette identité';

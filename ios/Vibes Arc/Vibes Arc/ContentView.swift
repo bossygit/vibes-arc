@@ -21,6 +21,14 @@ struct ContentView: View {
                 Label("Aujourd'hui", systemImage: "checkmark.circle")
             }
 
+            // ── Onglet Segment Intending ────────────────────────────────
+            NavigationStack {
+                SegmentIntendingView()
+            }
+            .tabItem {
+                Label("Segment", systemImage: "arrow.right.circle")
+            }
+
             // ── Onglet Notifications coach ─────────────────────────────
             NavigationStack {
                 NotificationSettingsView()

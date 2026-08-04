@@ -48,7 +48,7 @@ export interface Streak {
     endDate: string;
 }
 
-export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations' | 'pivotCoach' | 'dailyAlignment' | 'lifeExperiments' | 'vibesInsights';
+export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations' | 'pivotCoach' | 'dailyAlignment' | 'lifeExperiments' | 'vibesInsights' | 'segmentIntending';
 
 export interface AppState {
     identities: Identity[];
@@ -533,6 +533,54 @@ export function getAlignmentPhase(hour?: number): AlignmentPhase {
     const h = hour ?? new Date().getHours();
     return h < 15 ? 'morning' : 'evening';
 }
+
+// ============================================================
+// Segment Intending (Process #11 — Esther Hicks, Ask and It Is Given)
+// ============================================================
+
+/** Segment prédéfini du jeu Segment Intending */
+export interface PredefinedSegment {
+    key: string;
+    label: string;
+    emoji: string;
+}
+
+/** Segments canoniques du fil de journée d'Abraham (pp. 217-224) + variantes utiles */
+export const PREDEFINED_SEGMENTS: PredefinedSegment[] = [
+    { key: 'wake', label: 'Réveil au lit', emoji: '🛏️' },
+    { key: 'morning_prep', label: 'Préparation matinale', emoji: '🚿' },
+    { key: 'breakfast', label: 'Repas / Petit-déjeuner', emoji: '🥣' },
+    { key: 'phone_call', label: 'Appel téléphonique', emoji: '📞' },
+    { key: 'commute', label: 'Trajet / Déplacement', emoji: '🚗' },
+    { key: 'work_arrival', label: 'Arrivée au travail', emoji: '🏢' },
+    { key: 'deep_work', label: 'Travail profond', emoji: '🧠' },
+    { key: 'meeting', label: 'Réunion / Rendez-vous', emoji: '🤝' },
+    { key: 'money', label: 'Négociation / Argent', emoji: '💰' },
+    { key: 'return_home', label: 'Retour à la maison', emoji: '🏠' },
+    { key: 'evening', label: 'Soirée', emoji: '🌙' },
+    { key: 'sleep', label: 'Coucher / Sommeil', emoji: '😴' },
+];
+
+export interface SegmentIntendingEntry {
+    id: number;
+    date: string;                    // YYYY-MM-DD
+    segmentKey: string;              // clé prédéfinie ou 'custom'
+    segmentLabel: string;            // libellé affiché
+    context?: string;                // ce qui se passe / ce qui pourrait dérailler
+    intentions: string[];            // intentions proposées par l'IA
+    chosenIntention?: string;        // intention retenue (une seule par segment)
+    outcome?: string;                // retour après le segment
+    emotionalSetpoint?: number;      // gate émotionnel 1-22 (idéal 4-11)
+    createdAt: string;
+}
+
+export interface SegmentIntendingDraft {
+    segmentKey: string;
+    segmentLabel: string;
+    context?: string;
+    emotionalSetpoint?: number;
+}
+
 
 // ============================================================
 // D17 — Life Experiment Engine

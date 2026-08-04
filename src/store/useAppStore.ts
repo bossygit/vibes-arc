@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs, NotificationChannel, PrimingSession, EnvironmentMap, MilestoneAchievement, PendingMilestoneCelebration, Desire, DailyMood, Accuser, EmotionalFrequency, LifeExperiment, ExperimentDayEntry, ExperimentStatus } from '@/types';
+import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs, NotificationChannel, PrimingSession, EnvironmentMap, MilestoneAchievement, PendingMilestoneCelebration, Desire, DailyMood, Accuser, EmotionalFrequency, LifeExperiment, ExperimentDayEntry, ExperimentStatus, SegmentIntendingEntry, SegmentIntendingDraft } from '@/types';
 import SupabaseDatabaseClient from '@/database/supabase-client';
 import { computePointsForAction, calculateHabitStats, isHabitActiveOnDay } from '@/utils/habitUtils';
 import { evaluateMilestones, detectNewAchievements } from '@/utils/milestoneUtils';
@@ -25,6 +25,8 @@ interface AppState {
     accusers: Accuser[];
     // D17 — Life Experiment Engine
     experiments: LifeExperiment[];
+    // Segment Intending (Process #11)
+    segmentIntendingEntries: SegmentIntendingEntry[];
 
     // Actions
     setView: (view: ViewType) => void;
@@ -89,6 +91,10 @@ interface AppState {
     deleteExperiment: (id: number) => Promise<void>;
     recordExperimentDay: (experimentId: number, entry: ExperimentDayEntry) => Promise<void>;
     completeExperiment: (id: number, conclusion: string) => Promise<void>;
+    // Segment Intending (Process #11)
+    loadSegmentIntendingEntries: () => Promise<void>;
+    addSegmentIntendingEntry: (draft: SegmentIntendingDraft, intentions: string[], chosenIntention?: string) => Promise<SegmentIntendingEntry | null>;
+    setSegmentOutcome: (id: number, outcome: string) => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set) => {
@@ -255,6 +261,12 @@ export const useAppStore = create<AppState>((set) => {
                 experiments = await db.getExperiments();
             } catch { }
 
+            // Segment Intending — charger l'historique (30 dernières entrées)
+            let segmentIntendingEntries: SegmentIntendingEntry[] = [];
+            try {
+                segmentIntendingEntries = await db.getSegmentIntendingEntries(30);
+            } catch { }
+
             const initialProgress = evaluateMilestones(habits, identities, milestoneAchievements);
             const retroactive = initialProgress.filter(
                 (p) =>
@@ -266,7 +278,7 @@ export const useAppStore = create<AppState>((set) => {
                 if (saved) milestoneAchievements = [saved, ...milestoneAchievements];
             }
 
-            set({ identities, habits, skipsByHabit, gamification, userPrefs, primingSessions, environments, milestoneAchievements, desires, dailyMoods, todayMood, accusers, experiments });
+            set({ identities, habits, skipsByHabit, gamification, userPrefs, primingSessions, environments, milestoneAchievements, desires, dailyMoods, todayMood, accusers, experiments, segmentIntendingEntries });
         } catch (error) {
             console.error('Erreur lors du chargement des données:', error);
             // En cas d'erreur, initialiser avec des tableaux vides
@@ -284,6 +296,7 @@ export const useAppStore = create<AppState>((set) => {
                 todayMood: null,
                 accusers: [],
                 experiments: [],
+                segmentIntendingEntries: [],
             });
         }
     };
@@ -311,6 +324,8 @@ export const useAppStore = create<AppState>((set) => {
         accusers: [],
         // D17
         experiments: [],
+        // Segment Intending
+        segmentIntendingEntries: [],
 
         // Actions
         setView: (view) => set({ view }),
@@ -935,6 +950,61 @@ export const useAppStore = create<AppState>((set) => {
                 }
             } catch (error) {
                 console.error('Erreur complétion expérience:', error);
+            }
+        },
+
+        // ===== Segment Intending (Process #11) =====
+
+        loadSegmentIntendingEntries: async () => {
+            try {
+                const segmentIntendingEntries = await db.getSegmentIntendingEntries(30);
+                set({ segmentIntendingEntries });
+            } catch {
+                // silencieux : table pas encore migrée ou non authentifié
+            }
+        },
+
+        addSegmentIntendingEntry: async (draft, intentions, chosenIntention) => {
+            try {
+                const id = await db.saveSegmentIntendingEntry({
+                    ...draft,
+                    intentions,
+                    chosenIntention,
+                });
+                if (id === null) return null;
+                const entry: SegmentIntendingEntry = {
+                    id,
+                    date: new Date().toISOString().slice(0, 10),
+                    segmentKey: draft.segmentKey,
+                    segmentLabel: draft.segmentLabel,
+                    context: draft.context,
+                    intentions,
+                    chosenIntention,
+                    emotionalSetpoint: draft.emotionalSetpoint,
+                    createdAt: new Date().toISOString(),
+                };
+                set((state) => ({
+                    segmentIntendingEntries: [entry, ...state.segmentIntendingEntries].slice(0, 50),
+                }));
+                return entry;
+            } catch (error) {
+                console.error('Erreur enregistrement segment intending:', error);
+                return null;
+            }
+        },
+
+        setSegmentOutcome: async (id: number, outcome: string) => {
+            try {
+                const success = await db.updateSegmentOutcome(id, outcome);
+                if (success) {
+                    set((state) => ({
+                        segmentIntendingEntries: state.segmentIntendingEntries.map(e =>
+                            e.id === id ? { ...e, outcome } : e
+                        ),
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur mise à jour outcome segment:', error);
             }
         },
     };
