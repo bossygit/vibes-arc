@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { PREDEFINED_SEGMENTS, SegmentIntendingEntry, EMOTIONAL_LABELS } from '@/types';
 import { proposeSegmentIntentions } from '@/services/segmentIntendingService';
+import { getCurrentDayIndex } from '@/utils/habitUtils';
+import { totalDays } from '@/utils/dateUtils';
 import { Sparkles, Loader2, ChevronDown, CheckCircle2, Target, History, AlertTriangle } from 'lucide-react';
 
 /**
@@ -73,6 +75,25 @@ const SegmentIntendingView: React.FC = () => {
             selectedIntention
         );
         if (entry) {
+            // Coche l'habitude "Segment Intending" du jour (signal émis = intention réellement enregistrée)
+            try {
+                const { habits, addHabit, toggleHabitDay } = useAppStore.getState();
+                let habit = habits.find((h) => h.name === 'Segment Intending');
+                if (!habit) {
+                    habit = await addHabit({
+                        name: 'Segment Intending',
+                        type: 'start',
+                        totalDays,
+                        linkedIdentities: [],
+                    });
+                }
+                const todayIdx = getCurrentDayIndex();
+                if (habit && !habit.progress[todayIdx]) {
+                    await toggleHabitDay(habit.id, todayIdx);
+                }
+            } catch {
+                // Silencieux : l'entrée est déjà enregistrée, la coche habitude est un bonus
+            }
             setSavedEntry(entry);
             // Réinitialiser le formulaire
             setIntentions([]);

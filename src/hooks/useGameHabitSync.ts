@@ -4,20 +4,24 @@ import { getCurrentDayIndex } from '@/utils/habitUtils';
 import { totalDays } from '@/utils/dateUtils';
 import type { ViewType } from '@/types';
 
-type GameViewKey = 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'manifestation';
+type GameViewKey = 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'manifestation' | 'segmentIntending';
 
-const GAME_HABIT_KEYS: GameViewKey[] = ['magicGratitude', 'moneyMindset', 'focusWheel', 'manifestation'];
+const GAME_HABIT_KEYS: GameViewKey[] = ['magicGratitude', 'moneyMindset', 'focusWheel', 'manifestation', 'segmentIntending'];
 
-const GAME_HABITS: Record<GameViewKey, { name: string; type: 'start'; milestoneKey: string }> = {
-  magicGratitude: { name: 'Gratitude (The Magic)', type: 'start', milestoneKey: 'gratitude' },
-  moneyMindset: { name: 'Abondance', type: 'start', milestoneKey: 'abundance' },
-  focusWheel: { name: 'Focus Wheel', type: 'start', milestoneKey: 'pivots' },
-  manifestation: { name: 'Manifestation KIA', type: 'start', milestoneKey: 'manifestation' },
+const GAME_HABITS: Record<GameViewKey, { name: string; type: 'start'; milestoneKey?: string; autoCheck?: boolean }> = {
+  magicGratitude: { name: 'Gratitude (The Magic)', type: 'start', milestoneKey: 'gratitude', autoCheck: true },
+  moneyMindset: { name: 'Abondance', type: 'start', milestoneKey: 'abundance', autoCheck: true },
+  focusWheel: { name: 'Focus Wheel', type: 'start', milestoneKey: 'pivots', autoCheck: true },
+  manifestation: { name: 'Manifestation KIA', type: 'start', milestoneKey: 'manifestation', autoCheck: true },
+  // Segment Intending : pas de milestone, coche UNIQUEMENT à l'enregistrement d'une intention (autoCheck: false)
+  segmentIntending: { name: 'Segment Intending', type: 'start', autoCheck: false },
 };
 
 /**
- * Lorsque la vue courante est un des 4 jeux (Gratitude, Abondance, Focus Wheel, Manifestation),
- * assure qu'une habitude dédiée existe et coche le jour courant dans le calendrier si pas déjà coché.
+ * Lorsque la vue courante est un des jeux (Gratitude, Abondance, Focus Wheel, Manifestation, Segment Intending),
+ * assure qu'une habitude dédiée existe. Pour les jeux avec autoCheck (défaut), coche le jour courant
+ * dans le calendrier si pas déjà coché. Pour Segment Intending (autoCheck: false), la coche est déclenchée
+ * par le composant au moment où une intention est réellement enregistrée.
  */
 export function useGameHabitSync(view: ViewType): void {
   useEffect(() => {
@@ -43,7 +47,7 @@ export function useGameHabitSync(view: ViewType): void {
             milestoneKey: config.milestoneKey,
           });
         }
-        if (habit && !habit.progress[todayIdx]) {
+        if (config.autoCheck !== false && habit && !habit.progress[todayIdx]) {
           await toggleHabitDay(habit.id, todayIdx);
         }
       } catch {
