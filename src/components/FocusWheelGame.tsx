@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Circle,
   Sparkles,
@@ -14,6 +14,7 @@ import {
   Lightbulb,
   Save,
   Target,
+  Clock,
 } from 'lucide-react';
 import {
   FocusWheelState,
@@ -26,7 +27,9 @@ import {
   getBadges,
   categoryNames,
   detectCategory,
+  clockLabel,
 } from '@/data/focusWheel';
+import { EMOTIONAL_LABELS } from '@/types';
 
 const STORAGE_KEY = 'focusWheelGame';
 const MAX_THOUGHTS = 12;
@@ -222,17 +225,21 @@ const IdentifyScreen: React.FC<{
   const [centralThought, setCentralThought] = useState('');
   const [currentFeeling, setCurrentFeeling] = useState('');
   const [initialScore, setInitialScore] = useState(2);
+  const [setpoint, setSetpoint] = useState<number | null>(null);
+
+  const gateOk = setpoint === null || (setpoint >= 8 && setpoint <= 17);
 
   const handleContinue = () => {
     if (!centralThought.trim()) {
-      alert('Veuillez entrer votre pensée cible');
+      alert('Veuillez entrer votre désir de ressenti');
       return;
     }
 
     const newWheel = initializeFocusWheel(
       centralThought.trim(),
       currentFeeling.trim() || 'En cours d\'exploration',
-      initialScore
+      initialScore,
+      setpoint ?? undefined
     );
 
     setState((prev) => ({
@@ -248,37 +255,67 @@ const IdentifyScreen: React.FC<{
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-slate-800 mb-2">Votre pensée cible</h2>
-        <p className="text-slate-600">Quelle pensée voulez-vous atteindre ?</p>
+        <h2 className="text-3xl font-bold text-slate-800 mb-2">Votre désir de ressenti</h2>
+        <p className="text-slate-600">
+          « Je me sens pauvre, et je veux me sentir prospère. » — le centre de la roue est ce que vous VOULEZ ressentir.
+        </p>
       </div>
 
       <div className="card">
         <div className="space-y-6">
+          {/* ── Gate émotionnel (Process #17 : valeur maximale entre 8 et 17) ── */}
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
+            <label className="block text-sm font-semibold text-slate-700 mb-2">
+              <Target className="w-4 h-4 inline mr-2 text-purple-600" />
+              Où es-tu sur l'échelle émotionnelle (1-22) ?
+            </label>
+            <select
+              value={setpoint ?? ''}
+              onChange={(e) => setSetpoint(e.target.value ? Number(e.target.value) : null)}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+            >
+              <option value="">Non renseigné</option>
+              {Array.from({ length: 22 }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>{n} — {EMOTIONAL_LABELS[n]?.split(' / ')[0]}</option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-500 mt-2">
+              Le Focus Wheel est le plus puissant entre (8) Ennui et (17) Colère.
+            </p>
+            {setpoint !== null && !gateOk && (
+              <div className="mt-2 text-xs rounded-lg p-2 border border-amber-200 bg-amber-50 text-amber-800">
+                {setpoint < 8
+                  ? 'Tu es déjà bien aligné : ce processus te servira moins. Profites-en pour autre chose ou fais-le pour ancrer.'
+                  : 'Résistance très forte : le Focus Wheel risque de ne pas « coller ». Fais un Pivot d\'abord pour remonter, puis reviens.'}
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="block text-lg font-semibold text-slate-800 mb-3">
               <Target className="w-5 h-5 inline mr-2 text-purple-600" />
-              Pensée que vous <span className="text-purple-600">VOULEZ croire</span> (mais qui ne semble pas vraie maintenant)
+              Comment veux-tu te <span className="text-purple-600">SENTIR</span> ? (le centre de la roue)
             </label>
             <textarea
               value={centralThought}
               onChange={(e) => setCentralThought(e.target.value)}
-              placeholder="Ex: Je suis abondant • Je suis aimé • Je suis capable • Je suis en sécurité financière..."
+              placeholder="Ex: Je veux me sentir prospère • Je veux me sentir léger • Je veux me sentir aimé..."
               className="input-field"
               rows={3}
             />
             <p className="text-xs text-slate-500 mt-2">
-              💡 Cette pensée ira au centre de votre roue. Choisissez quelque chose que vous désirez croire.
+              💡 Formule-le en termes de ressenti, comme Abraham : « je me sens gros → je veux me sentir svelte », « je me sens pauvre → je veux me sentir prospère ».
             </p>
           </div>
 
           <div>
             <label className="block text-lg font-semibold text-slate-800 mb-3">
-              Comment vous sentez-vous <span className="text-slate-600">maintenant</span> ? (optionnel)
+              Qu'est-ce qui s'est passé ? Qu'est-ce que tu ne veux pas ? <span className="text-slate-600">(contexte)</span>
             </label>
             <textarea
               value={currentFeeling}
               onChange={(e) => setCurrentFeeling(e.target.value)}
-              placeholder="Ex: Je me sens bloqué, stressé, inquiet..."
+              placeholder="Ex: je me sens bloqué, stressé, inquiet... quelque chose a déclenché cette émotion"
               className="input-field"
               rows={2}
             />
@@ -292,7 +329,7 @@ const IdentifyScreen: React.FC<{
 
           <div>
             <label className="block text-lg font-semibold text-slate-800 mb-3">
-              À quel point êtes-vous aligné avec cette pensée maintenant ?
+              À quel point es-tu aligné avec ce ressenti maintenant ?
             </label>
             <div className="space-y-2">
               <input
@@ -310,7 +347,7 @@ const IdentifyScreen: React.FC<{
               </div>
             </div>
             <p className="text-xs text-slate-500 mt-2">
-              Plus le score est bas, plus vous aurez besoin de pensées-pont pour y arriver
+              Plus le score est bas, plus tu auras besoin de pensées-pont pour y arriver
             </p>
           </div>
         </div>
@@ -445,10 +482,15 @@ const WheelScreen: React.FC<{
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isValidatingThought, setIsValidatingThought] = useState(false);
   const [pendingThought, setPendingThought] = useState('');
+  // Test du soulagement (Process #17) : colle / buissons / 17 secondes
+  const [inBushes, setInBushes] = useState(false);
+  const [isHolding17, setIsHolding17] = useState(false);
+  const [holdSeconds, setHoldSeconds] = useState(17);
 
   const wheel = state.currentWheel!;
   const progress = (wheel.thoughts.length / MAX_THOUGHTS) * 100;
   const isComplete = wheel.thoughts.length === MAX_THOUGHTS;
+  const nextClockPosition = clockLabel(wheel.thoughts.length + 1);
 
   useEffect(() => {
     if (wheel) {
@@ -462,6 +504,23 @@ const WheelScreen: React.FC<{
     }
   }, [wheel]);
 
+  // Compte à rebours 17 secondes (combustion : une autre pensée rejoint la première)
+  useEffect(() => {
+    if (!isHolding17) return;
+    const interval = setInterval(() => {
+      setHoldSeconds((s) => {
+        if (s <= 1) {
+          clearInterval(interval);
+          setIsHolding17(false);
+          validateAndAddThoughtRef.current(pendingThought, true);
+          return 17;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isHolding17, pendingThought]);
+
   const validateAndAddThought = (text: string, isAligned: boolean) => {
     if (isAligned && wheel.thoughts.length < MAX_THOUGHTS) {
       const updatedWheel = addThoughtToWheel(wheel, text, true);
@@ -470,15 +529,24 @@ const WheelScreen: React.FC<{
         currentWheel: updatedWheel,
       }));
     }
-    
+
     setIsValidatingThought(false);
     setPendingThought('');
     setThoughtText('');
+    setInBushes(false);
+    setIsHolding17(false);
+    setHoldSeconds(17);
   };
+
+  const validateAndAddThoughtRef = useRef(validateAndAddThought);
+  validateAndAddThoughtRef.current = validateAndAddThought;
 
   const promptForThought = (text: string) => {
     if (!text.trim()) return;
     setPendingThought(text.trim());
+    setInBushes(false);
+    setIsHolding17(false);
+    setHoldSeconds(17);
     setIsValidatingThought(true);
   };
 
@@ -504,33 +572,70 @@ const WheelScreen: React.FC<{
         <p className="text-slate-600">Pensée cible : "{wheel.centralThought}"</p>
       </div>
 
-      {/* Modale de validation */}
+      {/* Modale : le test du soulagement (Process #17 — « ça colle ou dans les buissons ? ») */}
       {isValidatingThought && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="card max-w-md bg-white">
-            <h3 className="text-xl font-bold text-slate-800 mb-4">
-              Êtes-vous aligné avec cette pensée ?
+            <h3 className="text-xl font-bold text-slate-800 mb-2">
+              {inBushes ? '🌿 Dans les buissons…' : 'Le test du soulagement'}
             </h3>
             <p className="text-slate-700 mb-2 italic">"{pendingThought}"</p>
-            <p className="text-sm text-slate-600 mb-6">
-              Cette pensée vous semble-t-elle <strong>vraie</strong> maintenant ?
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => validateAndAddThought(pendingThought, false)}
-                className="btn-secondary flex-1"
-              >
-                <X className="w-5 h-5 inline mr-2" />
-                Non, je ne suis pas aligné
-              </button>
-              <button
-                onClick={() => validateAndAddThought(pendingThought, true)}
-                className="btn-primary flex-1"
-              >
-                <CheckCircle2 className="w-5 h-5 inline mr-2" />
-                Oui, je suis aligné !
-              </button>
-            </div>
+
+            {inBushes ? (
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Cette déclaration ne colle pas : elle est trop spécifique ou trop loin de ce que tu crois vraiment.
+                  C'est comme essayer de monter sur un manège qui tourne trop vite.
+                </p>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  <strong>Cherche une déclaration plus générale que tu crois déjà</strong> — même un tout petit peu mieux suffit.
+                  Tu n'es pas là pour résoudre, juste pour trouver une pensée qui te soulage.
+                </p>
+                <button
+                  onClick={() => { setInBushes(false); setThoughtText(''); }}
+                  className="btn-primary w-full"
+                >
+                  <Lightbulb className="w-5 h-5 inline mr-2" />
+                  Réessayer avec une autre pensée
+                </button>
+              </div>
+            ) : isHolding17 ? (
+              <div className="text-center py-6">
+                <div className="text-6xl font-bold text-purple-600 font-mono mb-3">{holdSeconds}</div>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Tiens cette pensée… si tu peux rester 17 secondes, une autre pensée va la rejoindre.
+                  C'est la combustion qui donne de la puissance à ta nouvelle croyance.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Abraham : une déclaration <strong>colle</strong> si elle te <strong>soulage</strong> — elle te fait sentir un
+                  tout petit peu mieux. Si elle t'agace ou te rappelle ton manque, elle te jette <strong>dans les buissons</strong>.
+                </p>
+                <button
+                  onClick={() => validateAndAddThought(pendingThought, true)}
+                  className="btn-primary w-full"
+                >
+                  <CheckCircle2 className="w-5 h-5 inline mr-2" />
+                  Ça colle — je me sens soulagé
+                </button>
+                <button
+                  onClick={() => { setIsHolding17(true); setHoldSeconds(17); }}
+                  className="btn-secondary w-full"
+                >
+                  <Clock className="w-5 h-5 inline mr-2" />
+                  Ça colle — tenir 17 secondes d'abord
+                </button>
+                <button
+                  onClick={() => setInBushes(true)}
+                  className="w-full py-2.5 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm font-medium hover:bg-red-100 transition"
+                >
+                  <X className="w-5 h-5 inline mr-2" />
+                  Dans les buissons — ça m'agace
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -539,7 +644,8 @@ const WheelScreen: React.FC<{
       <div className="card">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-slate-700">
-            {wheel.thoughts.length} / {MAX_THOUGHTS} pensées-pont alignées
+            {wheel.thoughts.length} / {MAX_THOUGHTS} pensées qui collent
+            {!isComplete && <span className="text-purple-600 font-semibold"> — prochaine : {nextClockPosition}</span>}
           </span>
           <span className="text-sm font-medium text-purple-600">{progress.toFixed(0)}%</span>
         </div>
@@ -567,14 +673,14 @@ const WheelScreen: React.FC<{
           {/* Liste des pensées */}
           {wheel.thoughts.length > 0 && (
             <div className="mt-6 space-y-2">
-              <h4 className="font-semibold text-slate-700 text-sm">Vos pensées-pont :</h4>
+              <h4 className="font-semibold text-slate-700 text-sm">Vos pensées-pont (positions d'horloge) :</h4>
               {wheel.thoughts.map((thought, index) => (
                 <div
                   key={thought.id}
                   className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg border border-purple-200"
                 >
-                  <div className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
-                    {index + 1}
+                  <div className="w-8 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                    {clockLabel(index + 1)}
                   </div>
                   <p className="text-sm text-slate-700 flex-1">{thought.text}</p>
                   <CheckCircle2 className="w-4 h-4 text-green-500" />
@@ -772,6 +878,19 @@ const IntegrationScreen: React.FC<{
           <p className="text-sm text-slate-600">
             Grâce à vos 12 pensées-pont, vous êtes maintenant plus proche de cette vibration
           </p>
+          <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200 text-left">
+            <p className="text-xs font-bold text-indigo-700 uppercase tracking-wide mb-2">
+              Abraham — « Plus ça fait du bien, plus ça devient bon »
+            </p>
+            <p className="text-sm text-indigo-900 leading-relaxed italic">
+              « Nous n'avons rien résolu : tu as toujours tes impôts à faire. Mais tu te tiens dans un endroit différent.
+              La clarté te viendra plus facilement qu'avant. La mémoire te viendra plus facilement qu'avant.
+              Ton Point d'Attraction a changé. »
+            </p>
+            <p className="text-xs text-indigo-700 mt-2">
+              Encercle maintenant ta pensée centrale dans ta tête : ressens à quel point tu en es plus proche qu'il y a quelques minutes.
+            </p>
+          </div>
         </div>
       </div>
 

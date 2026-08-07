@@ -21,14 +21,15 @@ struct FocusWheelThought: Codable, Identifiable, Equatable {
 
 struct FocusWheel: Codable, Identifiable, Equatable {
     var id = UUID()
-    var centralThought: String
-    var currentFeeling: String
+    var centralThought: String      // Le DÉSIR de ressenti au centre ("Je veux me sentir...")
+    var currentFeeling: String      // Ce qui s'est passé / ce que je ne veux pas (contexte)
     var thoughts: [FocusWheelThought]
     var initialScore: Int  // 0-10
     var finalScore: Int    // 0-10
     var isCompleted: Bool
     var completedAt: Date?
     var createdAt: Date
+    var setpoint: Int?     // Gate émotionnel du Process #17 (idéal 8-17)
 }
 
 enum FocusWheelPhase: String, Codable {
@@ -241,7 +242,7 @@ enum FocusWheelData {
         return base.filter { !used.contains($0.lowercased()) }
     }
 
-    static func newWheel(centralThought: String, currentFeeling: String, initialScore: Int) -> FocusWheel {
+    static func newWheel(centralThought: String, currentFeeling: String, initialScore: Int, setpoint: Int? = nil) -> FocusWheel {
         FocusWheel(
             id: UUID(),
             centralThought: centralThought,
@@ -251,8 +252,14 @@ enum FocusWheelData {
             finalScore: initialScore,
             isCompleted: false,
             completedAt: nil,
-            createdAt: Date()
+            createdAt: Date(),
+            setpoint: setpoint
         )
+    }
+
+    /// Positions d'horloge du Process #17 : 1ère pensée à 12h, puis 1h, 2h... 11h.
+    static func clockLabel(position: Int) -> String {
+        position == 1 ? "12h" : "\(position - 1)h"
     }
 
     static func stats(for wheels: [FocusWheel]) -> FocusWheelStats {
@@ -320,6 +327,14 @@ struct FocusWheelView: View {
     @State private var newThoughtText = ""
     @State private var initialScore = 0
     @State private var currentFeeling = ""
+    @State private var setpoint: Int? = nil
+    // Test du soulagement (Process #17)
+    @State private var pendingThought = ""
+    @State private var showValidation = false
+    @State private var inBushes = false
+    @State private var isHolding17 = false
+    @State private var holdSeconds = 17
+    @State private var holdTimer: Timer? = nil
 
     private let storageKey = "focusWheelGame"
 
@@ -347,6 +362,140 @@ struct FocusWheelView: View {
         .onChange(of: state) { _, newState in
             persist(newState)
         }
+        .sheet(isPresented: $showValidation) {
+            validationSheet
+                .presentationDetents([.medium])
+        }
+    }
+
+    // MARK: - Test du soulagement (Process #17)
+
+    private var validationSheet: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(inBushes ? "🌿 Dans les buissons…" : "Le test du soulagement")
+                    .font(.headline)
+                Text("« \(pendingThought) »")
+                    .font(.subheadline.italic())
+                    .foregroundStyle(.secondary)
+
+                if inBushes {
+                    Text("Cette déclaration ne colle pas : elle est trop spécifique ou trop loin de ce que tu crois vraiment. C'est comme essayer de monter sur un manège qui tourne trop vite.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("Cherche une déclaration plus générale que tu crois déjà — même un tout petit peu mieux suffit. Tu n'es pas là pour résoudre, juste pour trouver une pensée qui te soulage.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button {
+                        dismissValidation()
+                        newThoughtText = ""
+                    } label: {
+                        Label("Réessayer avec une autre pensée", systemImage: "lightbulb")
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.purple)
+                } else if isHolding17 {
+                    Text("\(holdSeconds)")
+                        .font(.system(size: 56, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.purple)
+                        .frame(maxWidth: .infinity)
+                        .contentTransition(.numericText())
+                    Text("Tiens cette pensée… si tu peux rester 17 secondes, une autre pensée va la rejoindre. C'est la combustion qui donne de la puissance à ta nouvelle croyance.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                } else {
+                    Text("Abraham : une déclaration **colle** si elle te **soulage** — elle te fait sentir un tout petit peu mieux. Si elle t'agace ou te rappelle ton manque, elle te jette dans les buissons.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button {
+                        confirmAdd()
+                    } label: {
+                        Label("Ça colle — je me sens soulagé", systemImage: "checkmark.circle.fill")
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.purple)
+                    Button {
+                        startHold17()
+                    } label: {
+                        Label("Ça colle — tenir 17 secondes d'abord", systemImage: "clock")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    Button(role: .destructive) {
+                        inBushes = true
+                    } label: {
+                        Label("Dans les buissons — ça m'agace", systemImage: "xmark.circle")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                Spacer()
+            }
+            .padding()
+            .navigationTitle(inBushes ? "Essaie encore" : "Validation")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fermer") { dismissValidation() }
+                }
+            }
+        }
+    }
+
+    private func promptForThought(_ text: String? = nil) {
+        let trimmed = (text ?? newThoughtText).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        pendingThought = trimmed
+        inBushes = false
+        isHolding17 = false
+        holdSeconds = 17
+        showValidation = true
+    }
+
+    private func confirmAdd() {
+        holdTimer?.invalidate()
+        let trimmed = pendingThought.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, var wheel = state.currentWheel,
+              wheel.thoughts.count < FocusWheelData.maxThoughts else { return }
+        let thought = FocusWheelThought(
+            id: UUID(),
+            text: trimmed,
+            position: wheel.thoughts.count + 1,
+            isAligned: true,
+            createdAt: Date()
+        )
+        wheel.thoughts.append(thought)
+        state.currentWheel = wheel
+        newThoughtText = ""
+        pendingThought = ""
+        isHolding17 = false
+        holdSeconds = 17
+        showValidation = false
+    }
+
+    private func startHold17() {
+        isHolding17 = true
+        holdSeconds = 17
+        holdTimer?.invalidate()
+        holdTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { t in
+            holdSeconds -= 1
+            if holdSeconds <= 0 {
+                t.invalidate()
+                confirmAdd()
+            }
+        }
+    }
+
+    private func dismissValidation() {
+        holdTimer?.invalidate()
+        showValidation = false
+        isHolding17 = false
+        inBushes = false
+        pendingThought = ""
     }
 
     private func persist(_ newState: FocusWheelState) {
@@ -446,21 +595,52 @@ struct FocusWheelView: View {
     private var identifyView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Quelle pensée veux-tu transformer ?")
+                Text("Ton désir de ressenti")
                     .font(.headline)
-                Text("C'est ta pensée centrale : celle qui ne te fait PAS du bien aujourd'hui, celle que tu veux atteindre.")
+                Text("« Je me sens pauvre, et je veux me sentir prospère. » — le centre de la roue est ce que tu VEUX ressentir.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                TextField("Pensée centrale…", text: $newThoughtText, axis: .vertical)
+                // ── Gate émotionnel (Process #17 : valeur maximale 8-17) ──
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Où es-tu sur l'échelle émotionnelle (1-22) ?")
+                        .font(.subheadline.bold())
+                    Picker("Set-point émotionnel", selection: $setpoint) {
+                        Text("Non renseigné").tag(Int?.none)
+                        ForEach(1...22, id: \.self) { n in
+                            Text("\(n) — \(Self.setpointLabel(n))").tag(Int?.some(n))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    if let setpoint, setpoint < 8 || setpoint > 17 {
+                        Label(setpoint < 8
+                              ? "Tu es déjà bien aligné : ce processus te servira moins. Fais-le pour ancrer."
+                              : "Résistance très forte : la roue risque de ne pas « coller ». Fais un Pivot d'abord, puis reviens.",
+                              systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                    Text("Le Focus Wheel est le plus puissant entre (8) Ennui et (17) Colère.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                TextField("Comment veux-tu te SENTIR ? (le centre de la roue)", text: $newThoughtText, axis: .vertical)
                     .lineLimit(2...4)
                     .textFieldStyle(.roundedBorder)
+                Text("Formule-le en termes de ressenti : « je me sens gros → je veux me sentir svelte », « je me sens pauvre → je veux me sentir prospère ».")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
 
-                TextField("Comment je me sens maintenant (optionnel)", text: $currentFeeling)
+                TextField("Qu'est-ce qui s'est passé ? Qu'est-ce que tu ne veux pas ?", text: $currentFeeling, axis: .vertical)
+                    .lineLimit(2...3)
                     .textFieldStyle(.roundedBorder)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Alignement initial avec cette pensée : \(initialScore)/10")
+                    Text("À quel point es-tu aligné avec ce ressenti maintenant : \(initialScore)/10")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Slider(value: Binding(
@@ -478,7 +658,8 @@ struct FocusWheelView: View {
                     state.currentWheel = FocusWheelData.newWheel(
                         centralThought: trimmed,
                         currentFeeling: currentFeeling,
-                        initialScore: initialScore
+                        initialScore: initialScore,
+                        setpoint: setpoint
                     )
                     newThoughtText = ""
                     currentFeeling = ""
@@ -493,6 +674,33 @@ struct FocusWheelView: View {
                 .disabled(newThoughtText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .padding()
+        }
+    }
+
+    private static func setpointLabel(_ n: Int) -> String {
+        switch n {
+        case 1: return "Joie / Liberté"
+        case 2: return "Passion"
+        case 3: return "Enthousiasme"
+        case 4: return "Attente positive"
+        case 5: return "Optimisme"
+        case 6: return "Espoir"
+        case 7: return "Contentement"
+        case 8: return "Ennui"
+        case 9: return "Pessimisme"
+        case 10: return "Frustration"
+        case 11: return "Accablement"
+        case 12: return "Déception"
+        case 13: return "Doute"
+        case 14: return "Inquiétude"
+        case 15: return "Blâme"
+        case 16: return "Découragement"
+        case 17: return "Colère"
+        case 18: return "Vengeance"
+        case 19: return "Haine / Rage"
+        case 20: return "Jalousie"
+        case 21: return "Insécurité"
+        default: return "Peur / Chagrin"
         }
     }
 
@@ -519,19 +727,20 @@ struct FocusWheelView: View {
                     .background(Color.purple.opacity(0.08))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
 
-                    // Pensées alignées
+                    // Pensées qui collent (positions d'horloge 12h → 11h)
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Pensées alignées (\(wheel.thoughts.count)/\(FocusWheelData.maxThoughts))")
+                        Text("Pensées qui collent (\(wheel.thoughts.count)/\(FocusWheelData.maxThoughts))")
                             .font(.subheadline.bold())
-                        Text("Des pensées qui te font du bien, qui font le pont vers ta pensée centrale.")
+                        Text("Des déclarations générales que tu crois déjà — le test : est-ce que ça te soulage ?")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
                         ForEach(wheel.thoughts) { thought in
                             HStack(alignment: .top, spacing: 8) {
-                                Text("\(thought.position)")
-                                    .font(.caption.monospaced())
+                                Text(FocusWheelData.clockLabel(position: thought.position))
+                                    .font(.caption.monospaced().bold())
                                     .foregroundStyle(.purple)
+                                    .frame(width: 30, alignment: .leading)
                                 Text(thought.text)
                                     .font(.subheadline)
                                 Spacer()
@@ -548,9 +757,13 @@ struct FocusWheelView: View {
                         }
 
                         if wheel.thoughts.count < FocusWheelData.maxThoughts {
-                            TextField("Ajouter une pensée alignée…", text: $newThoughtText)
+                            Text("Prochaine position : \(FocusWheelData.clockLabel(position: wheel.thoughts.count + 1)) — écris-la à 12h, puis 1h, 2h… comme sur une horloge.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+
+                            TextField("Ajouter une déclaration qui te soulage…", text: $newThoughtText)
                                 .textFieldStyle(.roundedBorder)
-                                .onSubmit { addThought() }
+                                .onSubmit { promptForThought() }
 
                             let suggestions = FocusWheelData.personalizedSuggestions(
                                 for: wheel.centralThought + " " + wheel.currentFeeling,
@@ -563,8 +776,7 @@ struct FocusWheelView: View {
                                     .padding(.top, 4)
                                 ForEach(Array(suggestions.prefix(6)), id: \.self) { suggestion in
                                     Button {
-                                        newThoughtText = suggestion
-                                        addThought()
+                                        promptForThought(suggestion)
                                     } label: {
                                         Text("💡 \(suggestion)")
                                             .font(.caption)
@@ -608,22 +820,6 @@ struct FocusWheelView: View {
             }
             .padding()
         }
-    }
-
-    private func addThought() {
-        let trimmed = newThoughtText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, var wheel = state.currentWheel,
-              wheel.thoughts.count < FocusWheelData.maxThoughts else { return }
-        let thought = FocusWheelThought(
-            id: UUID(),
-            text: trimmed,
-            position: wheel.thoughts.count + 1,
-            isAligned: true,
-            createdAt: Date()
-        )
-        wheel.thoughts.append(thought)
-        state.currentWheel = wheel
-        newThoughtText = ""
     }
 
     private func removeThought(_ id: UUID) {
@@ -691,6 +887,22 @@ struct FocusWheelView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Abraham — « Plus ça fait du bien, plus ça devient bon »")
+                            .font(.caption.bold())
+                            .foregroundStyle(.indigo)
+                        Text("« Nous n'avons rien résolu : tu as toujours tes impôts à faire. Mais tu te tiens dans un endroit différent. La clarté te viendra plus facilement qu'avant. Ton Point d'Attraction a changé. »")
+                            .font(.caption.italic())
+                            .foregroundStyle(.indigo)
+                        Text("Encercle maintenant ta pensée centrale : ressens à quel point tu en es plus proche qu'il y a quelques minutes.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.indigo.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
 
                     HStack(spacing: 12) {
                         Button {

@@ -9,14 +9,16 @@ export interface FocusWheelThought {
 
 export interface FocusWheel {
   id: string;
-  centralThought: string; // Pensée centrale (NON alignée - qu'on veut atteindre)
-  currentFeeling: string; // Comment je me sens maintenant (optionnel pour contexte)
+  centralThought: string; // Pensée centrale (le DÉSIR de ressenti — "Je veux me sentir...")
+  currentFeeling: string; // Ce qui s'est passé / ce que je ne veux pas (contexte)
   thoughts: FocusWheelThought[]; // 12 pensées alignées qui font le pont
   initialScore: number; // 0-10 - alignement initial avec la pensée centrale
   finalScore: number; // 0-10 - alignement final
   isCompleted: boolean;
   completedAt?: string;
   createdAt: string;
+  /** Gate émotionnel du Process #17 : set-point 1-22 au moment de la roue (idéal 8-17) */
+  setpoint?: number;
 }
 
 export interface FocusWheelState {
@@ -269,18 +271,29 @@ const shuffleArray = <T>(array: T[]): T[] => {
 export const initializeFocusWheel = (
   centralThought: string,
   currentFeeling: string,
-  initialScore: number
+  initialScore: number,
+  setpoint?: number
 ): FocusWheel => {
   return {
     id: `wheel-${Date.now()}`,
-    centralThought, // La pensée NON alignée qu'on veut atteindre
+    centralThought, // Le désir de ressenti au centre de la roue
     currentFeeling,
     thoughts: [],
     initialScore,
     finalScore: initialScore,
     isCompleted: false,
     createdAt: new Date().toISOString(),
+    setpoint,
   };
+};
+
+/**
+ * Positions d'horloge du Process #17 (Abraham) :
+ * la première pensée s'écrit à 12h, puis 1h, 2h... jusqu'à 11h (12 déclarations).
+ */
+export const clockLabel = (position: number): string => {
+  if (position === 1) return '12h';
+  return `${position - 1}h`;
 };
 
 // Ajouter une pensée au wheel
