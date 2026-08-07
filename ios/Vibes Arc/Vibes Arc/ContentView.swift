@@ -29,6 +29,14 @@ struct ContentView: View {
                 Label("Segment", systemImage: "arrow.right.circle")
             }
 
+            // ── Onglet Outils (Focus 17/68, Pivot, Focus Wheel) ──────────
+            NavigationStack {
+                ToolsHubView()
+            }
+            .tabItem {
+                Label("Outils", systemImage: "square.grid.2x2")
+            }
+
             // ── Onglet Notifications coach ─────────────────────────────
             NavigationStack {
                 NotificationSettingsView()
