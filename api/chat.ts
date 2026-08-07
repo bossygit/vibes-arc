@@ -182,6 +182,153 @@ async function loadSegmentHistory(userId: string, limit = 10): Promise<unknown[]
     return data ?? [];
 }
 
+// ─── Vibes AI — Insights (mode 'insights', iOS) ──────────────────────────────
+
+/** Même base que l'app web et les widgets (1er octobre 2025). */
+const INSIGHTS_APP_START = new Date(2025, 9, 1);
+
+function insightsDayIndex(d: Date): number {
+    const base = new Date(INSIGHTS_APP_START);
+    base.setHours(0, 0, 0, 0);
+    const copy = new Date(d);
+    copy.setHours(0, 0, 0, 0);
+    return Math.floor((copy.getTime() - base.getTime()) / 86_400_000);
+}
+
+interface InsightsHabitRow {
+    id: number;
+    name: string;
+    type: string;
+    total_days?: number | null;
+}
+
+/**
+ * Charge un résumé compact des données du user (habitudes + 30j, moods 14j,
+ * désirs, accusateurs) et le renvoie au format texte pour l'analyse IA.
+ */
+async function loadInsightsContext(userId: string): Promise<string> {
+    const todayIdx = insightsDayIndex(new Date());
+    const lines: string[] = [];
+
+    // Habitudes + progression 30 jours
+    const { data: habits } = await sbGet<InsightsHabitRow[]>('habits', {
+        select: 'id,name,type,total_days',
+        user_id: `eq.${userId}`,
+    });
+    const habitRows = habits ?? [];
+    if (habitRows.length > 0) {
+        lines.push('HABITUDES (30 derniers jours, échelle booléenne par jour) :');
+        for (const h of habitRows) {
+            const { data: prog } = await sbGet<Record<string, unknown>[]>('habit_progress', {
+                select: 'day_index',
+                habit_id: `eq.${h.id}`,
+                'day_index': `gte.${todayIdx - 30}`,
+                completed: 'eq.true',
+            });
+            const doneDays = new Set((prog ?? []).map((p) => Number(p.day_index)));
+            // Streak actuel (consécutifs en remontant depuis aujourd'hui)
+            let streak = 0;
+            for (let i = todayIdx; i >= todayIdx - 60; i--) {
+                if (doneDays.has(i)) streak++;
+                else break;
+            }
+            // Taux sur 30 jours (jours éligibles = depuis création)
+            const eligible = Math.min(30, h.total_days ?? 30);
+            const completed30 = Array.from(doneDays).filter((d) => d > todayIdx - 30).length;
+            const rate = eligible > 0 ? Math.round((completed30 / eligible) * 100) : 0;
+            lines.push(`- ${h.name} [${h.type}] streak: ${streak}j | taux 30j: ${rate}%`);
+        }
+    }
+
+    // Moods 14 derniers jours
+    const { data: moods } = await sbGet<Record<string, unknown>[]>('daily_moods', {
+        select: 'date,score,dominant_emotion',
+        user_id: `eq.${userId}`,
+        order: 'date.desc',
+        limit: '14',
+    });
+    const moodRows = moods ?? [];
+    if (moodRows.length > 0) {
+        lines.push('', 'MOODS (14 derniers, échelle 1=joie → 22=peur) :');
+        for (const m of moodRows.reverse()) {
+            lines.push(`- ${String(m.date)}: ${String(m.score)}${m.dominant_emotion ? ` (${String(m.dominant_emotion)})` : ''}`);
+        }
+        // Moyenne + tendance
+        const scores = moodRows.map((m) => Number(m.score));
+        const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+        const firstHalf = scores.slice(0, Math.ceil(scores.length / 2));
+        const secondHalf = scores.slice(Math.ceil(scores.length / 2));
+        const avgFirst = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
+        const avgSecond = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
+        lines.push(`- moyenne: ${avg.toFixed(1)} | tendance: ${avgSecond < avgFirst ? 'amélioration' : avgSecond > avgFirst ? 'détérioration' : 'stable'} (1re moitié ${avgFirst.toFixed(1)} → 2e moitié ${avgSecond.toFixed(1)})`);
+    }
+
+    // Désirs
+    const { data: desires } = await sbGet<Record<string, unknown>[]>('desires', {
+        select: 'title,type,status',
+        user_id: `eq.${userId}`,
+    });
+    const desireRows = desires ?? [];
+    if (desireRows.length > 0) {
+        lines.push('', 'DÉSIRS :');
+        for (const d of desireRows) {
+            lines.push(`- ${String(d.title)} [${String(d.type)}] statut: ${String(d.status)}`);
+        }
+    }
+
+    // Accusateurs + occurrences 30j
+    const { data: accusers } = await sbGet<Record<string, unknown>[]>('accusers', {
+        select: 'id,name',
+        user_id: `eq.${userId}`,
+    });
+    const accuserRows = accusers ?? [];
+    if (accuserRows.length > 0) {
+        lines.push('', 'ACCUSATEURS (occurrences 30 derniers jours) :');
+        for (const a of accuserRows) {
+            const { data: prog } = await sbGet<Record<string, unknown>[]>('accuser_progress', {
+                select: 'day_index',
+                accuser_id: `eq.${a.id}`,
+                'day_index': `gte.${todayIdx - 30}`,
+                occurred: 'eq.true',
+            });
+            lines.push(`- ${String(a.name)}: ${(prog ?? []).length} occurrence(s)`);
+        }
+    }
+
+    return lines.join('\n');
+}
+
+function buildInsightsSystemPrompt(): string {
+    return [
+        'Tu es Vibes AI — l\'analyste intelligent de l\'app Vibes Arc (philosophie : Tribunal de la Vie + Esther Hicks).',
+        'Tu analyses les données réelles de l\'utilisateur (habitudes, émotions, désirs, accusateurs) et tu produis des insights actionnables.',
+        '',
+        'FORMAT STRICT : réponds UNIQUEMENT avec un tableau JSON valide, sans texte autour :',
+        '[{"title": "...", "description": "...", "category": "mood|habits|accusers|momentum|desires|general", "severity": "critical|alert|info|win", "emoji": "..."}]',
+        '',
+        'RÈGLES :',
+        '- 4 à 8 insights maximum, en français.',
+        '- category et severity EXACTEMENT parmi les valeurs listées.',
+        '- title court (< 60 caractères), description actionnable (1-2 phrases), jamais culpabilisante.',
+        '- win = victoire à célébrer (streak, amélioration) ; critical = vraie alerte (détérioration nette) ; alert = attention ; info = observation utile.',
+        '- Ancre chaque insight dans les chiffres fournis (streaks, taux, scores, tendances) — pas de généralités vides.',
+        '- Si les données sont insuffisantes ou vides, renvoie simplement [] (JSON vide).',
+    ].join('\n');
+}
+
+function extractInsightsJson(raw: string): unknown[] {
+    const start = raw.indexOf('[');
+    const end = raw.lastIndexOf(']');
+    if (start === -1 || end === -1 || end <= start) return [];
+    const slice = raw.slice(start, end + 1);
+    try {
+        const parsed = JSON.parse(slice);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
 function stripPartnerSuggestionsLine(reply: string): string {
     return reply.replace(/\n?PARTNER_SUGGESTIONS:.+$/im, '').trim();
 }
@@ -310,7 +457,7 @@ interface ChatMessage {
 interface ChatRequest {
     messages?: ChatMessage[];
     userContext?: string;
-    mode?: 'karmic' | 'controle' | 'segment-intending';
+    mode?: 'karmic' | 'controle' | 'segment-intending' | 'insights';
     step?: KarmicCoachStep | ControleCoachStep;
     draft?: KarmicCoachRequestContext['draft'];
     qualities?: KarmicCoachRequestContext['qualities'];
@@ -522,6 +669,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (body.mode === 'controle') {
             return await handleControleCoach(body, res);
+        }
+
+        // ── Mode 'insights' : Vibes AI analyse les données du user (iOS) ──
+        if (body.mode === 'insights') {
+            if (!body.deviceId) return res.status(400).json({ error: 'deviceId requis' });
+            const userId = await resolveUserId(body.deviceId);
+            if (!userId) {
+                return res.status(403).json({ error: 'Appareil non lié. Lie ton appareil dans l\'onglet Liaison.' });
+            }
+
+            const context = await loadInsightsContext(userId);
+            const rawReply = await callOllama(
+                [
+                    { role: 'system', content: buildInsightsSystemPrompt() },
+                    { role: 'user', content: context.length > 0 ? context : 'Aucune donnée disponible pour le moment.' },
+                ],
+                { temperature: 0.3, top_p: 0.8, num_predict: 1500 }
+            );
+
+            const insights = extractInsightsJson(rawReply);
+            return res.status(200).json({ insights, raw: rawReply.slice(0, 500) });
         }
 
         if (body.mode === 'segment-intending') {

@@ -13,6 +13,21 @@ struct ToolsHubView: View {
         List {
             Section {
                 NavigationLink {
+                    InsightsView()
+                } label: {
+                    toolRow(
+                        icon: "brain.head.profile",
+                        tint: .indigo,
+                        title: "Vibes AI — Insights",
+                        subtitle: "Analyse intelligente de tes données : patterns, corrélations et recommandations."
+                    )
+                }
+            } header: {
+                Text("Analyse")
+            }
+
+            Section {
+                NavigationLink {
                     FocusHoldView()
                 } label: {
                     toolRow(
@@ -47,7 +62,7 @@ struct ToolsHubView: View {
             } header: {
                 Text("Pratiques vibratoires")
             } footer: {
-                Text("Les données restent sur cet appareil. Les habitudes du Dashboard web ne sont pas synchronisées depuis ces outils iOS.")
+                Text("Les données des pratiques restent sur cet appareil. Les Insights utilisent tes données synchronisées (appareil lié).")
             }
         }
         .navigationTitle("Outils")
