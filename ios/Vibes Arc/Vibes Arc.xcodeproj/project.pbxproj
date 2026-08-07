@@ -10,6 +10,13 @@
 		6FC37C142F61A4EB00BF75C5 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FC37C132F61A4EB00BF75C5 /* WidgetKit.framework */; };
 		6FC37C162F61A4EB00BF75C5 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FC37C152F61A4EB00BF75C5 /* SwiftUI.framework */; };
 		6FC37C272F61A4ED00BF75C5 /* VibesArcWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6FC37C112F61A4EB00BF75C5 /* VibesArcWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+	7A110000000000000000000F /* VibesArcShieldConfigExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7A1100000000000000000002 /* VibesArcShieldConfigExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+	7A220000000000000000000F /* VibesArcShieldActionExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7A2200000000000000000002 /* VibesArcShieldActionExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+	7A3100000000000000000001 /* ManagedSettings.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7A3000000000000000000001 /* ManagedSettings.framework */; };
+	7A3100000000000000000002 /* ManagedSettingsUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7A3000000000000000000002 /* ManagedSettingsUI.framework */; };
+	7A3200000000000000000001 /* ManagedSettings.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7A3000000000000000000001 /* ManagedSettings.framework */; };
+	7A330000000000000000000F /* VibesArcMonitorExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7A3300000000000000000002 /* VibesArcMonitorExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+	7A3400000000000000000001 /* DeviceActivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7A3500000000000000000001 /* DeviceActivity.framework */; };
 		6FC37C512F61B30000BF75C5 /* WidgetSharedStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FC37C502F61B30000BF75C5 /* WidgetSharedStorage.swift */; };
 /* End PBXBuildFile section */
 
@@ -35,7 +42,28 @@
 			remoteGlobalIDString = 6FC37C102F61A4EB00BF75C5;
 			remoteInfo = VibesArcWidgetsExtension;
 		};
-/* End PBXContainerItemProxy section */
+		7A110000000000000000000D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6F246C922F61A328005BC107 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7A1100000000000000000001;
+			remoteInfo = VibesArcShieldConfigExtension;
+		};
+		7A220000000000000000000D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6F246C922F61A328005BC107 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7A2200000000000000000001;
+			remoteInfo = VibesArcShieldActionExtension;
+		};
+		7A330000000000000000000D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6F246C922F61A328005BC107 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7A3300000000000000000001;
+			remoteInfo = VibesArcMonitorExtension;
+		};
+		/* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		6FC37C282F61A4ED00BF75C5 /* Embed Foundation Extensions */ = {
@@ -45,8 +73,11 @@
 			dstSubfolderSpec = 13;
 			files = (
 				6FC37C272F61A4ED00BF75C5 /* VibesArcWidgetsExtension.appex in Embed Foundation Extensions */,
-			);
-			name = "Embed Foundation Extensions";
+				7A110000000000000000000F /* VibesArcShieldConfigExtension.appex in Embed Foundation Extensions */,
+				7A220000000000000000000F /* VibesArcShieldActionExtension.appex in Embed Foundation Extensions */,
+				7A330000000000000000000F /* VibesArcMonitorExtension.appex in Embed Foundation Extensions */,
+				);
+				name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -60,6 +91,15 @@
 		6FC37C152F61A4EB00BF75C5 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		6FC37C2E2F61A6A200BF75C5 /* VibesArcWidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = VibesArcWidgetsExtension.entitlements; sourceTree = "<group>"; };
 		6FC37C502F61B30000BF75C5 /* WidgetSharedStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSharedStorage.swift; sourceTree = "<group>"; };
+	7A1100000000000000000002 /* VibesArcShieldConfigExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = VibesArcShieldConfigExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+	7A1100000000000000000003 /* VibesArcShieldConfig.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = VibesArcShieldConfig.entitlements; sourceTree = "<group>"; };
+	7A2200000000000000000002 /* VibesArcShieldActionExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = VibesArcShieldActionExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+	7A2200000000000000000003 /* VibesArcShieldAction.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = VibesArcShieldAction.entitlements; sourceTree = "<group>"; };
+	7A3000000000000000000001 /* ManagedSettings.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ManagedSettings.framework; path = System/Library/Frameworks/ManagedSettings.framework; sourceTree = SDKROOT; };
+	7A3000000000000000000002 /* ManagedSettingsUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ManagedSettingsUI.framework; path = System/Library/Frameworks/ManagedSettingsUI.framework; sourceTree = SDKROOT; };
+	7A3300000000000000000002 /* VibesArcMonitorExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = VibesArcMonitorExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+	7A3300000000000000000003 /* VibesArcMonitor.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = VibesArcMonitor.entitlements; sourceTree = "<group>"; };
+	7A3500000000000000000001 /* DeviceActivity.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = DeviceActivity.framework; path = System/Library/Frameworks/DeviceActivity.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -69,8 +109,29 @@
 				Info.plist,
 			);
 			target = 6FC37C102F61A4EB00BF75C5 /* VibesArcWidgetsExtension */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+			};
+			7A1100000000000000000006 /* Exceptions for "ShieldConfig" folder in "VibesArcShieldConfigExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 7A1100000000000000000001 /* VibesArcShieldConfigExtension */;
+			};
+			7A2200000000000000000006 /* Exceptions for "ShieldAction" folder in "VibesArcShieldActionExtension" target */ = {
+				isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+				membershipExceptions = (
+					Info.plist,
+				);
+				target = 7A2200000000000000000001 /* VibesArcShieldActionExtension */;
+			};
+			7A3300000000000000000006 /* Exceptions for "Monitor" folder in "VibesArcMonitorExtension" target */ = {
+				isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+				membershipExceptions = (
+					Info.plist,
+				);
+				target = 7A3300000000000000000001 /* VibesArcMonitorExtension */;
+			};
+			/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		6F246C9C2F61A328005BC107 /* Vibes Arc */ = {
@@ -95,8 +156,32 @@
 			);
 			path = VibesArcWidgets;
 			sourceTree = "<group>";
-		};
-/* End PBXFileSystemSynchronizedRootGroup section */
+			};
+			7A1100000000000000000005 /* ShieldConfig */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				7A1100000000000000000006 /* Exceptions for "ShieldConfig" folder in "VibesArcShieldConfigExtension" target */,
+			);
+			path = ScreenTimeGate/ShieldConfig;
+			sourceTree = "<group>";
+			};
+			7A2200000000000000000005 /* ShieldAction */ = {
+				isa = PBXFileSystemSynchronizedRootGroup;
+				exceptions = (
+					7A2200000000000000000006 /* Exceptions for "ShieldAction" folder in "VibesArcShieldActionExtension" target */,
+				);
+				path = ScreenTimeGate/ShieldAction;
+				sourceTree = "<group>";
+			};
+			7A3300000000000000000005 /* Monitor */ = {
+				isa = PBXFileSystemSynchronizedRootGroup;
+				exceptions = (
+					7A3300000000000000000006 /* Exceptions for "Monitor" folder in "VibesArcMonitorExtension" target */,
+				);
+				path = ScreenTimeGate/Monitor;
+				sourceTree = "<group>";
+			};
+			/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		6F246C972F61A328005BC107 /* Frameworks */ = {
@@ -129,7 +214,32 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-/* End PBXFrameworksBuildPhase section */
+		7A1100000000000000000008 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7A3100000000000000000001 /* ManagedSettings.framework in Frameworks */,
+				7A3100000000000000000002 /* ManagedSettingsUI.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A2200000000000000000008 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7A3200000000000000000001 /* ManagedSettings.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A3300000000000000000008 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7A3400000000000000000001 /* DeviceActivity.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		6F246C912F61A328005BC107 = {
@@ -137,10 +247,16 @@
 			children = (
 				6FC37C522F61B30000BF75C5 /* Vibes Arc */,
 				6FC37C2E2F61A6A200BF75C5 /* VibesArcWidgetsExtension.entitlements */,
+				7A1100000000000000000003 /* VibesArcShieldConfig.entitlements */,
+				7A2200000000000000000003 /* VibesArcShieldAction.entitlements */,
+				7A3300000000000000000003 /* VibesArcMonitor.entitlements */,
 				6F246C9C2F61A328005BC107 /* Vibes Arc */,
 				6F246CAA2F61A32B005BC107 /* Vibes ArcTests */,
 				6F246CB42F61A32C005BC107 /* Vibes ArcUITests */,
 				6FC37C172F61A4EB00BF75C5 /* VibesArcWidgets */,
+				7A1100000000000000000005 /* ShieldConfig */,
+				7A2200000000000000000005 /* ShieldAction */,
+				7A3300000000000000000005 /* Monitor */,
 				6FC37C122F61A4EB00BF75C5 /* Frameworks */,
 				6F246C9B2F61A328005BC107 /* Products */,
 			);
@@ -153,8 +269,11 @@
 				6F246CA72F61A32B005BC107 /* Vibes ArcTests.xctest */,
 				6F246CB12F61A32C005BC107 /* Vibes ArcUITests.xctest */,
 				6FC37C112F61A4EB00BF75C5 /* VibesArcWidgetsExtension.appex */,
-			);
-			name = Products;
+				7A1100000000000000000002 /* VibesArcShieldConfigExtension.appex */,
+				7A2200000000000000000002 /* VibesArcShieldActionExtension.appex */,
+				7A3300000000000000000002 /* VibesArcMonitorExtension.appex */,
+				);
+				name = Products;
 			sourceTree = "<group>";
 		};
 		6FC37C122F61A4EB00BF75C5 /* Frameworks */ = {
@@ -162,8 +281,11 @@
 			children = (
 				6FC37C132F61A4EB00BF75C5 /* WidgetKit.framework */,
 				6FC37C152F61A4EB00BF75C5 /* SwiftUI.framework */,
-			);
-			name = Frameworks;
+				7A3000000000000000000001 /* ManagedSettings.framework */,
+				7A3000000000000000000002 /* ManagedSettingsUI.framework */,
+				7A3500000000000000000001 /* DeviceActivity.framework */,
+				);
+				name = Frameworks;
 			sourceTree = "<group>";
 		};
 		6FC37C522F61B30000BF75C5 /* Vibes Arc */ = {
@@ -190,6 +312,9 @@
 			);
 			dependencies = (
 				6FC37C262F61A4ED00BF75C5 /* PBXTargetDependency */,
+				7A110000000000000000000E /* PBXTargetDependency */,
+				7A220000000000000000000E /* PBXTargetDependency */,
+				7A330000000000000000000E /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				6F246C9C2F61A328005BC107 /* Vibes Arc */,
@@ -268,8 +393,74 @@
 			productName = VibesArcWidgetsExtension;
 			productReference = 6FC37C112F61A4EB00BF75C5 /* VibesArcWidgetsExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
-		};
-/* End PBXNativeTarget section */
+			};
+			7A1100000000000000000001 /* VibesArcShieldConfigExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7A110000000000000000000A /* Build configuration list for PBXNativeTarget "VibesArcShieldConfigExtension" */;
+			buildPhases = (
+				7A1100000000000000000007 /* Sources */,
+				7A1100000000000000000008 /* Frameworks */,
+				7A1100000000000000000009 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				7A1100000000000000000005 /* ShieldConfig */,
+			);
+			name = VibesArcShieldConfigExtension;
+			packageProductDependencies = (
+			);
+			productName = VibesArcShieldConfigExtension;
+			productReference = 7A1100000000000000000002 /* VibesArcShieldConfigExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+			};
+			7A2200000000000000000001 /* VibesArcShieldActionExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7A220000000000000000000A /* Build configuration list for PBXNativeTarget "VibesArcShieldActionExtension" */;
+			buildPhases = (
+				7A2200000000000000000007 /* Sources */,
+				7A2200000000000000000008 /* Frameworks */,
+				7A2200000000000000000009 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				7A2200000000000000000005 /* ShieldAction */,
+			);
+			name = VibesArcShieldActionExtension;
+			packageProductDependencies = (
+			);
+			productName = VibesArcShieldActionExtension;
+			productReference = 7A2200000000000000000002 /* VibesArcShieldActionExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+			};
+			7A3300000000000000000001 /* VibesArcMonitorExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7A330000000000000000000A /* Build configuration list for PBXNativeTarget "VibesArcMonitorExtension" */;
+			buildPhases = (
+				7A3300000000000000000007 /* Sources */,
+				7A3300000000000000000008 /* Frameworks */,
+				7A3300000000000000000009 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				7A3300000000000000000005 /* Monitor */,
+			);
+			name = VibesArcMonitorExtension;
+			packageProductDependencies = (
+			);
+			productName = VibesArcMonitorExtension;
+			productReference = 7A3300000000000000000002 /* VibesArcMonitorExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+			};
+			/* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
 		6F246C922F61A328005BC107 /* Project object */ = {
@@ -293,7 +484,16 @@
 					6FC37C102F61A4EB00BF75C5 = {
 						CreatedOnToolsVersion = 26.3;
 					};
-				};
+					7A1100000000000000000001 = {
+						CreatedOnToolsVersion = 26.3;
+					};
+					7A2200000000000000000001 = {
+						CreatedOnToolsVersion = 26.3;
+					};
+					7A3300000000000000000001 = {
+						CreatedOnToolsVersion = 26.3;
+					};
+					};
 			};
 			buildConfigurationList = 6F246C952F61A328005BC107 /* Build configuration list for PBXProject "Vibes Arc" */;
 			developmentRegion = en;
@@ -313,6 +513,9 @@
 				6F246CA62F61A32B005BC107 /* Vibes ArcTests */,
 				6F246CB02F61A32C005BC107 /* Vibes ArcUITests */,
 				6FC37C102F61A4EB00BF75C5 /* VibesArcWidgetsExtension */,
+				7A1100000000000000000001 /* VibesArcShieldConfigExtension */,
+				7A2200000000000000000001 /* VibesArcShieldActionExtension */,
+				7A3300000000000000000001 /* VibesArcMonitorExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -346,7 +549,28 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-/* End PBXResourcesBuildPhase section */
+		7A1100000000000000000009 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A2200000000000000000009 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A3300000000000000000009 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		6F246C962F61A328005BC107 /* Sources */ = {
@@ -378,7 +602,28 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-/* End PBXSourcesBuildPhase section */
+		7A1100000000000000000007 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A2200000000000000000007 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A3300000000000000000007 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		/* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
 		6F246CA92F61A32B005BC107 /* PBXTargetDependency */ = {
@@ -396,7 +641,22 @@
 			target = 6FC37C102F61A4EB00BF75C5 /* VibesArcWidgetsExtension */;
 			targetProxy = 6FC37C252F61A4ED00BF75C5 /* PBXContainerItemProxy */;
 		};
-/* End PBXTargetDependency section */
+		7A110000000000000000000E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7A1100000000000000000001 /* VibesArcShieldConfigExtension */;
+			targetProxy = 7A110000000000000000000D /* PBXContainerItemProxy */;
+		};
+		7A220000000000000000000E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7A2200000000000000000001 /* VibesArcShieldActionExtension */;
+			targetProxy = 7A220000000000000000000D /* PBXContainerItemProxy */;
+		};
+		7A330000000000000000000E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7A3300000000000000000001 /* VibesArcMonitorExtension */;
+			targetProxy = 7A330000000000000000000D /* PBXContainerItemProxy */;
+		};
+		/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		6F246CB92F61A32C005BC107 /* Debug */ = {
@@ -733,9 +993,177 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
+				};
+				name = Release;
+				};
+				7A110000000000000000000B /* Debug */ = {
+				isa = XCBuildConfiguration;
+				buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "ScreenTimeGate/VibesArcShieldConfig.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = GNEZG29SH7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ScreenTimeGate/ShieldConfig/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = VibesArcShield;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.vibesarc.Vibes-Arc.ShieldConfig";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				};
+				name = Debug;
+				};
+				7A110000000000000000000C /* Release */ = {
+				isa = XCBuildConfiguration;
+				buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "ScreenTimeGate/VibesArcShieldConfig.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = GNEZG29SH7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ScreenTimeGate/ShieldConfig/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = VibesArcShield;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.vibesarc.Vibes-Arc.ShieldConfig";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				};
+				name = Release;
+				};
+				7A220000000000000000000B /* Debug */ = {
+				isa = XCBuildConfiguration;
+				buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "ScreenTimeGate/VibesArcShieldAction.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = GNEZG29SH7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ScreenTimeGate/ShieldAction/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = VibesArcShieldAction;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.vibesarc.Vibes-Arc.ShieldAction";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				};
+				name = Debug;
+				};
+				7A220000000000000000000C /* Release */ = {
+				isa = XCBuildConfiguration;
+				buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "ScreenTimeGate/VibesArcShieldAction.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = GNEZG29SH7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ScreenTimeGate/ShieldAction/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = VibesArcShieldAction;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.vibesarc.Vibes-Arc.ShieldAction";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				};
+				name = Release;
+				};
+					7A330000000000000000000B /* Debug */ = {
+		isa = XCBuildConfiguration;
+		buildSettings = {
+			ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+			CODE_SIGN_ENTITLEMENTS = "ScreenTimeGate/VibesArcMonitor.entitlements";
+			CODE_SIGN_STYLE = Automatic;
+			CURRENT_PROJECT_VERSION = 1;
+			DEVELOPMENT_TEAM = GNEZG29SH7;
+			GENERATE_INFOPLIST_FILE = YES;
+			INFOPLIST_FILE = "ScreenTimeGate/Monitor/Info.plist";
+			INFOPLIST_KEY_CFBundleDisplayName = VibesArcMonitor;
+			INFOPLIST_KEY_NSHumanReadableCopyright = "";
+			LD_RUNPATH_SEARCH_PATHS = (
+				"$(inherited)",
+				"@executable_path/Frameworks",
+				"@executable_path/../../Frameworks",
+			);
+			MARKETING_VERSION = 1.0;
+			PRODUCT_BUNDLE_IDENTIFIER = "com.vibesarc.Vibes-Arc.Monitor";
+			PRODUCT_NAME = "$(TARGET_NAME)";
+			SKIP_INSTALL = YES;
+			SWIFT_APPROACHABLE_CONCURRENCY = YES;
+			SWIFT_EMIT_LOC_STRINGS = NO;
+			SWIFT_VERSION = 5.0;
+			TARGETED_DEVICE_FAMILY = "1,2";
 		};
+		name = Debug;
+	};
+	7A330000000000000000000C /* Release */ = {
+		isa = XCBuildConfiguration;
+		buildSettings = {
+			ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+			CODE_SIGN_ENTITLEMENTS = "ScreenTimeGate/VibesArcMonitor.entitlements";
+			CODE_SIGN_STYLE = Automatic;
+			CURRENT_PROJECT_VERSION = 1;
+			DEVELOPMENT_TEAM = GNEZG29SH7;
+			GENERATE_INFOPLIST_FILE = YES;
+			INFOPLIST_FILE = "ScreenTimeGate/Monitor/Info.plist";
+			INFOPLIST_KEY_CFBundleDisplayName = VibesArcMonitor;
+			INFOPLIST_KEY_NSHumanReadableCopyright = "";
+			LD_RUNPATH_SEARCH_PATHS = (
+				"$(inherited)",
+				"@executable_path/Frameworks",
+				"@executable_path/../../Frameworks",
+			);
+			MARKETING_VERSION = 1.0;
+			PRODUCT_BUNDLE_IDENTIFIER = "com.vibesarc.Vibes-Arc.Monitor";
+			PRODUCT_NAME = "$(TARGET_NAME)";
+			SKIP_INSTALL = YES;
+			SWIFT_APPROACHABLE_CONCURRENCY = YES;
+			SWIFT_EMIT_LOC_STRINGS = NO;
+			SWIFT_VERSION = 5.0;
+			TARGETED_DEVICE_FAMILY = "1,2";
+		};
+		name = Release;
+	};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -784,7 +1212,34 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-/* End XCConfigurationList section */
+		7A110000000000000000000A /* Build configuration list for PBXNativeTarget "VibesArcShieldConfigExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7A110000000000000000000B /* Debug */,
+				7A110000000000000000000C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7A220000000000000000000A /* Build configuration list for PBXNativeTarget "VibesArcShieldActionExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7A220000000000000000000B /* Debug */,
+				7A220000000000000000000C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7A330000000000000000000A /* Build configuration list for PBXNativeTarget "VibesArcMonitorExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7A330000000000000000000B /* Debug */,
+				7A330000000000000000000C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		/* End XCConfigurationList section */
 	};
 	rootObject = 6F246C922F61A328005BC107 /* Project object */;
 }

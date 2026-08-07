@@ -457,7 +457,7 @@ interface ChatMessage {
 interface ChatRequest {
     messages?: ChatMessage[];
     userContext?: string;
-    mode?: 'karmic' | 'controle' | 'segment-intending' | 'insights';
+    mode?: 'karmic' | 'controle' | 'segment-intending' | 'insights' | 'daily-progress';
     step?: KarmicCoachStep | ControleCoachStep;
     draft?: KarmicCoachRequestContext['draft'];
     qualities?: KarmicCoachRequestContext['qualities'];
@@ -669,6 +669,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (body.mode === 'controle') {
             return await handleControleCoach(body, res);
+        }
+
+        // ── Mode 'daily-progress' : taux d'habitudes du jour (Pare-feu vibratoire iOS) ──
+        if (body.mode === 'daily-progress') {
+            if (!body.deviceId) return res.status(400).json({ error: 'deviceId requis' });
+            const userId = await resolveUserId(body.deviceId);
+            if (!userId) {
+                return res.status(403).json({ error: 'Appareil non lié. Lie ton appareil dans l\'onglet Liaison.' });
+            }
+
+            const todayIdx = insightsDayIndex(new Date());
+            const THRESHOLD = 40;
+
+            const { data: habits } = await sbGet<InsightsHabitRow[]>('habits', {
+                select: 'id,name,type,total_days',
+                user_id: `eq.${userId}`,
+            });
+            const habitRows = habits ?? [];
+
+            // Habitudes actives aujourd'hui (créées avant aujourd'hui)
+            const active = habitRows.filter((h) => (h.total_days ?? 0) > todayIdx);
+            const completed = active.length > 0
+                ? await (async () => {
+                    let count = 0;
+                    for (const h of active) {
+                        const { data: prog } = await sbGet<Record<string, unknown>[]>('habit_progress', {
+                            select: 'day_index',
+                            habit_id: `eq.${h.id}`,
+                            'day_index': `eq.${todayIdx}`,
+                            completed: 'eq.true',
+                        });
+                        if ((prog ?? []).length > 0) count++;
+                    }
+                    return count;
+                })()
+                : 0;
+
+            const rate = active.length > 0 ? Math.round((completed / active.length) * 100) : 0;
+
+            return res.status(200).json({
+                date: new Date().toISOString().slice(0, 10),
+                completed,
+                total: active.length,
+                rate,
+                threshold: THRESHOLD,
+                unlocked: rate >= THRESHOLD,
+            });
         }
 
         // ── Mode 'insights' : Vibes AI analyse les données du user (iOS) ──

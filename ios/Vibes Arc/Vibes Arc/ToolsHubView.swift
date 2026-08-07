@@ -61,6 +61,21 @@ struct ToolsHubView: View {
                 }
             } header: {
                 Text("Pratiques vibratoires")
+            }
+
+            Section {
+                NavigationLink {
+                    FocusGateView()
+                } label: {
+                    toolRow(
+                        icon: "shield.lefthalf.filled",
+                        tint: .purple,
+                        title: "Pare-feu vibratoire",
+                        subtitle: "Bloque tes apps de distraction tant que tu n'as pas atteint 40% de tes habitudes du jour (comme Duolingo)."
+                    )
+                }
+            } header: {
+                Text("Protection")
             } footer: {
                 Text("Les données des pratiques restent sur cet appareil. Les Insights utilisent tes données synchronisées (appareil lié).")
             }
