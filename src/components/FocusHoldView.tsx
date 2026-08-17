@@ -5,6 +5,7 @@ import SupabaseDatabaseClient from '@/database/supabase-client';
 import { tierFor, feedbackFor, MILESTONES } from '@/utils/focusStatsUtils';
 import { syncFocusHabitOnSession } from '@/utils/focusHabitSync';
 import FocusDashboard from '@/components/focus/FocusDashboard';
+import AttentionVessel3D from '@/components/focus/AttentionVessel3D';
 
 // ===================================================================
 // Focus 17/68 — Pratique de concentration sur une pensée unique
@@ -98,10 +99,12 @@ const FocusHoldView: React.FC = () => {
   const [history, setHistory] = useState<FocusSession[]>([]);
   const [allTimeBest, setAllTimeBest] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [elapsedSec, setElapsedSec] = useState(0);
 
   const startRef = useRef<number | null>(null);
   const phaseRef = useRef<Phase>('setup');
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const setPhaseSafe = (p: Phase) => {
     phaseRef.current = p;
@@ -150,6 +153,7 @@ const FocusHoldView: React.FC = () => {
   const start = () => {
     setPhaseSafe('countdown');
     setCountdown(3);
+    setElapsedSec(0);
     let n = 3;
     countdownIntervalRef.current = setInterval(() => {
       n -= 1;
@@ -157,6 +161,12 @@ const FocusHoldView: React.FC = () => {
         clearInterval(countdownIntervalRef.current!);
         startRef.current = performance.now();
         setPhaseSafe('holding');
+        // Démarrer le timer d'écoulement
+        elapsedRef.current = setInterval(() => {
+          if (startRef.current) {
+            setElapsedSec((performance.now() - startRef.current) / 1000);
+          }
+        }, 100);
       } else {
         setCountdown(n);
       }
@@ -167,6 +177,13 @@ const FocusHoldView: React.FC = () => {
     if (phaseRef.current !== 'holding') return;
     const duration = (performance.now() - startRef.current!) / 1000;
     setLastDuration(duration);
+    setElapsedSec(duration);
+
+    // Nettoyer le timer d'écoulement
+    if (elapsedRef.current) {
+      clearInterval(elapsedRef.current);
+      elapsedRef.current = null;
+    }
 
     const newBest =
       bestDuration === null || duration > bestDuration ? duration : bestDuration;
@@ -285,23 +302,17 @@ const FocusHoldView: React.FC = () => {
         {/* ── Phase: Holding (séance en cours) ── */}
         {phase === 'holding' && (
           <div
-            className="h-56 flex flex-col items-center justify-center gap-8 cursor-pointer"
+            className="h-80 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden"
             onClick={stop}
+            style={{
+              background: 'radial-gradient(ellipse at center, rgba(99,102,241,0.08) 0%, transparent 70%)',
+            }}
           >
-            <motion.div
-              className="w-14 h-14 rounded-full bg-indigo-400"
-              animate={{
-                scale: [1, 1.25, 1],
-                opacity: [0.4, 0.75, 0.4],
-              }}
-              transition={{
-                duration: 5,
-                ease: 'easeInOut',
-                repeat: Infinity,
-              }}
-            />
-            <div className="text-xs text-slate-400 text-center leading-relaxed px-6">
-              Appuie quand ton attention part ailleurs
+            <AttentionVessel3D elapsedSec={elapsedSec} intention={intention} />
+            <div className="absolute bottom-4 left-0 right-0 text-center">
+              <div className="text-[10px] text-slate-400 uppercase tracking-widest">
+                Appuie quand ton attention part ailleurs
+              </div>
             </div>
           </div>
         )}
