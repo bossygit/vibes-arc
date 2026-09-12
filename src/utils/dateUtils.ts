@@ -41,3 +41,15 @@ export const isFuture = (date: Date): boolean => {
     today.setHours(0, 0, 0, 0);
     return date > today;
 };
+
+/**
+ * Date locale (fuseau du navigateur) au format YYYY-MM-DD.
+ * À utiliser pour dater les entrées liées à la journée vécue (journal, check-ins)
+ * — contrairement à `toISOString().slice(0,10)` qui renvoie la date UTC.
+ */
+export const todayLocalISO = (date: Date = new Date()): string => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+};

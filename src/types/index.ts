@@ -48,7 +48,7 @@ export interface Streak {
     endDate: string;
 }
 
-export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations' | 'pivotCoach' | 'dailyAlignment' | 'lifeExperiments' | 'vibesInsights' | 'segmentIntending';
+export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations' | 'pivotCoach' | 'dailyAlignment' | 'lifeExperiments' | 'vibesInsights' | 'segmentIntending' | 'journal';
 
 export interface AppState {
     identities: Identity[];
@@ -629,4 +629,51 @@ export function getMetricDef(key: string): ExperimentMetricDef {
         key, label: key, icon: '📊', description: '',
     };
 }
+
+// ============================================================
+// Journal de ressenti quotidien
+// Entrées libres, plusieurs par jour, regroupées par date.
+// Complémentaire au check-in Fréquence (le score s'affiche en contexte).
+// ============================================================
+
+export interface JournalEntry {
+    id: number;
+    date: string;                    // YYYY-MM-DD
+    content: string;                 // le ressenti écrit
+    prompt?: string;                 // prompt d'amorçage affiché au moment de l'écriture
+    createdAt: string;               // ISO timestamp
+    updatedAt?: string;
+}
+
+export type JournalMoment = 'matin' | 'après-midi' | 'soir';
+
+/** Moment de la journée selon l'heure locale (matin 5-12h, après-midi 12-18h, soir 18-5h). */
+export function getJournalMoment(hour?: number): JournalMoment {
+    const h = hour ?? new Date().getHours();
+    if (h >= 5 && h < 12) return 'matin';
+    if (h >= 12 && h < 18) return 'après-midi';
+    return 'soir';
+}
+
+/** Prompts d'amorçage optionnels — l'écriture reste libre. */
+export const JOURNAL_PROMPTS: Record<JournalMoment, string[]> = {
+    matin: [
+        "Quel ressenti est là au réveil ?",
+        "Qu'est-ce qui occupe ton esprit ce matin ?",
+        "Comment te sens-tu dans ton corps en ce début de journée ?",
+        "Qu'est-ce qui est présent, là, maintenant ?",
+    ],
+    'après-midi': [
+        "Qu'est-ce qui a influencé ton état depuis ce matin ?",
+        "Qu'est-ce qui monte en toi maintenant ?",
+        "Où en est ton énergie à cette heure ?",
+        "Qu'est-ce qui t'a traversé aujourd'hui ?",
+    ],
+    soir: [
+        "Qu'est-ce qui a marqué ta journée ?",
+        "Comment te sens-tu avant de fermer les yeux ?",
+        "Qu'est-ce que tu veux déposer ce soir ?",
+        "Qu'est-ce qui a nourri ou vidé ton énergie aujourd'hui ?",
+    ],
+};
 

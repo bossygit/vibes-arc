@@ -30,6 +30,8 @@ import DailyAlignment from '@/components/DailyAlignment';
 import LifeExperiments from '@/components/LifeExperiments';
 import VibesInsights from '@/components/VibesInsights';
 import SegmentIntendingView from '@/components/SegmentIntendingView';
+import JournalView from '@/components/JournalView';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import Celebration from '@/components/Celebration';
 import { getCurrentDayIndex, isHabitActiveOnDay, getHabitStartDayIndex } from '@/utils/habitUtils';
 import { useGameHabitSync } from '@/hooks/useGameHabitSync';
@@ -118,6 +120,18 @@ function App() {
                 return <DailyAlignment />;
             case 'segmentIntending':
                 return <SegmentIntendingView />;
+            case 'journal':
+                return (
+                    <ErrorBoundary
+                        fallback={
+                            <div className="p-6 text-center text-sm text-slate-500">
+                                Le journal n'a pas pu s'afficher. Recharge la page pour réessayer.
+                            </div>
+                        }
+                    >
+                        <JournalView />
+                    </ErrorBoundary>
+                );
             case 'lifeExperiments':
                 return <LifeExperiments />;
             case 'vibesInsights':

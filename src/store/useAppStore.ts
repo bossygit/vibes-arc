@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs, NotificationChannel, PrimingSession, EnvironmentMap, MilestoneAchievement, PendingMilestoneCelebration, Desire, DailyMood, Accuser, EmotionalFrequency, LifeExperiment, ExperimentDayEntry, ExperimentStatus, SegmentIntendingEntry, SegmentIntendingDraft } from '@/types';
+import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs, NotificationChannel, PrimingSession, EnvironmentMap, MilestoneAchievement, PendingMilestoneCelebration, Desire, DailyMood, Accuser, EmotionalFrequency, LifeExperiment, ExperimentDayEntry, ExperimentStatus, SegmentIntendingEntry, SegmentIntendingDraft, JournalEntry } from '@/types';
 import SupabaseDatabaseClient from '@/database/supabase-client';
 import { computePointsForAction, calculateHabitStats, isHabitActiveOnDay } from '@/utils/habitUtils';
 import { evaluateMilestones, detectNewAchievements } from '@/utils/milestoneUtils';
@@ -27,6 +27,8 @@ interface AppState {
     experiments: LifeExperiment[];
     // Segment Intending (Process #11)
     segmentIntendingEntries: SegmentIntendingEntry[];
+    // Journal de ressenti quotidien
+    journalEntries: JournalEntry[];
 
     // Actions
     setView: (view: ViewType) => void;
@@ -95,6 +97,11 @@ interface AppState {
     loadSegmentIntendingEntries: () => Promise<void>;
     addSegmentIntendingEntry: (draft: SegmentIntendingDraft, intentions: string[], chosenIntention?: string) => Promise<SegmentIntendingEntry | null>;
     setSegmentOutcome: (id: number, outcome: string) => Promise<void>;
+    // Journal de ressenti quotidien
+    loadJournalEntries: () => Promise<void>;
+    addJournalEntry: (content: string, prompt?: string) => Promise<JournalEntry | null>;
+    editJournalEntry: (id: number, content: string) => Promise<void>;
+    removeJournalEntry: (id: number) => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set) => {
@@ -267,6 +274,12 @@ export const useAppStore = create<AppState>((set) => {
                 segmentIntendingEntries = await db.getSegmentIntendingEntries(30);
             } catch { }
 
+            // Journal — charger les entrées (200 dernières)
+            let journalEntries: JournalEntry[] = [];
+            try {
+                journalEntries = await db.getJournalEntries(200);
+            } catch { }
+
             const initialProgress = evaluateMilestones(habits, identities, milestoneAchievements);
             const retroactive = initialProgress.filter(
                 (p) =>
@@ -278,7 +291,7 @@ export const useAppStore = create<AppState>((set) => {
                 if (saved) milestoneAchievements = [saved, ...milestoneAchievements];
             }
 
-            set({ identities, habits, skipsByHabit, gamification, userPrefs, primingSessions, environments, milestoneAchievements, desires, dailyMoods, todayMood, accusers, experiments, segmentIntendingEntries });
+            set({ identities, habits, skipsByHabit, gamification, userPrefs, primingSessions, environments, milestoneAchievements, desires, dailyMoods, todayMood, accusers, experiments, segmentIntendingEntries, journalEntries });
         } catch (error) {
             console.error('Erreur lors du chargement des données:', error);
             // En cas d'erreur, initialiser avec des tableaux vides
@@ -297,6 +310,7 @@ export const useAppStore = create<AppState>((set) => {
                 accusers: [],
                 experiments: [],
                 segmentIntendingEntries: [],
+                journalEntries: [],
             });
         }
     };
@@ -326,6 +340,8 @@ export const useAppStore = create<AppState>((set) => {
         experiments: [],
         // Segment Intending
         segmentIntendingEntries: [],
+        // Journal
+        journalEntries: [],
 
         // Actions
         setView: (view) => set({ view }),
@@ -1005,6 +1021,59 @@ export const useAppStore = create<AppState>((set) => {
                 }
             } catch (error) {
                 console.error('Erreur mise à jour outcome segment:', error);
+            }
+        },
+
+        // ===== Journal de ressenti quotidien =====
+
+        loadJournalEntries: async () => {
+            try {
+                const journalEntries = await db.getJournalEntries(200);
+                set({ journalEntries });
+            } catch {
+                // silencieux : table pas encore migrée ou non authentifié
+            }
+        },
+
+        addJournalEntry: async (content, prompt) => {
+            try {
+                const entry = await db.createJournalEntry(content, prompt);
+                if (!entry) return null;
+                set((state) => ({
+                    journalEntries: [entry, ...state.journalEntries],
+                }));
+                return entry;
+            } catch (error) {
+                console.error('Erreur ajout entrée journal:', error);
+                return null;
+            }
+        },
+
+        editJournalEntry: async (id, content) => {
+            try {
+                const success = await db.updateJournalEntry(id, content);
+                if (success) {
+                    set((state) => ({
+                        journalEntries: state.journalEntries.map(e =>
+                            e.id === id ? { ...e, content, updatedAt: new Date().toISOString() } : e
+                        ),
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur mise à jour entrée journal:', error);
+            }
+        },
+
+        removeJournalEntry: async (id) => {
+            try {
+                const success = await db.deleteJournalEntry(id);
+                if (success) {
+                    set((state) => ({
+                        journalEntries: state.journalEntries.filter(e => e.id !== id),
+                    }));
+                }
+            } catch (error) {
+                console.error('Erreur suppression entrée journal:', error);
             }
         },
     };

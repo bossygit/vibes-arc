@@ -810,6 +810,34 @@ async function handleGetReviewContext(
     }
   }
 
+  // Journal de ressenti — entrées de la période analysée (max 40), fallback 5 dernières
+  const journalQuery = adminClient
+    .from("journal_entries")
+    .select("date, content, prompt, created_at")
+    .eq("user_id", userId)
+    .gte("created_at", startDate.toISOString())
+    .order("created_at", { ascending: false })
+    .limit(40);
+
+  let { data: journalRows } = await journalQuery;
+
+  if (!journalRows || journalRows.length === 0) {
+    const fallback = await adminClient
+      .from("journal_entries")
+      .select("date, content, prompt, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(5);
+    journalRows = fallback.data;
+  }
+
+  const journal = (journalRows || []).map((row) => ({
+    date: String(row.date ?? "").slice(0, 10),
+    heure: String(row.created_at ?? "").slice(11, 16),
+    prompt: row.prompt ? String(row.prompt) : null,
+    texte: String(row.content ?? "").slice(0, 400),
+  }));
+
   return jsonResponse({
     period: {
       type: period,
@@ -820,6 +848,9 @@ async function handleGetReviewContext(
       dayIndexStart: startIdx,
       dayIndexEnd: endIdx,
     },
+    // Journal placé tôt dans la réponse : le bot lit le JSON tronqué (8000 chars),
+    // le journal doit rester visible pour être transmis au coach.
+    journal,
     habits: {
       total: habits.length,
       analytics: habitAnalytics,

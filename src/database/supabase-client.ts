@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { Identity, Habit, Reward, Challenge, UserPrefs, SkipsByHabit, MilestoneAchievement } from '@/types';
+import { todayLocalISO } from '@/utils/dateUtils';
 
 // Types pour Supabase
 interface SupabaseIdentity {
@@ -1549,6 +1550,79 @@ class SupabaseDatabaseClient {
         const { error } = await this.supabase
             .from('segment_intending_entries')
             .update({ outcome, updated_at: new Date().toISOString() })
+            .eq('id', id)
+            .eq('user_id', user.id);
+
+        return !error;
+    }
+
+    // ===== Journal de ressenti quotidien (entrées libres multiples par jour) =====
+
+    private mapJournalEntry(d: any): import('@/types').JournalEntry {
+        return {
+            id: d.id,
+            date: d.date,
+            content: d.content ?? '',
+            prompt: d.prompt ?? undefined,
+            createdAt: d.created_at,
+            updatedAt: d.updated_at ?? undefined,
+        };
+    }
+
+    async getJournalEntries(limit: number = 200): Promise<import('@/types').JournalEntry[]> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { data, error } = await this.supabase
+            .from('journal_entries')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (error || !data) return [];
+        return data.map((d: any) => this.mapJournalEntry(d));
+    }
+
+    async createJournalEntry(content: string, prompt?: string): Promise<import('@/types').JournalEntry | null> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { data, error } = await this.supabase
+            .from('journal_entries')
+            .insert({
+                user_id: user.id,
+                date: todayLocalISO(),
+                content,
+                prompt: prompt ?? null,
+            })
+            .select()
+            .single();
+
+        if (error || !data) return null;
+        return this.mapJournalEntry(data);
+    }
+
+    async updateJournalEntry(id: number, content: string): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { error } = await this.supabase
+            .from('journal_entries')
+            .update({ content, updated_at: new Date().toISOString() })
+            .eq('id', id)
+            .eq('user_id', user.id);
+
+        return !error;
+    }
+
+    async deleteJournalEntry(id: number): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { error } = await this.supabase
+            .from('journal_entries')
+            .delete()
             .eq('id', id)
             .eq('user_id', user.id);
 

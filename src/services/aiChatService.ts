@@ -177,6 +177,16 @@ function buildUserContext(): string {
         }
     } catch { /* ignore */ }
 
+    // Journal de ressenti (10 dernières entrées — territoire émotionnel vécu)
+    const journalEntries = state.journalEntries ?? [];
+    const journalData = journalEntries.length > 0 ? {
+        total_entrées: journalEntries.length,
+        dernières_entrées: journalEntries.slice(0, 10).map(e => ({
+            date: e.date,
+            ressenti: e.content.length > 400 ? e.content.slice(0, 400) + '…' : e.content,
+        })),
+    } : null;
+
     // Mémoire
     const memory = loadMemory();
 
@@ -202,6 +212,7 @@ function buildUserContext(): string {
     if (moneyData) context.chèques_abondance = moneyData;
     if (gratitudeData) context.gratitude = gratitudeData;
     if (innerChildData) context.inner_child_checkin = innerChildData;
+    if (journalData) context.journal_ressenti = journalData;
     if (memory.summary || memory.keyFacts.length > 0) {
         context.mémoire = {
             résumé: memory.summary,
