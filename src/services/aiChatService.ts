@@ -5,6 +5,7 @@
 
 import { useAppStore } from '@/store/useAppStore';
 import { getCurrentDayIndex, isHabitActiveOnDay, calculateHabitStats } from '@/utils/habitUtils';
+import { computeWitnessTree } from '@/utils/witnessTree';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,7 +47,7 @@ export function clearMemory() {
 
 function buildUserContext(): string {
     const state = useAppStore.getState();
-    const { habits, identities, gamification, skipsByHabit, primingSessions, environments } = state;
+    const { habits, identities, gamification, skipsByHabit, primingSessions, environments, desires, dailyMoods } = state;
     const todayIdx = getCurrentDayIndex();
 
     const activeToday = habits.filter(h => isHabitActiveOnDay(h, todayIdx));
@@ -187,6 +188,54 @@ function buildUserContext(): string {
         })),
     } : null;
 
+    // Fréquences vibratoires récentes (check-in Fréquence — 14 derniers jours)
+    const recentMoods = (dailyMoods ?? []).slice(0, 14);
+    const avg = (arr: number[]): number | null =>
+        arr.length > 0 ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : null;
+    const moodScores = recentMoods.map(m => m.score);
+    const last7Avg = avg(moodScores.slice(0, 7));
+    const prev7Avg = avg(moodScores.slice(7, 14));
+    const moodsData = recentMoods.length > 0 ? {
+        échelle: '1 = Joie/aligné → 22 = Peur/résistance (plus BAS = plus aligné)',
+        moyenne_7j: last7Avg,
+        moyenne_7j_précédents: prev7Avg,
+        tendance: last7Avg !== null && prev7Avg !== null
+            ? (last7Avg < prev7Avg ? 'amélioration' : last7Avg > prev7Avg ? 'détérioration' : 'stable')
+            : null,
+        derniers_checkins: recentMoods.map(m => ({
+            date: m.date,
+            score: m.score,
+            ...(m.dominantEmotion ? { émotion_dominante: m.dominantEmotion } : {}),
+            ...(m.causes ? { causes: m.causes.length > 150 ? m.causes.slice(0, 150) + '…' : m.causes } : {}),
+        })),
+    } : null;
+
+    // Désirs (dossiers du Tribunal de la Vie) + verdict Evidence Engine
+    const desiresData = desires.length > 0 ? desires.map(d => {
+        const requiredHabitIds = d.requiredHabitIds ?? [];
+        const evidence = computeWitnessTree({
+            desireId: d.id,
+            requiredHabitIds,
+            habits,
+        });
+        // Un désir sans habitudes requises n'a pas de dossier évaluable :
+        // ne pas envoyer un faux verdict "défavorable" (emptyResult).
+        const configured = requiredHabitIds.length > 0;
+        return {
+            titre: d.title,
+            type: d.type,
+            statut: d.status ?? 'active',
+            cible: d.target || undefined,
+            identités_requises: d.linkedIdentityIds
+                .map(id => identities.find(i => i.id === id)?.name)
+                .filter(Boolean),
+            verdict_tribunal: configured ? evidence.verdict : 'témoins non configurés',
+            score_crédibilité: configured ? evidence.credibilityScore : null,
+            force_dominante: configured ? evidence.dominantSide : null,
+            plus_haut_témoin: configured ? evidence.highestWitnessLevel : null,
+        };
+    }) : null;
+
     // Mémoire
     const memory = loadMemory();
 
@@ -213,6 +262,8 @@ function buildUserContext(): string {
     if (gratitudeData) context.gratitude = gratitudeData;
     if (innerChildData) context.inner_child_checkin = innerChildData;
     if (journalData) context.journal_ressenti = journalData;
+    if (moodsData) context.fréquences_récentes = moodsData;
+    if (desiresData) context.désirs_tribunal = desiresData;
     if (memory.summary || memory.keyFacts.length > 0) {
         context.mémoire = {
             résumé: memory.summary,
