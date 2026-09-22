@@ -1,6 +1,21 @@
 import { create } from 'zustand';
 import { Identity, Habit, ViewType, SkipsByHabit, GamificationState, Reward, UserPrefs, NotificationChannel, PrimingSession, EnvironmentMap, MilestoneAchievement, PendingMilestoneCelebration, Desire, DailyMood, Accuser, EmotionalFrequency, LifeExperiment, ExperimentDayEntry, ExperimentStatus, SegmentIntendingEntry, SegmentIntendingDraft, JournalEntry } from '@/types';
+import { ComputedTargets, FoodEntry, FoodEntryDraft, MealType, NutrientKey, NutritionProfile } from '@/types/nutrition';
 import SupabaseDatabaseClient from '@/database/supabase-client';
+import { computeTargets } from '@/services/nutrition/nutritionGoals';
+import {
+    createLocalEntry,
+    isLocalEntryId,
+    readLocalEntries,
+    readLocalOverrides,
+    readLocalProfile,
+    readLocalSelectedDate,
+    writeLocalEntries,
+    writeLocalOverrides,
+    writeLocalProfile,
+    writeLocalSelectedDate,
+} from '@/services/nutrition/nutritionLocalStore';
+import { todayLocalISO } from '@/utils/dateUtils';
 import { computePointsForAction, calculateHabitStats, isHabitActiveOnDay } from '@/utils/habitUtils';
 import { evaluateMilestones, detectNewAchievements } from '@/utils/milestoneUtils';
 import { suggestMilestoneKeyForName } from '@/data/habitKeyAliases';
@@ -29,6 +44,18 @@ interface AppState {
     segmentIntendingEntries: SegmentIntendingEntry[];
     // Journal de ressenti quotidien
     journalEntries: JournalEntry[];
+    // Module Nutrition
+    nutritionProfile: NutritionProfile | null;
+    /** Cibles calculées depuis le profil + surcharges manuelles */
+    nutritionGoals: ComputedTargets;
+    /** Surcharges manuelles des cibles, par nutriment */
+    nutritionOverrides: Partial<Record<NutrientKey, number>>;
+    /** Journal alimentaire (toutes dates confondues, fenêtre glissante) */
+    foodEntries: FoodEntry[];
+    /** Date affichée dans le journal (YYYY-MM-DD) */
+    nutritionDate: string;
+    /** 'cloud' = Supabase, 'local' = repli hors-ligne, 'loading' = en cours */
+    nutritionSyncMode: 'loading' | 'cloud' | 'local';
 
     // Actions
     setView: (view: ViewType) => void;
@@ -102,6 +129,15 @@ interface AppState {
     addJournalEntry: (content: string, prompt?: string) => Promise<JournalEntry | null>;
     editJournalEntry: (id: number, content: string) => Promise<void>;
     removeJournalEntry: (id: number) => Promise<void>;
+    // Module Nutrition
+    loadNutritionData: () => Promise<void>;
+    saveNutritionProfile: (profile: NutritionProfile) => Promise<void>;
+    setNutritionOverride: (key: NutrientKey, value: number | null) => Promise<void>;
+    resetNutritionOverrides: () => Promise<void>;
+    setNutritionDate: (date: string) => void;
+    addFoodEntry: (draft: FoodEntryDraft) => Promise<FoodEntry | null>;
+    changeFoodEntry: (id: number, grams: number, meal?: MealType) => Promise<void>;
+    removeFoodEntry: (id: number) => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set) => {
@@ -280,6 +316,42 @@ export const useAppStore = create<AppState>((set) => {
                 journalEntries = await db.getJournalEntries(200);
             } catch { }
 
+            // Module Nutrition — profil, cibles et journal alimentaire.
+            // Le cache local sert de point de départ : il rend le module
+            // utilisable même si Supabase est injoignable.
+            let nutritionProfile: NutritionProfile | null = readLocalProfile();
+            let nutritionOverrides: Partial<Record<NutrientKey, number>> = readLocalOverrides();
+            let foodEntries: FoodEntry[] = readLocalEntries();
+            let nutritionSyncMode: 'cloud' | 'local' = 'local';
+
+            try {
+                const remoteProfile = await db.getNutritionProfile();
+                if (remoteProfile) {
+                    nutritionProfile = remoteProfile.profile;
+                    nutritionOverrides = remoteProfile.overrides;
+                    writeLocalProfile(remoteProfile.profile);
+                    writeLocalOverrides(remoteProfile.overrides);
+                }
+            } catch { }
+
+            try {
+                const since = new Date();
+                since.setDate(since.getDate() - 90);
+                const remoteEntries = await db.getFoodEntries(since.toISOString().slice(0, 10));
+
+                // Les entrées créées hors-ligne (id négatif) n'existent pas
+                // encore côté serveur : on les conserve pour ne pas perdre
+                // ce que l'utilisateur a saisi sans réseau.
+                const offlineOnly = foodEntries.filter(
+                    (e) => isLocalEntryId(e.id) && !remoteEntries.some((r) => r.id === e.id),
+                );
+                foodEntries = [...remoteEntries, ...offlineOnly];
+                writeLocalEntries(foodEntries);
+                nutritionSyncMode = 'cloud';
+            } catch { }
+
+            const nutritionGoals = computeTargets(nutritionProfile, nutritionOverrides);
+
             const initialProgress = evaluateMilestones(habits, identities, milestoneAchievements);
             const retroactive = initialProgress.filter(
                 (p) =>
@@ -291,7 +363,7 @@ export const useAppStore = create<AppState>((set) => {
                 if (saved) milestoneAchievements = [saved, ...milestoneAchievements];
             }
 
-            set({ identities, habits, skipsByHabit, gamification, userPrefs, primingSessions, environments, milestoneAchievements, desires, dailyMoods, todayMood, accusers, experiments, segmentIntendingEntries, journalEntries });
+            set({ identities, habits, skipsByHabit, gamification, userPrefs, primingSessions, environments, milestoneAchievements, desires, dailyMoods, todayMood, accusers, experiments, segmentIntendingEntries, journalEntries, nutritionProfile, nutritionOverrides, foodEntries, nutritionGoals, nutritionSyncMode });
         } catch (error) {
             console.error('Erreur lors du chargement des données:', error);
             // En cas d'erreur, initialiser avec des tableaux vides
@@ -311,12 +383,23 @@ export const useAppStore = create<AppState>((set) => {
                 experiments: [],
                 segmentIntendingEntries: [],
                 journalEntries: [],
+                // Nutrition : le cache local reste exploitable même si le
+                // chargement distant a échoué.
+                nutritionProfile: readLocalProfile(),
+                nutritionOverrides: readLocalOverrides(),
+                foodEntries: readLocalEntries(),
+                nutritionGoals: computeTargets(readLocalProfile(), readLocalOverrides()),
+                nutritionSyncMode: 'local',
             });
         }
     };
 
     // Charger les données au démarrage
     loadInitialData();
+
+    // Amorçage nutrition depuis le cache local, avant la réponse Supabase.
+    const initialNutritionProfile = readLocalProfile();
+    const initialNutritionOverrides = readLocalOverrides();
 
     return {
         // Initial state
@@ -342,6 +425,13 @@ export const useAppStore = create<AppState>((set) => {
         segmentIntendingEntries: [],
         // Journal
         journalEntries: [],
+        // Nutrition
+        nutritionProfile: initialNutritionProfile,
+        nutritionOverrides: initialNutritionOverrides,
+        foodEntries: readLocalEntries(),
+        nutritionGoals: computeTargets(initialNutritionProfile, initialNutritionOverrides),
+        nutritionDate: readLocalSelectedDate() ?? todayLocalISO(),
+        nutritionSyncMode: 'loading',
 
         // Actions
         setView: (view) => set({ view }),
@@ -1074,6 +1164,168 @@ export const useAppStore = create<AppState>((set) => {
                 }
             } catch (error) {
                 console.error('Erreur suppression entrée journal:', error);
+            }
+        },
+
+        // ===== Module Nutrition =====
+        //
+        // Principe : on écrit toujours d'abord en local (l'interface reste
+        // instantanée et fonctionne hors-ligne), puis on tente Supabase.
+        // `nutritionSyncMode` reflète l'état réel de la synchronisation.
+
+        loadNutritionData: async () => {
+            try {
+                const remoteProfile = await db.getNutritionProfile();
+                if (remoteProfile) {
+                    writeLocalProfile(remoteProfile.profile);
+                    writeLocalOverrides(remoteProfile.overrides);
+                    set({
+                        nutritionProfile: remoteProfile.profile,
+                        nutritionOverrides: remoteProfile.overrides,
+                        nutritionGoals: computeTargets(remoteProfile.profile, remoteProfile.overrides),
+                    });
+                }
+
+                const since = new Date();
+                since.setDate(since.getDate() - 90);
+                const remoteEntries = await db.getFoodEntries(since.toISOString().slice(0, 10));
+
+                set((state) => {
+                    const offlineOnly = state.foodEntries.filter(
+                        (e) => isLocalEntryId(e.id) && !remoteEntries.some((r) => r.id === e.id),
+                    );
+                    const foodEntries = [...remoteEntries, ...offlineOnly];
+                    writeLocalEntries(foodEntries);
+                    return { foodEntries, nutritionSyncMode: 'cloud' };
+                });
+            } catch {
+                // Table absente ou hors-ligne : le cache local prend le relais.
+                set({ nutritionSyncMode: 'local' });
+            }
+        },
+
+        saveNutritionProfile: async (profile) => {
+            const nextProfile: NutritionProfile = { ...profile, updatedAt: new Date().toISOString() };
+            const overrides = useAppStore.getState().nutritionOverrides;
+
+            writeLocalProfile(nextProfile);
+            set({
+                nutritionProfile: nextProfile,
+                nutritionGoals: computeTargets(nextProfile, overrides),
+            });
+
+            try {
+                const saved = await db.saveNutritionProfile(nextProfile, overrides);
+                set({ nutritionSyncMode: saved ? 'cloud' : 'local' });
+            } catch (error) {
+                console.warn('Profil nutrition conservé en local (Supabase indisponible) :', error);
+                set({ nutritionSyncMode: 'local' });
+            }
+        },
+
+        setNutritionOverride: async (key, value) => {
+            const { nutritionProfile, nutritionOverrides } = useAppStore.getState();
+            const nextOverrides = { ...nutritionOverrides };
+
+            if (value === null || !Number.isFinite(value) || value <= 0) {
+                delete nextOverrides[key];
+            } else {
+                nextOverrides[key] = value;
+            }
+
+            writeLocalOverrides(nextOverrides);
+            set({
+                nutritionOverrides: nextOverrides,
+                nutritionGoals: computeTargets(nutritionProfile, nextOverrides),
+            });
+
+            // Les surcharges n'ont de sens qu'adossées à un profil existant.
+            if (!nutritionProfile) return;
+            try {
+                const saved = await db.saveNutritionProfile(nutritionProfile, nextOverrides);
+                set({ nutritionSyncMode: saved ? 'cloud' : 'local' });
+            } catch {
+                set({ nutritionSyncMode: 'local' });
+            }
+        },
+
+        resetNutritionOverrides: async () => {
+            const { nutritionProfile } = useAppStore.getState();
+            writeLocalOverrides({});
+            set({
+                nutritionOverrides: {},
+                nutritionGoals: computeTargets(nutritionProfile, {}),
+            });
+
+            if (!nutritionProfile) return;
+            try {
+                await db.saveNutritionProfile(nutritionProfile, {});
+            } catch {
+                set({ nutritionSyncMode: 'local' });
+            }
+        },
+
+        setNutritionDate: (date) => {
+            writeLocalSelectedDate(date);
+            set({ nutritionDate: date });
+        },
+
+        addFoodEntry: async (draft) => {
+            try {
+                const entry = await db.createFoodEntry(draft);
+                if (!entry) throw new Error('Insertion refusée par Supabase');
+
+                set((state) => {
+                    const foodEntries = [...state.foodEntries, entry];
+                    writeLocalEntries(foodEntries);
+                    return { foodEntries, nutritionSyncMode: 'cloud' as const };
+                });
+                return entry;
+            } catch {
+                // Repli hors-ligne : l'entrée vit en local et sera conservée.
+                const entry = createLocalEntry(draft);
+                set((state) => {
+                    const foodEntries = [...state.foodEntries, entry];
+                    writeLocalEntries(foodEntries);
+                    return { foodEntries, nutritionSyncMode: 'local' as const };
+                });
+                return entry;
+            }
+        },
+
+        changeFoodEntry: async (id, grams, meal) => {
+            const safeGrams = Math.max(1, Math.round(grams));
+
+            set((state) => {
+                const foodEntries = state.foodEntries.map((e) =>
+                    e.id === id ? { ...e, grams: safeGrams, meal: meal ?? e.meal } : e,
+                );
+                writeLocalEntries(foodEntries);
+                return { foodEntries };
+            });
+
+            if (isLocalEntryId(id)) return; // Jamais envoyée au serveur
+            try {
+                const saved = await db.updateFoodEntry(id, safeGrams, meal);
+                if (!saved) set({ nutritionSyncMode: 'local' });
+            } catch {
+                set({ nutritionSyncMode: 'local' });
+            }
+        },
+
+        removeFoodEntry: async (id) => {
+            set((state) => {
+                const foodEntries = state.foodEntries.filter((e) => e.id !== id);
+                writeLocalEntries(foodEntries);
+                return { foodEntries };
+            });
+
+            if (isLocalEntryId(id)) return;
+            try {
+                const saved = await db.deleteFoodEntry(id);
+                if (!saved) set({ nutritionSyncMode: 'local' });
+            } catch {
+                set({ nutritionSyncMode: 'local' });
             }
         },
     };

@@ -31,6 +31,7 @@ import LifeExperiments from '@/components/LifeExperiments';
 import VibesInsights from '@/components/VibesInsights';
 import SegmentIntendingView from '@/components/SegmentIntendingView';
 import JournalView from '@/components/JournalView';
+import NutritionView from '@/components/nutrition/NutritionView';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Celebration from '@/components/Celebration';
 import { getCurrentDayIndex, isHabitActiveOnDay, getHabitStartDayIndex } from '@/utils/habitUtils';
@@ -134,6 +135,18 @@ function App() {
                 );
             case 'lifeExperiments':
                 return <LifeExperiments />;
+            case 'nutrition':
+                return (
+                    <ErrorBoundary
+                        fallback={
+                            <div className="p-6 text-center text-sm text-slate-500">
+                                Le module Nutrition n'a pas pu s'afficher. Recharge la page pour réessayer.
+                            </div>
+                        }
+                    >
+                        <NutritionView />
+                    </ErrorBoundary>
+                );
             case 'vibesInsights':
                 return <VibesInsights />;
             case 'accountSettings':

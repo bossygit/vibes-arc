@@ -12,7 +12,9 @@
     "vercel-build": "npm run build",
     "deploy": "vercel --prod",
     "sync:kb": "node scripts/sync_knowledge_base.mjs",
-    "export:kb": "node scripts/export_knowledge_base.mjs"
+    "export:kb": "node scripts/export_knowledge_base.mjs",
+    "test:nutrition": "node scripts/test-nutrition.mjs",
+    "verify:foods": "node scripts/verify-food-db.mjs"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",

@@ -1759,6 +1759,161 @@ class SupabaseDatabaseClient {
 
         return !error;
     }
+
+    // ===== Module Nutrition — profil & objectifs =====
+
+    /**
+     * Récupère le profil nutritionnel.
+     * Renvoie null si l'utilisateur n'en a pas encore enregistré : ce n'est
+     * pas une erreur, c'est l'état initial attendu. Une erreur réseau ou une
+     * table absente, en revanche, est bien levée — l'appelant doit pouvoir
+     * distinguer « aucune donnée » de « requête échouée ».
+     */
+    async getNutritionProfile(): Promise<{
+        profile: import('@/types/nutrition').NutritionProfile;
+        overrides: Partial<Record<import('@/types/nutrition').NutrientKey, number>>;
+    } | null> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { data, error } = await this.supabase
+            .from('nutrition_profiles')
+            .select('profile, goal_overrides')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+        if (error) throw new Error(error.message);
+        if (!data?.profile) return null;
+
+        return {
+            profile: data.profile as import('@/types/nutrition').NutritionProfile,
+            overrides: (data.goal_overrides ?? {}) as Partial<Record<import('@/types/nutrition').NutrientKey, number>>,
+        };
+    }
+
+    /** Enregistre (crée ou remplace) le profil nutritionnel et ses surcharges. */
+    async saveNutritionProfile(
+        profile: import('@/types/nutrition').NutritionProfile,
+        overrides: Partial<Record<import('@/types/nutrition').NutrientKey, number>>,
+    ): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { error } = await this.supabase
+            .from('nutrition_profiles')
+            .upsert(
+                {
+                    user_id: user.id,
+                    profile,
+                    goal_overrides: overrides,
+                    updated_at: new Date().toISOString(),
+                },
+                { onConflict: 'user_id' },
+            );
+
+        return !error;
+    }
+
+    // ===== Module Nutrition — journal alimentaire =====
+
+    private mapFoodEntry(d: any): import('@/types/nutrition').FoodEntry {
+        return {
+            id: d.id,
+            date: typeof d.date === 'string' ? d.date.slice(0, 10) : d.date,
+            meal: d.meal,
+            source: d.source,
+            sourceId: d.source_id,
+            name: d.name,
+            brand: d.brand ?? undefined,
+            grams: Number(d.grams),
+            basis: d.basis === 'ml' ? 'ml' : 'g',
+            per100g: d.per100g ?? {},
+            servingLabel: d.serving_label ?? undefined,
+            createdAt: d.created_at,
+        };
+    }
+
+    /**
+     * Récupère les entrées du journal.
+     * `sinceDate` (YYYY-MM-DD) limite la fenêtre pour ne pas charger
+     * tout l'historique à chaque ouverture.
+     * Une liste vide signifie « aucune entrée », pas « échec » : les erreurs
+     * sont levées pour que l'appelant puisse basculer en mode hors-ligne.
+     */
+    async getFoodEntries(sinceDate?: string): Promise<import('@/types/nutrition').FoodEntry[]> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        let query = this.supabase
+            .from('food_entries')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('date', { ascending: false })
+            .order('created_at', { ascending: true });
+
+        if (sinceDate) query = query.gte('date', sinceDate);
+
+        const { data, error } = await query;
+        if (error) throw new Error(error.message);
+        return (data ?? []).map((d: any) => this.mapFoodEntry(d));
+    }
+
+    async createFoodEntry(
+        entry: import('@/types/nutrition').FoodEntryDraft,
+    ): Promise<import('@/types/nutrition').FoodEntry | null> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { data, error } = await this.supabase
+            .from('food_entries')
+            .insert({
+                user_id: user.id,
+                date: entry.date,
+                meal: entry.meal,
+                source: entry.source,
+                source_id: entry.sourceId,
+                name: entry.name,
+                brand: entry.brand ?? null,
+                grams: entry.grams,
+                basis: entry.basis,
+                per100g: entry.per100g,
+                serving_label: entry.servingLabel ?? null,
+            })
+            .select()
+            .single();
+
+        if (error || !data) return null;
+        return this.mapFoodEntry(data);
+    }
+
+    async updateFoodEntry(id: number, grams: number, meal?: import('@/types/nutrition').MealType): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const updates: Record<string, any> = { grams };
+        if (meal) updates.meal = meal;
+
+        const { error } = await this.supabase
+            .from('food_entries')
+            .update(updates)
+            .eq('id', id)
+            .eq('user_id', user.id);
+
+        return !error;
+    }
+
+    async deleteFoodEntry(id: number): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { error } = await this.supabase
+            .from('food_entries')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', user.id);
+
+        return !error;
+    }
 }
 
 export default SupabaseDatabaseClient;

@@ -48,7 +48,7 @@ export interface Streak {
     endDate: string;
 }
 
-export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations' | 'pivotCoach' | 'dailyAlignment' | 'lifeExperiments' | 'vibesInsights' | 'segmentIntending' | 'journal';
+export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations' | 'pivotCoach' | 'dailyAlignment' | 'lifeExperiments' | 'vibesInsights' | 'segmentIntending' | 'journal' | 'nutrition';
 
 export interface AppState {
     identities: Identity[];

@@ -26,6 +26,17 @@ Une plateforme moderne de suivi d'identités et d'habitudes pour transformer vot
 - Messages envoyés via Telegram ou WhatsApp (Twilio)
 - Test immédiat depuis l'interface pour vérifier la configuration
 
+### 🥗 Module Nutrition
+- **Journal par repas** : petit-déjeuner, déjeuner, dîner, collations
+- **Recherche d'aliments multi-sources** : base locale + Open Food Facts (produits de marque, code-barres) + USDA FoodData Central (aliments bruts)
+- **Objectifs calculés automatiquement** : métabolisme de base (Mifflin-St Jeor ou Katch-McArdle), dépense énergétique, ajustement selon l'objectif, répartition macro, et apports de référence en vitamines/minéraux (DRI)
+- **Rapport nutritionnel** : 42 nutriments suivis, avec % de la cible et repérage des plafonds dépassés (sodium, sucres, AG saturés)
+- **Base locale de 140 aliments** dont les staples d'Afrique de l'Ouest et du Centre (attiéké, igname, plantain, fonio, niébé, pondu, ndolé, mafé, yassa…) — fonctionne hors-ligne
+- Cibles ajustables manuellement, nutriment par nutriment
+- Persistance Supabase avec repli localStorage automatique (le journal reste utilisable sans réseau)
+
+📖 **Documentation détaillée : [`docs/NUTRITION.md`](docs/NUTRITION.md)**
+
 ## 🛠️ Technologies
 
 - **Frontend**: React 18 avec TypeScript
