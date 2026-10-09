@@ -9,8 +9,11 @@ import { getUsdaApiKey, searchUsdaFoods } from './api/nutrition/_usda'
  *
  * Sans ce middleware, `npm run dev` renverrait 404 sur /api/nutrition/* et
  * l'application perdrait Open Food Facts et USDA — c'est-à-dire l'essentiel
- * de sa valeur. La logique est partagée avec les fonctions Vercel
- * (api/nutrition/*) : aucun code métier n'est dupliqué ici.
+ * de sa valeur. Les helpers api/nutrition/_off.ts et _usda.ts sont utilisés par
+ * ce middleware ET par la fonction de production api/nutrition.ts — laquelle
+ * les INLINE (contrainte Vercel Hobby : les imports relatifs `_*.ts` ne sont
+ * pas embarqués dans les fonctions). Toute modification métier des helpers
+ * doit donc être répercutée dans api/nutrition.ts (copie inlinée).
  */
 function nutritionApiPlugin(mode: string): Plugin {
   // Charge aussi les variables non préfixées VITE_ (clé USDA, côté serveur).
@@ -25,7 +28,12 @@ function nutritionApiPlugin(mode: string): Plugin {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const url = new URL(req.url ?? '/', 'http://localhost')
-        if (!url.pathname.startsWith('/api/nutrition/')) return next()
+        if (url.pathname !== '/api/nutrition' && !url.pathname.startsWith('/api/nutrition/')) return next()
+
+        // Nouveau format : /api/nutrition?op=… — l'ancien /api/nutrition/<op> reste accepté.
+        const op = url.pathname === '/api/nutrition'
+          ? (url.searchParams.get('op') ?? 'status')
+          : url.pathname.replace('/api/nutrition/', '')
 
         const send = (status: number, body: unknown) => {
           res.statusCode = status
@@ -34,8 +42,8 @@ function nutritionApiPlugin(mode: string): Plugin {
         }
 
         try {
-          switch (url.pathname) {
-            case '/api/nutrition/off-search': {
+          switch (op) {
+            case 'off-search': {
               const { status, body } = await handleOffSearch(
                 url.searchParams.get('q') ?? '',
                 Number(url.searchParams.get('limit') ?? 12),
@@ -44,13 +52,13 @@ function nutritionApiPlugin(mode: string): Plugin {
               return
             }
 
-            case '/api/nutrition/off-product': {
+            case 'off-product': {
               const { status, body } = await handleOffProduct(url.searchParams.get('code') ?? '')
               send(status, body)
               return
             }
 
-            case '/api/nutrition/search': {
+            case 'search': {
               // USDA : mêmes règles qu'en production, la clé reste côté serveur.
               const usdaConfigured = !!getUsdaApiKey()
               const query = (url.searchParams.get('q') ?? '').trim()
@@ -79,13 +87,15 @@ function nutritionApiPlugin(mode: string): Plugin {
               return
             }
 
-            case '/api/nutrition/status': {
+            case 'status': {
               send(200, { openFoodFacts: true, usda: !!getUsdaApiKey() })
               return
             }
 
             default:
-              return next()
+              // Comme en production : op inconnue → 400 (sinon Vite servirait le fichier source).
+              send(400, { error: `op inconnue: ${op}` })
+              return
           }
         } catch (error) {
           send(502, { error: error instanceof Error ? error.message : 'Erreur inconnue' })
