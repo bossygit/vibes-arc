@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { Plus, CheckCircle2, Info, Sparkles } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { detoxTemplates } from '@/data/detoxTemplates';
+import { totalDays as calendarTotalDays } from '@/utils/dateUtils';
 
 const AddHabitView: React.FC = () => {
     const { identities, addHabit, setView } = useAppStore();
     const [newHabit, setNewHabit] = useState({
         name: '',
         type: 'start' as 'start' | 'stop',
-        totalDays: 365,
+        totalDays: calendarTotalDays,
         linkedIdentities: [] as number[]
     });
 
@@ -138,7 +139,7 @@ const AddHabitView: React.FC = () => {
                         max="500"
                     />
                     <p className="text-xs text-slate-500 mt-2">
-                        Choisis 21, 30, 66, 90… ou 365 pour observer le momentum qui se construit.
+                        Choisis 21, 30, 66, 90… ou 365 pour observer le momentum qui se construit. Les durées courtes se comptent à partir d'aujourd'hui — par défaut, la fenêtre va jusqu'au 31 déc 2026.
                     </p>
                 </div>
 

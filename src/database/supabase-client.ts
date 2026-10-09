@@ -210,13 +210,25 @@ class SupabaseDatabaseClient {
         const user = await this.getCurrentUser();
         if (!user) throw new Error('Utilisateur non authentifié');
 
+        // ⚠️ Anti « naissance inactive » : une habitude dont total_days est ≤ au
+        // jour courant aurait une fenêtre déjà passée (startIdx ≥ total_days) et
+        // n'apparaîtrait jamais dans les surfaces « aujourd'hui » (cf. bug des
+        // habitudes 365 j, octobre 2026). Les durées plus courtes sont donc
+        // interprétées comme une durée à partir d'aujourd'hui (ex : 21 → 21 jours).
+        const base = new Date(2025, 9, 1);
+        base.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const startIdx = Math.max(0, Math.floor((today.getTime() - base.getTime()) / (1000 * 60 * 60 * 24)));
+        const effectiveTotalDays = totalDays <= startIdx ? startIdx + Math.max(1, totalDays) : totalDays;
+
         // Créer l'habitude
         const { data: habitData, error: habitError } = await this.supabase
             .from('habits')
             .insert({
                 name,
                 type,
-                total_days: totalDays,
+                total_days: effectiveTotalDays,
                 user_id: user.id,
                 milestone_key: milestoneKey ?? null,
             })
@@ -240,7 +252,7 @@ class SupabaseDatabaseClient {
         }
 
         // Initialiser la progression
-        const progressData = Array.from({ length: totalDays }, (_, i) => ({
+        const progressData = Array.from({ length: effectiveTotalDays }, (_, i) => ({
             habit_id: habitData.id,
             day_index: i,
             completed: false,
@@ -256,9 +268,9 @@ class SupabaseDatabaseClient {
             id: habitData.id,
             name: habitData.name,
             type: habitData.type,
-            totalDays: habitData.total_days,
+            totalDays: effectiveTotalDays,
             linkedIdentities,
-            progress: new Array(totalDays).fill(false),
+            progress: new Array(effectiveTotalDays).fill(false),
             createdAt: habitData.created_at,
             milestoneKey: habitData.milestone_key ?? undefined,
             startDayIndex: (() => {
