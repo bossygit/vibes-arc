@@ -4,7 +4,7 @@
 // Trois sources sont interrogées et fusionnées :
 //   1. `local`  → base vibes-arc, instantanée, toujours disponible
 //   2. `off`    → Open Food Facts, produits emballés et marques (CORS ouvert)
-//   3. `usda`   → USDA FoodData Central via /api/nutrition/search (clé côté serveur)
+//   3. `usda`   → USDA FoodData Central via /api/nutrition?op=search (clé côté serveur)
 //
 // La recherche locale s'affiche immédiatement ; les sources distantes
 // enrichissent ensuite la liste. Une source indisponible ne fait jamais
@@ -183,7 +183,7 @@ interface UsdaProxyResponse {
 async function searchUsda(query: string, limit: number): Promise<{ items: FoodItem[]; warning?: string }> {
     const params = new URLSearchParams({ q: query, limit: String(limit) });
     try {
-        const response = await fetch(`/api/nutrition/search?${params.toString()}`, {
+        const response = await fetch(`/api/nutrition?op=search&${params.toString()}`, {
             headers: { Accept: 'application/json' },
         });
 

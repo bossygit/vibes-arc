@@ -6,7 +6,7 @@
 // de Cronometer pour les produits de marque.
 //
 // Les requêtes passent par le proxy de l'application
-// (/api/nutrition/off-search et /api/nutrition/off-product) et non par
+// (/api/nutrition?op=off-search et ?op=off-product) et non par
 // les domaines d'OFF directement :
 //   - `search.openfoodfacts.org` ne renvoie aucun en-tête CORS, un appel
 //     depuis le navigateur est donc impossible ;
@@ -28,8 +28,7 @@
 import { FoodItem, NutrientKey, NutrientVector, ServingSize } from '@/types/nutrition';
 
 /** Points d'entrée du proxy applicatif. */
-const OFF_SEARCH_ENDPOINT = '/api/nutrition/off-search';
-const OFF_PRODUCT_ENDPOINT = '/api/nutrition/off-product';
+const NUTRITION_ENDPOINT = '/api/nutrition';
 
 const DEFAULT_TIMEOUT_MS = 15000;
 
@@ -252,7 +251,7 @@ export async function searchOpenFoodFacts(query: string, limit = 12): Promise<Fo
         limit: String(Math.min(Math.max(limit, 1), 25)),
     });
 
-    const response = await fetchWithTimeout(`${OFF_SEARCH_ENDPOINT}?${params.toString()}`);
+    const response = await fetchWithTimeout(`${NUTRITION_ENDPOINT}?op=off-search&${params.toString()}`);
     if (!response.ok) throw new Error(`Open Food Facts a répondu ${response.status}`);
 
     const data = await response.json();
@@ -270,7 +269,7 @@ export async function getOpenFoodFactsProduct(barcode: string): Promise<FoodItem
     if (code.length < 6) return null;
 
     const params = new URLSearchParams({ code });
-    const response = await fetchWithTimeout(`${OFF_PRODUCT_ENDPOINT}?${params.toString()}`);
+    const response = await fetchWithTimeout(`${NUTRITION_ENDPOINT}?op=off-product&${params.toString()}`);
 
     // 404 = produit absent de la base, ce n'est pas une erreur technique.
     if (response.status === 404) return null;
