@@ -3,7 +3,7 @@ import { useAppStore } from '@/store/useAppStore';
 import SupabaseDatabaseClient from '@/database/supabase-client';
 import { Trophy, User, ChevronDown, Menu, X } from 'lucide-react';
 
-type NavKey = 'dashboard' | 'coachChat' | 'priming' | 'environment' | 'identities' | 'addHabit' | 'templates' | 'rewards' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'manifestation' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations' | 'pivotCoach' | 'dailyAlignment' | 'lifeExperiments' | 'vibesInsights' | 'segmentIntending' | 'journal' | 'nutrition';
+type NavKey = 'dashboard' | 'coachChat' | 'priming' | 'environment' | 'identities' | 'addHabit' | 'templates' | 'rewards' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'manifestation' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations' | 'pivotCoach' | 'dailyAlignment' | 'lifeExperiments' | 'vibesInsights' | 'segmentIntending' | 'journal' | 'nutrition' | 'coherence';
 
 const directNav: { key: NavKey; label: string }[] = [
     { key: 'vibesInsights', label: '🧠 Insights' },
@@ -21,6 +21,7 @@ const directNav: { key: NavKey; label: string }[] = [
 ];
 
 const toolsNav: { key: NavKey; label: string }[] = [
+    { key: 'coherence', label: 'Cohérence cardiaque' },
     { key: 'karmicGarden', label: 'Jardin Karmique' },
     { key: 'focusHold', label: 'Focus 17/68' },
     { key: 'voieControle', label: 'La Voie du Contrôle' },

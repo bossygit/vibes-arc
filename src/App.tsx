@@ -32,6 +32,7 @@ import VibesInsights from '@/components/VibesInsights';
 import SegmentIntendingView from '@/components/SegmentIntendingView';
 import JournalView from '@/components/JournalView';
 import NutritionView from '@/components/nutrition/NutritionView';
+import CoherenceView from '@/components/coherence/CoherenceView';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Celebration from '@/components/Celebration';
 import { getCurrentDayIndex, isHabitActiveOnDay, getHabitStartDayIndex } from '@/utils/habitUtils';
@@ -145,6 +146,18 @@ function App() {
                         }
                     >
                         <NutritionView />
+                    </ErrorBoundary>
+                );
+            case 'coherence':
+                return (
+                    <ErrorBoundary
+                        fallback={
+                            <div className="p-6 text-center text-sm text-slate-500">
+                                Le module Cohérence n'a pas pu s'afficher. Recharge la page pour réessayer.
+                            </div>
+                        }
+                    >
+                        <CoherenceView />
                     </ErrorBoundary>
                 );
             case 'vibesInsights':

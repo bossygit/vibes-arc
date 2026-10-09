@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cohérence Cardiaque — Démo (Vibes Arc)</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 14px;
+    max-width: 640px;
+    background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+    color: #e2e8f0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 14px;
+  }
+  .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .head h1 { margin: 0; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+  .head p { margin: 3px 0 0; font-size: 12px; color: #94a3b8; }
+  .badge { background: rgba(255,255,255,.08); color: #a5f3fc; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+  .panel { border: 1px solid rgba(30,41,59,.9); background: rgba(2,6,23,.6); border-radius: 14px; padding: 12px; }
+  .controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .controls button {
+    display: flex; align-items: center; gap: 6px;
+    background: #06b6d4; color: #020617; border: 0; border-radius: 10px;
+    padding: 8px 14px; font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .controls button.paused { background: #22d3ee; }
+  .slider { flex: 1; min-width: 200px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #cbd5e1; }
+  input[type=range] { flex: 1; accent-color: #22d3ee; }
+  .cpm-val { color: #67e8f9; font-weight: 700; white-space: nowrap; }
+  .grid { display: grid; grid-template-columns: 230px 1fr; gap: 12px; margin-bottom: 12px; }
+  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
+  .orb-panel { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .orb-wrap { position: relative; width: 200px; height: 200px; }
+  .orb-wrap canvas { width: 100%; height: 100%; }
+  .orb-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+  .orb-label b { font-size: 15px; color: #a5f3fc; letter-spacing: .03em; }
+  .orb-label span { font-size: 11px; color: #64748b; margin-top: 2px; }
+  .right { display: flex; flex-direction: column; gap: 10px; }
+  .gauge { width: 100%; max-width: 230px; margin: 0 auto; }
+  .metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .metric { background: rgba(2,6,23,.7); border: 1px solid rgba(30,41,59,.9); border-radius: 10px; padding: 8px; text-align: center; }
+  .metric b { font-size: 19px; color: #67e8f9; display: block; }
+  .metric span { font-size: 10px; color: #94a3b8; }
+  .collect { font-size: 10px; color: #94a3b8; }
+  .collect .bar { height: 5px; border-radius: 999px; background: #1e293b; overflow: hidden; margin-top: 4px; }
+  .collect .bar i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, #6366f1, #22d3ee); transition: width .5s; }
+  .chart-panel { margin-bottom: 10px; }
+  .chart-panel .title { display: flex; justify-content: space-between; font-size: 12px; color: #cbd5e1; margin-bottom: 6px; }
+  .chart-panel .title span:last-child { color: #64748b; font-size: 10px; }
+  #chart { width: 100%; height: 130px; display: block; }
+  .foot { font-size: 11px; color: #64748b; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <div>
+    <h1>🌀 Cohérence cardiaque <span style="font-size:11px;color:#67e8f9">démo</span></h1>
+    <p>Respire avec l’orbe — le score se calcule en direct sur la VRC simulée (mode démo).</p>
+  </div>
+  <span class="badge">VRC · 0.1 Hz</span>
+</div>
+
+<div class="controls">
+  <button id="toggle">⏸ Pause</button>
+  <div class="slider">
+    <span>Rythme</span>
+    <input type="range" id="cpm" min="4.5" max="7" step="0.5" value="6">
+    <span class="cpm-val" id="cpmVal">6.0 cpm · 5.0s/5.0s</span>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="panel orb-panel">
+    <div class="orb-wrap">
+      <canvas id="orb"></canvas>
+      <div class="orb-label"><b id="orbText">Inspire</b><span id="orbSub">5 s</span></div>
+    </div>
+  </div>
+  <div class="panel right">
+    <svg class="gauge" viewBox="0 0 200 128">
+      <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="rgba(51,65,85,.9)" stroke-width="10" stroke-linecap="round"/>
+      <path id="arc" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#475569" stroke-width="10" stroke-linecap="round" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1" style="transition: stroke-dashoffset .5s ease, stroke .5s ease"/>
+      <text id="scoreVal" x="100" y="82" text-anchor="middle" font-size="34" font-weight="700" fill="#e2e8f0">—</text>
+      <text id="levelVal" x="100" y="102" text-anchor="middle" font-size="12" fill="#475569">collecte…</text>
+      <text id="peakVal" x="100" y="122" text-anchor="middle" font-size="10" fill="#64748b">cohérence 0-10</text>
+    </svg>
+    <div class="metrics">
+      <div class="metric"><b id="bpmVal">—</b><span>BPM</span></div>
+      <div class="metric"><b id="rrVal">—</b><span>RR (ms)</span></div>
+      <div class="metric"><b id="beatVal">0</b><span>battements</span></div>
+    </div>
+    <div class="collect">
+      <span id="collectTxt">Collecte 0/60 intervalles RR</span>
+      <div class="bar"><i id="collectBar"></i></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel chart-panel">
+  <div class="title"><span>Fréquence cardiaque (BPM instantané)</span><span>fenêtre 90 s</span></div>
+  <canvas id="chart"></canvas>
+</div>
+
+<div class="foot">
+  <span id="statusTxt">Mode Démo — signal VRC simulé (sinus ~0.1 Hz + bruit réaliste).</span>
+  <span>Extrait du module « Cohérence cardiaque » · Vibes Arc</span>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Moteur de cohérence (identique au module src/utils/hrv/coherence.ts)
+// ─────────────────────────────────────────────────────────────────────────────
+const WINDOW_RR = 60, MIN_RR = 30, FS = 4, K = 1.35;
+const hann = (i, n) => n <= 1 ? 1 : 0.5 * (1 - Math.cos(2 * Math.PI * i / (n - 1)));
+
+function coherenceFromRR(rrMs) {
+  const rr = rrMs.length > WINDOW_RR ? rrMs.slice(-WINDOW_RR) : rrMs.slice();
+  const n = rr.length;
+  if (n < MIN_RR) return null;
+  const beats = []; let acc = 0;
+  for (const v of rr) { acc += v / 1000; beats.push(acc); }
+  const num = Math.floor(acc * FS);
+  if (num < 32) return null;
+  const x = new Float64Array(num); let j = 0;
+  for (let i = 0; i < num; i++) {
+    const ct = i / FS;
+    if (ct <= beats[0]) { x[i] = rr[0]; continue; }
+    while (j < n - 2 && beats[j + 1] < ct) j++;
+    const t0 = beats[j], t1 = beats[j + 1], y0 = rr[j], y1 = rr[j + 1];
+    x[i] = t1 > t0 ? y0 + (y1 - y0) * ((ct - t0) / (t1 - t0)) : y0;
+  }
+  let mean = 0;
+  for (let i = 0; i < num; i++) mean += x[i];
+  mean /= num;
+  const xw = new Float64Array(num);
+  for (let i = 0; i < num; i++) xw[i] = (x[i] - mean) * hann(i, num);
+  const df = FS / num, freqs = [], powers = [];
+  for (let k = 1; k < num / 2; k++) {
+    const f = k * df;
+    if (f < 0.0033 || f > 0.4) continue;
+    let re = 0, im = 0; const w = 2 * Math.PI * k / num;
+    for (let i = 0; i < num; i++) { const a = w * i; re += xw[i] * Math.cos(a); im -= xw[i] * Math.sin(a); }
+    freqs.push(f); powers.push((re * re + im * im) / num);
+  }
+  let total = 0, best = -1, peakFreq = 0.1;
+  for (let i = 0; i < freqs.length; i++) {
+    total += powers[i];
+    if (freqs[i] >= 0.04 && freqs[i] <= 0.15 && powers[i] > best) { best = powers[i]; peakFreq = freqs[i]; }
+  }
+  let peak = 0;
+  for (let i = 0; i < freqs.length; i++) if (Math.abs(freqs[i] - peakFreq) <= 0.015) peak += powers[i];
+  const rest = total - peak;
+  const ratio = rest > 1e-9 ? peak / rest : 20;
+  const score = Math.round(10 * Math.tanh(Math.min(ratio, 20) / K) * 10) / 10;
+  return { score, ratio, peakFreq };
+}
+const levelOf = s => s >= 7 ? 'eleve' : s >= 4 ? 'moyen' : 'faible';
+const LEVEL_LABEL = { faible: 'Faible', moyen: 'Moyen', eleve: 'Élevé' };
+const LEVEL_COLOR = { faible: '#fb7185', moyen: '#fbbf24', eleve: '#34d399' };
+
+function gauss(mean = 0, sd = 1) {
+  let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random();
+  return mean + sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// État + simulation des battements (identique au mode démo du module)
+// ─────────────────────────────────────────────────────────────────────────────
+let cpm = 6, running = true, t = 0;
+let rrWindow = [], ema = null, beatsCount = 0, lastRR = 0, lastBpm = 0;
+let history = []; // {t, bpm}
+let beatTimer = null;
+
+function scheduleBeat() {
+  if (!running) return;
+  const f = cpm / 60;
+  const amp = 38 + 10 * Math.sin(2 * Math.PI * 0.013 * t);
+  const rr = Math.max(500, 1000 + amp * Math.sin(2 * Math.PI * f * t) + 7 * Math.sin(2 * Math.PI * 0.01 * t) + gauss(0, 13));
+  t += rr / 1000;
+  onBeat(rr);
+  beatTimer = setTimeout(scheduleBeat, rr);
+}
+
+function onBeat(rr) {
+  rrWindow.push(rr);
+  if (rrWindow.length > 180) rrWindow.shift();
+  const res = coherenceFromRR(rrWindow);
+  ema = res ? (ema === null ? res.score : ema + 0.25 * (res.score - ema)) : ema;
+  lastRR = Math.round(rr);
+  lastBpm = Math.round(60000 / rr);
+  beatsCount++;
+  history.push({ t: performance.now(), bpm: lastBpm });
+  if (history.length > 400) history.shift();
+
+  // UI
+  document.getElementById('bpmVal').textContent = lastBpm;
+  document.getElementById('rrVal').textContent = lastRR;
+  document.getElementById('beatVal').textContent = beatsCount;
+  const collected = Math.min(beatsCount, WINDOW_RR);
+  document.getElementById('collectTxt').textContent = `Collecte ${collected}/${WINDOW_RR} intervalles RR`;
+  document.getElementById('collectBar').style.width = (collected / WINDOW_RR * 100) + '%';
+  if (res && ema !== null) {
+    const s = Math.round(ema * 10) / 10, lv = levelOf(s), color = LEVEL_COLOR[lv];
+    document.getElementById('scoreVal').textContent = s.toFixed(1);
+    const lvl = document.getElementById('levelVal');
+    lvl.textContent = LEVEL_LABEL[lv]; lvl.setAttribute('fill', color);
+    document.getElementById('peakVal').textContent = `pic ${res.peakFreq.toFixed(3)} Hz`;
+    const arc = document.getElementById('arc');
+    arc.setAttribute('stroke-dashoffset', 1 - Math.min(s, 10) / 10);
+    arc.setAttribute('stroke', color);
+    arc.style.filter = `drop-shadow(0 0 6px ${color})`;
+  }
+  drawChart();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Orbe respiratoire (identique au composant BreathingOrb)
+// ─────────────────────────────────────────────────────────────────────────────
+const orb = document.getElementById('orb');
+const octx = orb.getContext('2d');
+let orbStart = performance.now();
+
+function drawOrb(now) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = orb.clientWidth || 200, h = orb.clientHeight || 200;
+  if (orb.width !== Math.round(w * dpr) || orb.height !== Math.round(h * dpr)) {
+    orb.width = Math.round(w * dpr); orb.height = Math.round(h * dpr);
+  }
+  octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  octx.clearRect(0, 0, w, h);
+  const cx = w / 2, cy = h / 2, maxR = Math.min(w, h) * 0.4, minR = maxR * 0.45;
+  const T = (60 / cpm) * 1000, tt = now - orbStart;
+
+  let e = 0, label = 'Prêt', sub = 'en pause';
+  if (running) {
+    const phase = (tt % T) / T;
+    e = 0.5 - 0.5 * Math.cos(2 * Math.PI * phase);
+    const half = T / 2, first = (tt % T) < half;
+    label = first ? 'Inspire' : 'Expire';
+    sub = `${Math.ceil((half - ((tt % T) % half)) / 1000)} s`;
+  }
+  const r = minR + (maxR - minR) * e;
+  const glow = octx.createRadialGradient(cx, cy, r * 0.2, cx, cy, maxR * 1.75);
+  glow.addColorStop(0, `rgba(56,189,248,${0.16 * (0.4 + 0.6 * e)})`);
+  glow.addColorStop(0.6, `rgba(99,102,241,${0.07 * (0.3 + 0.7 * e)})`);
+  glow.addColorStop(1, 'rgba(15,23,42,0)');
+  octx.fillStyle = glow; octx.beginPath(); octx.arc(cx, cy, maxR * 1.75, 0, Math.PI * 2); octx.fill();
+
+  if (running) {
+    const progress = (tt % T) / T;
+    octx.beginPath(); octx.arc(cx, cy, maxR + 12, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+    octx.strokeStyle = 'rgba(103,232,249,.35)'; octx.lineWidth = 2; octx.stroke();
+    octx.beginPath(); octx.arc(cx, cy, maxR + 12, 0, Math.PI * 2);
+    octx.strokeStyle = 'rgba(148,163,184,.15)'; octx.lineWidth = 1; octx.stroke();
+  }
+  const fill = octx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.1, cx, cy, r);
+  fill.addColorStop(0, running ? 'rgba(125,211,252,.55)' : 'rgba(100,116,139,.35)');
+  fill.addColorStop(1, running ? 'rgba(79,70,229,.22)' : 'rgba(51,65,85,.25)');
+  octx.beginPath(); octx.arc(cx, cy, r, 0, Math.PI * 2); octx.fillStyle = fill; octx.fill();
+  octx.save();
+  octx.shadowColor = running ? 'rgba(34,211,238,.7)' : 'rgba(71,85,105,.4)';
+  octx.shadowBlur = running ? 26 : 8;
+  octx.beginPath(); octx.arc(cx, cy, r, 0, Math.PI * 2);
+  octx.strokeStyle = running ? 'rgba(103,232,249,.9)' : 'rgba(100,116,139,.6)';
+  octx.lineWidth = 2; octx.stroke();
+  octx.restore();
+
+  document.getElementById('orbText').textContent = label;
+  document.getElementById('orbSub').textContent = sub;
+  requestAnimationFrame(drawOrb);
+}
+requestAnimationFrame(drawOrb);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Courbe BPM (identique au composant HeartRateChart)
+// ─────────────────────────────────────────────────────────────────────────────
+const chart = document.getElementById('chart');
+const cctx = chart.getContext('2d');
+const WINDOW_MS = 90000;
+
+function drawChart() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = chart.clientWidth || 400, h = chart.clientHeight || 130;
+  if (chart.width !== Math.round(w * dpr) || chart.height !== Math.round(h * dpr)) {
+    chart.width = Math.round(w * dpr); chart.height = Math.round(h * dpr);
+  }
+  cctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cctx.clearRect(0, 0, w, h);
+  const now = performance.now(), t0 = now - WINDOW_MS;
+  const vis = history.filter(p => p.t >= t0);
+  if (vis.length < 2) {
+    cctx.fillStyle = 'rgba(100,116,139,.8)'; cctx.font = '12px system-ui';
+    cctx.textAlign = 'center'; cctx.fillText('En attente du signal…', w / 2, h / 2);
+    return;
+  }
+  let mn = Infinity, mx = -Infinity;
+  for (const p of vis) { if (p.bpm < mn) mn = p.bpm; if (p.bpm > mx) mx = p.bpm; }
+  let yMin = Math.floor(mn - 8), yMax = Math.ceil(mx + 8);
+  if (yMax - yMin < 25) { const mid = (yMax + yMin) / 2; yMin = Math.floor(mid - 12.5); yMax = Math.ceil(mid + 12.5); }
+  const padT = 10, padB = 5, plotH = h - padT - padB;
+  const xOf = tt => ((tt - t0) / WINDOW_MS) * w;
+  const yOf = b => padT + (1 - (b - yMin) / (yMax - yMin)) * plotH;
+
+  cctx.strokeStyle = 'rgba(51,65,85,.6)'; cctx.fillStyle = 'rgba(100,116,139,.9)';
+  cctx.font = '10px system-ui'; cctx.textAlign = 'left'; cctx.lineWidth = 1;
+  for (let i = 0; i <= 3; i++) {
+    const b = yMin + (yMax - yMin) * i / 3, y = yOf(b);
+    cctx.beginPath(); cctx.moveTo(0, y); cctx.lineTo(w, y); cctx.stroke();
+    cctx.fillText(String(Math.round(b)), 4, y - 3);
+  }
+  cctx.beginPath(); cctx.moveTo(xOf(vis[0].t), yOf(vis[0].bpm));
+  for (const p of vis) cctx.lineTo(xOf(p.t), yOf(p.bpm));
+  const area = cctx.createLinearGradient(0, padT, 0, h);
+  area.addColorStop(0, 'rgba(34,211,238,.25)'); area.addColorStop(1, 'rgba(34,211,238,.02)');
+  cctx.lineTo(xOf(vis[vis.length - 1].t), h); cctx.lineTo(xOf(vis[0].t), h); cctx.closePath();
+  cctx.fillStyle = area; cctx.fill();
+  cctx.beginPath(); cctx.moveTo(xOf(vis[0].t), yOf(vis[0].bpm));
+  for (const p of vis) cctx.lineTo(xOf(p.t), yOf(p.bpm));
+  cctx.strokeStyle = '#22d3ee'; cctx.lineWidth = 2;
+  cctx.save(); cctx.shadowColor = 'rgba(34,211,238,.6)'; cctx.shadowBlur = 8; cctx.stroke(); cctx.restore();
+  const last = vis[vis.length - 1], lx = xOf(last.t), ly = yOf(last.bpm);
+  cctx.beginPath(); cctx.arc(lx, ly, 3.5, 0, Math.PI * 2); cctx.fillStyle = '#67e8f9'; cctx.fill();
+  cctx.font = 'bold 11px system-ui'; cctx.textAlign = 'right'; cctx.fillStyle = '#a5f3fc';
+  cctx.fillText(`${last.bpm} BPM`, w - 6, Math.max(ly - 8, 12));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Contrôles
+// ─────────────────────────────────────────────────────────────────────────────
+const toggleBtn = document.getElementById('toggle');
+toggleBtn.addEventListener('click', () => {
+  running = !running;
+  toggleBtn.textContent = running ? '⏸ Pause' : '▶ Reprendre';
+  toggleBtn.classList.toggle('paused', !running);
+  if (running) { orbStart = performance.now(); scheduleBeat(); }
+  else if (beatTimer) { clearTimeout(beatTimer); beatTimer = null; }
+});
+const cpmInput = document.getElementById('cpm');
+cpmInput.addEventListener('input', () => {
+  cpm = parseFloat(cpmInput.value);
+  document.getElementById('cpmVal').textContent = `${cpm.toFixed(1)} cpm · ${(30 / cpm).toFixed(1)}s/${(30 / cpm).toFixed(1)}s`;
+});
+scheduleBeat();
+</script>
+</body>
+</html>
