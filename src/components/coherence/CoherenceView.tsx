@@ -12,7 +12,9 @@
  *     RMSSD, SDNN, amplitude RR) → cohérence spontanée
  *
  * Les sessions réelles (≥ 30 battements, hors Mode Démo) sont enregistrées
- * localement et comparées dans SessionHistory (libre vs guidée).
+ * localement et comparées dans SessionHistory (libre vs guidée). Une session
+ * dont le signal est jugé instable (assessSignalQuality) n'est PAS enregistrée :
+ * un score calculé sur un signal bruité ne mesure pas l'utilisateur.
  * En fin de session, l'utilisateur peut cocher un signal « Cohérence Cardiaque »
  * (créé au besoin) — pattern « coché = signal réellement émis ».
  */
@@ -32,6 +34,7 @@ import { BleHeartRateSource } from '@/utils/hrv/bleHeartRate';
 import { CameraPpgSource } from '@/utils/hrv/ppgCamera';
 import {
     appendSession,
+    assessSignalQuality,
     clearSessions,
     computeRmssd,
     computeSdnn,
@@ -90,6 +93,10 @@ const CoherenceView: React.FC = () => {
     /** Historique local des sessions réelles (comparaison libre / guidée). */
     const [sessions, setSessions] = useState<CoherenceSessionRecord[]>(() => loadSessions());
     const [savedRecord, setSavedRecord] = useState<CoherenceSessionRecord | null>(null);
+    /** Signal jugé instable (capteur bruité) — avertissement en direct. */
+    const [signalUnstable, setSignalUnstable] = useState(false);
+    /** Session terminée dont le signal était instable — non enregistrée. */
+    const [sessionWarning, setSessionWarning] = useState(false);
 
     const cpmRef = useRef(cpm);
     useEffect(() => {
@@ -112,6 +119,10 @@ const CoherenceView: React.FC = () => {
     const bpmCountRef = useRef(0);
     const sessionSourceRef = useRef<SourceKind | null>(null);
     const practiceModeRef = useRef<PracticeMode>('guide');
+    /** Historique de qualité du signal (true = ok) sur les 10 dernières évaluations. */
+    const qualityFlagsRef = useRef<boolean[]>([]);
+    const unstableAssessmentsRef = useRef(0);
+    const qualityAssessmentsRef = useRef(0);
 
     const stopSession = useCallback(() => {
         sourceRef.current?.stop();
@@ -122,10 +133,15 @@ const CoherenceView: React.FC = () => {
             tickRef.current = null;
         }
 
-        // Enregistrement de la session réelle (jamais le Mode Démo).
+        // Enregistrement de la session réelle (jamais le Mode Démo), et jamais
+        // si le signal a été instable plus de la moitié du temps : un score
+        // calculé sur un signal bruité ne mesure pas l'utilisateur.
         const source = sessionSourceRef.current;
         const rrList = sessionRrRef.current;
-        if (source && source !== 'demo' && rrList.length >= COHERENCE_MIN_RR) {
+        const qualityCount = qualityAssessmentsRef.current;
+        const reliable =
+            qualityCount < 5 || unstableAssessmentsRef.current / Math.max(1, qualityCount) <= 0.5;
+        if (source && source !== 'demo' && rrList.length >= COHERENCE_MIN_RR && reliable) {
             const scores = scoresRef.current;
             const highPct = scores.length
                 ? Math.round((100 * scores.filter((s) => s >= 7).length) / scores.length)
@@ -147,8 +163,10 @@ const CoherenceView: React.FC = () => {
             };
             setSessions(appendSession(record));
             setSavedRecord(record);
+            setSessionWarning(false);
         } else {
             setSavedRecord(null);
+            setSessionWarning(Boolean(source && source !== 'demo'));
         }
     }, []);
 
@@ -166,6 +184,7 @@ const CoherenceView: React.FC = () => {
         setHabitFeedback('');
         setSavedRecord(null);
         setLiveStats(null);
+        setSessionWarning(false);
         setStarting(true);
 
         // Réinitialisation de session
@@ -177,6 +196,10 @@ const CoherenceView: React.FC = () => {
         sessionRrRef.current = [];
         bpmSumRef.current = 0;
         bpmCountRef.current = 0;
+        qualityFlagsRef.current = [];
+        unstableAssessmentsRef.current = 0;
+        qualityAssessmentsRef.current = 0;
+        setSignalUnstable(false);
         setBpm(null);
         setLastRr(null);
         setRrCount(0);
@@ -219,6 +242,19 @@ const CoherenceView: React.FC = () => {
                     sdnn: computeSdnn(recent),
                     range: Math.round(max - min),
                 });
+            }
+
+            // Qualité du signal (garde-fou anti-artefacts caméra) : un signal
+            // physiologiquement impossible est signalé au lieu d'être noté.
+            if (window.length >= COHERENCE_MIN_RR) {
+                const quality = assessSignalQuality(recent);
+                qualityAssessmentsRef.current += 1;
+                if (quality === 'unstable') unstableAssessmentsRef.current += 1;
+                const flags = qualityFlagsRef.current;
+                flags.push(quality === 'ok');
+                if (flags.length > 10) flags.shift();
+                const unstableInFlags = flags.filter((ok) => !ok).length;
+                setSignalUnstable(flags.length >= 5 && unstableInFlags >= Math.ceil(flags.length * 0.6));
             }
 
             const result = coherenceFromRR(window);
@@ -515,6 +551,13 @@ const CoherenceView: React.FC = () => {
                             : 'Cohérence spontanée (sans guidage respiratoire)'}
                     </p>
 
+                    {signalUnstable && (
+                        <div className="rounded-xl border border-amber-400/50 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-200 leading-snug">
+                            ⚠ Signal instable — la mesure n’est pas fiable pour l’instant. Repositionne ton doigt (couvre
+                            tout l’objectif), pose la main, et ne bouge plus.
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div className="rounded-xl bg-slate-950/70 border border-slate-800 p-3 text-center">
                             <div className="text-2xl font-bold text-cyan-300">{bpm ?? '—'}</div>
@@ -579,6 +622,13 @@ const CoherenceView: React.FC = () => {
                         <p className="text-[11px] text-slate-400">
                             Enregistrée dans l’historique · RMSSD {savedRecord.rmssd ?? '—'} ms · SDNN{' '}
                             {savedRecord.sdnn ?? '—'} ms · comparaison libre/guidée mise à jour ci-dessous.
+                        </p>
+                    )}
+                    {sessionWarning && (
+                        <p className="text-[11px] text-amber-300">
+                            Signal instable pendant la session — non enregistrée (un score calculé sur un signal bruité
+                            ne mesure pas ta physiologie, il aurait faussé la comparaison). Vérifie le placement du doigt
+                            et réessaie.
                         </p>
                     )}
                     {isSimulated ? (

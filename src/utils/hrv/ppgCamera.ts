@@ -144,13 +144,21 @@ export class CameraPpgSource implements RrSource {
             if (this.lastPeakTime !== 0) {
                 const rr = Math.round(timeSinceLastPeak);
                 if (rr >= 250 && rr <= 2500) {
-                    this.rrIntervals.push(rr);
-                    if (this.rrIntervals.length > 10) this.rrIntervals.shift();
+                    // Garde anti-artefacts : un RR réel reste proche de la médiane
+                    // récente (±45 %). Un pic de mouvement/lumière produit des RR
+                    // aberrants (ex : 400 ms puis 1700 ms) qui détruiraient le score.
+                    const sorted = [...this.rrIntervals].sort((a, b) => a - b);
+                    const median = sorted.length >= 5 ? sorted[Math.floor(sorted.length / 2)] : null;
+                    const isArtifact = median !== null && Math.abs(rr - median) > 0.45 * median;
+                    if (!isArtifact) {
+                        this.rrIntervals.push(rr);
+                        if (this.rrIntervals.length > 10) this.rrIntervals.shift();
 
-                    const window = this.rrIntervals.slice(-5);
-                    const avgRR = window.reduce((a, b) => a + b, 0) / window.length;
-                    const bpm = Math.round(60000 / avgRR);
-                    this.opts.onRr(rr, bpm);
+                        const window = this.rrIntervals.slice(-5);
+                        const avgRR = window.reduce((a, b) => a + b, 0) / window.length;
+                        const bpm = Math.round(60000 / avgRR);
+                        this.opts.onRr(rr, bpm);
+                    }
                 }
             }
             this.lastPeakTime = timestamp;

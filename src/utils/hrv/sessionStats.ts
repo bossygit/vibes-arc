@@ -54,6 +54,39 @@ export function computeRmssd(rrMs: number[]): number | null {
     return Math.round(Math.sqrt(sum / (rrMs.length - 1)));
 }
 
+/**
+ * Évalue la plausibilité PHYSIOLOGIQUE d'une fenêtre RR récente.
+ *
+ * Au repos, un RMSSD > 200 ms ou une amplitude > 700 ms sur ~60 battements
+ * signalent presque toujours une extraction de pics erratique (mouvement du
+ * doigt, fuite de lumière, pression) — pas une physiologie réelle. Dans ce
+ * cas le score affiché ne mesure pas l'utilisateur et la session ne doit pas
+ * être enregistrée dans la comparaison.
+ */
+export function assessSignalQuality(recentRrMs: number[]): 'ok' | 'unstable' {
+    if (recentRrMs.length < 30) return 'ok';
+
+    const rmssdValue = computeRmssd(recentRrMs);
+    if (rmssdValue !== null && rmssdValue > 200) return 'unstable';
+
+    let min = Infinity;
+    let max = -Infinity;
+    for (const v of recentRrMs) {
+        if (v < min) min = v;
+        if (v > max) max = v;
+    }
+    if (max - min > 700) return 'unstable';
+
+    // Proportion d'intervalles hors plage plausible (40–150 bpm)
+    let outliers = 0;
+    for (const v of recentRrMs) {
+        if (v < 400 || v > 1500) outliers++;
+    }
+    if (outliers / recentRrMs.length > 0.2) return 'unstable';
+
+    return 'ok';
+}
+
 export function loadSessions(): CoherenceSessionRecord[] {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
