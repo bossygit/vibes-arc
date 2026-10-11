@@ -68,3 +68,29 @@
         box-shadow: 0 4px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     }
 }
+
+/* Module Cohérence cardiaque — battement du cœur (durée = intervalle RR courant) */
+@keyframes heartbeat {
+    0% {
+        transform: scale(1);
+    }
+    10% {
+        transform: scale(1.22);
+    }
+    20% {
+        transform: scale(1);
+    }
+    32% {
+        transform: scale(1.12);
+    }
+    44% {
+        transform: scale(1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.animate-heartbeat {
+    animation: heartbeat 1s ease-in-out infinite;
+}

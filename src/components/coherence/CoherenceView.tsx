@@ -6,10 +6,15 @@
  *   - Caméra (PPG) : photopléthysmographie via la caméra (iPhone friendly)
  *   - Ceinture BLE : capteurs Heart Rate 0x180D (Chrome/Edge, Android/desktop)
  *
- * Le score de cohérence (0-10) est calculé sur les 60 derniers intervalles RR
- * (voir src/utils/hrv/coherence.ts). En fin de session, l'utilisateur peut
- * cocher un signal « Cohérence Cardiaque » (créé au besoin) — pattern
- * « coché = signal réellement émis » (cf. Segment Intending).
+ * Deux objectifs de session :
+ *   - Guidé · respiration : l'orbe pace la respiration (4.5-7 cpm) → cohérence guidée
+ *   - Observation libre   : aucun guidage, on regarde le cœur en direct (BPM,
+ *     RMSSD, SDNN, amplitude RR) → cohérence spontanée
+ *
+ * Les sessions réelles (≥ 30 battements, hors Mode Démo) sont enregistrées
+ * localement et comparées dans SessionHistory (libre vs guidée).
+ * En fin de session, l'utilisateur peut cocher un signal « Cohérence Cardiaque »
+ * (créé au besoin) — pattern « coché = signal réellement émis ».
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -25,14 +30,32 @@ import {
 import { DemoRrSource, type RrSource } from '@/utils/hrv/sources';
 import { BleHeartRateSource } from '@/utils/hrv/bleHeartRate';
 import { CameraPpgSource } from '@/utils/hrv/ppgCamera';
+import {
+    appendSession,
+    clearSessions,
+    computeRmssd,
+    computeSdnn,
+    loadSessions,
+    makeSessionId,
+    type CoherenceSessionRecord,
+    type PracticeMode,
+} from '@/utils/hrv/sessionStats';
 import { getCurrentDayIndex } from '@/utils/habitUtils';
 import { totalDays } from '@/utils/dateUtils';
 import BreathingOrb from './BreathingOrb';
 import CoherenceGauge from './CoherenceGauge';
 import HeartRateChart, { type BpmPoint } from './HeartRateChart';
-import { Activity, Camera, CheckCircle2, Loader2, Play, Sparkles, Square, Wind } from 'lucide-react';
+import SessionHistory from './SessionHistory';
+import { Activity, Camera, CheckCircle2, Eye, Heart, Loader2, Play, Sparkles, Square, Wind } from 'lucide-react';
 
 type SourceKind = 'demo' | 'camera' | 'ble';
+
+interface LiveStats {
+    mean: number;
+    rmssd: number | null;
+    sdnn: number | null;
+    range: number;
+}
 
 const HABIT_NAME = 'Cohérence Cardiaque';
 
@@ -45,6 +68,7 @@ function formatDuration(ms: number): string {
 
 const CoherenceView: React.FC = () => {
     const [sourceKind, setSourceKind] = useState<SourceKind>('demo');
+    const [practiceMode, setPracticeMode] = useState<PracticeMode>('guide');
     const [running, setRunning] = useState(false);
     const [starting, setStarting] = useState(false);
     const [cpm, setCpm] = useState(6);
@@ -60,8 +84,12 @@ const CoherenceView: React.FC = () => {
     const [sessionMs, setSessionMs] = useState(0);
     const [avgScore, setAvgScore] = useState<number | null>(null);
     const [habitFeedback, setHabitFeedback] = useState('');
+    const [liveStats, setLiveStats] = useState<LiveStats | null>(null);
     /** Source de la session affichée (pour marquer les données simulées). */
     const [sessionSource, setSessionSource] = useState<SourceKind | null>(null);
+    /** Historique local des sessions réelles (comparaison libre / guidée). */
+    const [sessions, setSessions] = useState<CoherenceSessionRecord[]>(() => loadSessions());
+    const [savedRecord, setSavedRecord] = useState<CoherenceSessionRecord | null>(null);
 
     const cpmRef = useRef(cpm);
     useEffect(() => {
@@ -78,6 +106,12 @@ const CoherenceView: React.FC = () => {
     const tickRef = useRef<number | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const processCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    /** Tous les RR de la session (pour RMSSD/SDNN de fin de session). */
+    const sessionRrRef = useRef<number[]>([]);
+    const bpmSumRef = useRef(0);
+    const bpmCountRef = useRef(0);
+    const sessionSourceRef = useRef<SourceKind | null>(null);
+    const practiceModeRef = useRef<PracticeMode>('guide');
 
     const stopSession = useCallback(() => {
         sourceRef.current?.stop();
@@ -86,6 +120,35 @@ const CoherenceView: React.FC = () => {
         if (tickRef.current !== null) {
             window.clearInterval(tickRef.current);
             tickRef.current = null;
+        }
+
+        // Enregistrement de la session réelle (jamais le Mode Démo).
+        const source = sessionSourceRef.current;
+        const rrList = sessionRrRef.current;
+        if (source && source !== 'demo' && rrList.length >= COHERENCE_MIN_RR) {
+            const scores = scoresRef.current;
+            const highPct = scores.length
+                ? Math.round((100 * scores.filter((s) => s >= 7).length) / scores.length)
+                : 0;
+            const record: CoherenceSessionRecord = {
+                id: makeSessionId(),
+                endedAt: new Date().toISOString(),
+                mode: practiceModeRef.current,
+                source,
+                durationMs: sessionStartRef.current !== null ? performance.now() - sessionStartRef.current : 0,
+                beats: rrList.length,
+                avgScore: scores.length
+                    ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10
+                    : null,
+                highPct,
+                avgBpm: bpmCountRef.current ? Math.round(bpmSumRef.current / bpmCountRef.current) : null,
+                rmssd: computeRmssd(rrList),
+                sdnn: computeSdnn(rrList),
+            };
+            setSessions(appendSession(record));
+            setSavedRecord(record);
+        } else {
+            setSavedRecord(null);
         }
     }, []);
 
@@ -101,6 +164,8 @@ const CoherenceView: React.FC = () => {
         setError('');
         setStatus('');
         setHabitFeedback('');
+        setSavedRecord(null);
+        setLiveStats(null);
         setStarting(true);
 
         // Réinitialisation de session
@@ -109,6 +174,9 @@ const CoherenceView: React.FC = () => {
         sumScoresRef.current = 0;
         countScoresRef.current = 0;
         scoresRef.current = [];
+        sessionRrRef.current = [];
+        bpmSumRef.current = 0;
+        bpmCountRef.current = 0;
         setBpm(null);
         setLastRr(null);
         setRrCount(0);
@@ -119,12 +187,39 @@ const CoherenceView: React.FC = () => {
         setAvgScore(null);
         setSessionMs(0);
         setSessionSource(sourceKind);
+        sessionSourceRef.current = sourceKind;
+        practiceModeRef.current = practiceMode;
         sessionStartRef.current = performance.now();
 
         const onRr = (ibi: number, bpmNow: number) => {
             const window = rrWindowRef.current;
             window.push(ibi);
             if (window.length > 180) window.shift();
+
+            // Accumulation pour les statistiques de fin de session
+            sessionRrRef.current.push(ibi);
+            if (sessionRrRef.current.length > 3000) sessionRrRef.current.shift();
+            bpmSumRef.current += bpmNow;
+            bpmCountRef.current += 1;
+
+            // Statistiques vivantes (60 derniers RR)
+            const recent = window.slice(-COHERENCE_WINDOW_RR);
+            if (recent.length >= 10) {
+                let sum = 0;
+                let min = Infinity;
+                let max = -Infinity;
+                for (const value of recent) {
+                    sum += value;
+                    if (value < min) min = value;
+                    if (value > max) max = value;
+                }
+                setLiveStats({
+                    mean: Math.round(sum / recent.length),
+                    rmssd: computeRmssd(recent),
+                    sdnn: computeSdnn(recent),
+                    range: Math.round(max - min),
+                });
+            }
 
             const result = coherenceFromRR(window);
             if (result) {
@@ -178,7 +273,7 @@ const CoherenceView: React.FC = () => {
         } finally {
             setStarting(false);
         }
-    }, [sourceKind]);
+    }, [sourceKind, practiceMode]);
 
     /** Coche (ou crée) le signal « Cohérence Cardiaque » du jour. */
     const markHabit = useCallback(async () => {
@@ -218,11 +313,17 @@ const CoherenceView: React.FC = () => {
     const highCoherencePct = scoresRef.current.length
         ? Math.round((100 * scoresRef.current.filter((s) => s >= 7).length) / scoresRef.current.length)
         : 0;
+    const isSimulated = sessionSource === 'demo';
 
     const sourceOptions: { key: SourceKind; label: string; icon: React.ReactNode }[] = [
         { key: 'demo', label: 'Mode Démo', icon: <Sparkles className="w-4 h-4" /> },
         { key: 'camera', label: 'Caméra (PPG)', icon: <Camera className="w-4 h-4" /> },
         { key: 'ble', label: 'Ceinture BLE', icon: <Activity className="w-4 h-4" /> },
+    ];
+
+    const practiceOptions: { key: PracticeMode; label: string; icon: React.ReactNode }[] = [
+        { key: 'guide', label: 'Guidé · respiration', icon: <Wind className="w-4 h-4" /> },
+        { key: 'libre', label: 'Observation libre', icon: <Eye className="w-4 h-4" /> },
     ];
 
     return (
@@ -240,7 +341,9 @@ const CoherenceView: React.FC = () => {
                             Cohérence cardiaque
                         </h1>
                         <p className="text-sm text-slate-300 mt-1">
-                            Biofeedback VRC (style HeartMath) — respire au rythme de l’orbe, la cohérence se mesure en direct.
+                            {practiceMode === 'guide'
+                                ? 'Biofeedback VRC (style HeartMath) — respire au rythme de l’orbe, la cohérence se mesure en direct.'
+                                : 'Observation libre — regarde les variations de ton cœur en direct, sans guidage respiratoire.'}
                         </p>
                     </div>
                     <span className="bg-white/10 text-cyan-200 text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
@@ -252,6 +355,28 @@ const CoherenceView: React.FC = () => {
             {/* ── Contrôles ── */}
             <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5 space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-slate-400 mr-1">Objectif de la session :</span>
+                    {practiceOptions.map((option) => (
+                        <button
+                            key={option.key}
+                            disabled={running || starting}
+                            onClick={() => setPracticeMode(option.key)}
+                            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium border transition disabled:opacity-50 ${
+                                practiceMode === option.key
+                                    ? option.key === 'guide'
+                                        ? 'bg-cyan-500/15 border-cyan-400/60 text-cyan-200'
+                                        : 'bg-violet-500/15 border-violet-400/60 text-violet-200'
+                                    : 'border-slate-700 text-slate-300 hover:bg-slate-800'
+                            }`}
+                        >
+                            {option.icon}
+                            {option.label}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-slate-400 mr-1">Capteur :</span>
                     {sourceOptions.map((option) => (
                         <button
                             key={option.key}
@@ -309,44 +434,86 @@ const CoherenceView: React.FC = () => {
                     </p>
                 )}
 
-                <label className="block">
-                    <div className="flex items-center justify-between text-sm text-slate-300 mb-1">
-                        <span>Rythme respiratoire</span>
-                        <span className="text-cyan-300 font-semibold">
-                            {cpm.toFixed(1)} cycles/min · inspire {(30 / cpm).toFixed(1)} s / expire{' '}
-                            {(30 / cpm).toFixed(1)} s
-                        </span>
-                    </div>
-                    <input
-                        type="range"
-                        min={4.5}
-                        max={7}
-                        step={0.5}
-                        value={cpm}
-                        disabled={running}
-                        onChange={(e) => setCpm(parseFloat(e.target.value))}
-                        className="w-full accent-cyan-400 disabled:opacity-50"
-                    />
-                    <div className="flex justify-between text-[10px] text-slate-500 mt-0.5">
-                        <span>4.5</span>
-                        <span>5.5</span>
-                        <span>6 (défaut)</span>
-                        <span>7</span>
-                    </div>
-                </label>
+                {practiceMode === 'guide' && (
+                    <label className="block">
+                        <div className="flex items-center justify-between text-sm text-slate-300 mb-1">
+                            <span>Rythme respiratoire</span>
+                            <span className="text-cyan-300 font-semibold">
+                                {cpm.toFixed(1)} cycles/min · inspire {(30 / cpm).toFixed(1)} s / expire{' '}
+                                {(30 / cpm).toFixed(1)} s
+                            </span>
+                        </div>
+                        <input
+                            type="range"
+                            min={4.5}
+                            max={7}
+                            step={0.5}
+                            value={cpm}
+                            disabled={running}
+                            onChange={(e) => setCpm(parseFloat(e.target.value))}
+                            className="w-full accent-cyan-400 disabled:opacity-50"
+                        />
+                        <div className="flex justify-between text-[10px] text-slate-500 mt-0.5">
+                            <span>4.5</span>
+                            <span>5.5</span>
+                            <span>6 (défaut)</span>
+                            <span>7</span>
+                        </div>
+                    </label>
+                )}
             </div>
 
-            {/* ── Orbe + jauge ── */}
+            {/* ── Panneau principal : orbe (guidé) ou cœur en direct (libre) + jauge ── */}
             <div className="grid lg:grid-cols-2 gap-5">
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 flex flex-col items-center justify-center">
-                    <BreathingOrb cycleSeconds={60 / cpm} running={running} />
-                    <p className="text-xs text-slate-400 mt-2">
-                        Inspire quand l’orbe grandit · expire quand il rétrécit
-                    </p>
-                </div>
+                {practiceMode === 'guide' ? (
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 flex flex-col items-center justify-center">
+                        <BreathingOrb cycleSeconds={60 / cpm} running={running} />
+                        <p className="text-xs text-slate-400 mt-2">
+                            Inspire quand l’orbe grandit · expire quand il rétrécit
+                        </p>
+                    </div>
+                ) : (
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 flex flex-col items-center justify-center">
+                        <Heart
+                            className={`w-24 h-24 ${running ? 'text-rose-400 animate-heartbeat' : 'text-slate-600'}`}
+                            style={running ? { animationDuration: `${Math.max(320, lastRr ?? 900)}ms` } : undefined}
+                        />
+                        <div className="mt-3 text-3xl font-bold text-rose-300">
+                            {bpm ?? '—'} <span className="text-sm font-normal text-slate-400">BPM</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3 w-full mt-4">
+                            <div className="rounded-xl bg-slate-950/70 border border-slate-800 p-2.5 text-center">
+                                <div className="text-lg font-bold text-slate-200">{liveStats?.mean ?? '—'}</div>
+                                <div className="text-[10px] text-slate-400">RR moyen (ms)</div>
+                            </div>
+                            <div
+                                className="rounded-xl bg-slate-950/70 border border-slate-800 p-2.5 text-center"
+                                title="RMSSD — variabilité battement à battement (tonus parasympathique)"
+                            >
+                                <div className="text-lg font-bold text-violet-300">{liveStats?.rmssd ?? '—'}</div>
+                                <div className="text-[10px] text-slate-400">RMSSD (ms)</div>
+                            </div>
+                            <div
+                                className="rounded-xl bg-slate-950/70 border border-slate-800 p-2.5 text-center"
+                                title="Amplitude des intervalles RR sur les 60 derniers battements"
+                            >
+                                <div className="text-lg font-bold text-slate-200">{liveStats?.range ?? '—'}</div>
+                                <div className="text-[10px] text-slate-400">Variation (ms)</div>
+                            </div>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-3 text-center">
+                            Respire naturellement — on observe, on ne cherche pas à atteindre un score.
+                        </p>
+                    </div>
+                )}
 
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 space-y-4">
-                    <CoherenceGauge score={score} level={level} peakFreq={peakFreq} simulated={sessionSource === 'demo'} />
+                    <CoherenceGauge score={score} level={level} peakFreq={peakFreq} simulated={isSimulated} />
+                    <p className="text-[11px] text-slate-500 text-center -mt-2">
+                        {practiceMode === 'guide'
+                            ? 'Cohérence guidée par la respiration'
+                            : 'Cohérence spontanée (sans guidage respiratoire)'}
+                    </p>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div className="rounded-xl bg-slate-950/70 border border-slate-800 p-3 text-center">
@@ -400,27 +567,46 @@ const CoherenceView: React.FC = () => {
             {/* ── Résumé de session ── */}
             {showSummary && (
                 <div className="rounded-2xl border border-cyan-900/60 bg-slate-950/80 p-5 space-y-3">
-                    <h2 className="text-sm font-semibold text-cyan-200 uppercase tracking-wide">Session terminée</h2>
+                    <h2 className="text-sm font-semibold text-cyan-200 uppercase tracking-wide">
+                        Session terminée · {practiceMode === 'guide' ? 'guidée' : 'observation libre'}
+                    </h2>
                     <p className="text-sm text-slate-300">
                         Durée {formatDuration(sessionMs)} · {rrCount} battements · score moyen{' '}
                         <span className="text-cyan-300 font-semibold">{avgScore?.toFixed(1) ?? '—'}/10</span> · temps en
                         cohérence élevée <span className="text-emerald-300 font-semibold">~{highCoherencePct}%</span>
                     </p>
-                    {sessionSource === 'demo' && (
-                        <p className="text-[11px] text-amber-300">
-                            Session simulée (Mode Démo) — ces chiffres ne mesurent pas ta physiologie.
+                    {savedRecord && (
+                        <p className="text-[11px] text-slate-400">
+                            Enregistrée dans l’historique · RMSSD {savedRecord.rmssd ?? '—'} ms · SDNN{' '}
+                            {savedRecord.sdnn ?? '—'} ms · comparaison libre/guidée mise à jour ci-dessous.
                         </p>
                     )}
-                    <button
-                        onClick={() => void markHabit()}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-400/50 text-emerald-200 text-sm font-medium hover:bg-emerald-500/25 transition"
-                    >
-                        <CheckCircle2 className="w-4 h-4" />
-                        Marquer comme signal du jour
-                    </button>
+                    {isSimulated ? (
+                        <p className="text-[11px] text-amber-300">
+                            Session simulée (Mode Démo) — non enregistrée, ces chiffres ne mesurent pas ta physiologie.
+                        </p>
+                    ) : (
+                        <button
+                            onClick={() => void markHabit()}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-400/50 text-emerald-200 text-sm font-medium hover:bg-emerald-500/25 transition"
+                        >
+                            <CheckCircle2 className="w-4 h-4" />
+                            Marquer comme signal du jour
+                        </button>
+                    )}
                     {habitFeedback && <p className="text-xs text-emerald-300">{habitFeedback}</p>}
                 </div>
             )}
+
+            {/* ── Comparaison des sessions (libre vs guidée) ── */}
+            <SessionHistory
+                sessions={sessions}
+                onClear={() => {
+                    clearSessions();
+                    setSessions([]);
+                    setSavedRecord(null);
+                }}
+            />
         </div>
     );
 };
