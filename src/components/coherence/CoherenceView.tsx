@@ -60,6 +60,8 @@ const CoherenceView: React.FC = () => {
     const [sessionMs, setSessionMs] = useState(0);
     const [avgScore, setAvgScore] = useState<number | null>(null);
     const [habitFeedback, setHabitFeedback] = useState('');
+    /** Source de la session affichée (pour marquer les données simulées). */
+    const [sessionSource, setSessionSource] = useState<SourceKind | null>(null);
 
     const cpmRef = useRef(cpm);
     useEffect(() => {
@@ -116,6 +118,7 @@ const CoherenceView: React.FC = () => {
         setHistory([]);
         setAvgScore(null);
         setSessionMs(0);
+        setSessionSource(sourceKind);
         sessionStartRef.current = performance.now();
 
         const onRr = (ibi: number, bpmNow: number) => {
@@ -343,7 +346,7 @@ const CoherenceView: React.FC = () => {
                 </div>
 
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 space-y-4">
-                    <CoherenceGauge score={score} level={level} peakFreq={peakFreq} />
+                    <CoherenceGauge score={score} level={level} peakFreq={peakFreq} simulated={sessionSource === 'demo'} />
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div className="rounded-xl bg-slate-950/70 border border-slate-800 p-3 text-center">
@@ -385,8 +388,8 @@ const CoherenceView: React.FC = () => {
             {/* ── Graphique BPM ── */}
             <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold text-slate-200">Fréquence cardiaque (BPM instantané)</span>
-                    <span className="text-[11px] text-slate-500">fenêtre 90 s</span>
+                    <span className="text-sm font-semibold text-slate-200 leading-snug">Fréquence cardiaque (BPM instantané)</span>
+                    <span className="text-[11px] text-slate-500 shrink-0 whitespace-nowrap ml-3">fenêtre 90 s</span>
                 </div>
                 <HeartRateChart points={history} />
             </div>
@@ -403,6 +406,11 @@ const CoherenceView: React.FC = () => {
                         <span className="text-cyan-300 font-semibold">{avgScore?.toFixed(1) ?? '—'}/10</span> · temps en
                         cohérence élevée <span className="text-emerald-300 font-semibold">~{highCoherencePct}%</span>
                     </p>
+                    {sessionSource === 'demo' && (
+                        <p className="text-[11px] text-amber-300">
+                            Session simulée (Mode Démo) — ces chiffres ne mesurent pas ta physiologie.
+                        </p>
+                    )}
                     <button
                         onClick={() => void markHabit()}
                         className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-400/50 text-emerald-200 text-sm font-medium hover:bg-emerald-500/25 transition"

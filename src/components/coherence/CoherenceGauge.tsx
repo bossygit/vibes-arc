@@ -11,6 +11,8 @@ interface CoherenceGaugeProps {
     level: CoherenceLevel | null;
     /** Fréquence du pic dominant (Hz) — affichée en sous-titre. */
     peakFreq?: number | null;
+    /** Session simulée (Mode Démo) : le score ne mesure pas l'utilisateur. */
+    simulated?: boolean;
 }
 
 const LEVEL_COLORS: Record<CoherenceLevel, string> = {
@@ -19,12 +21,17 @@ const LEVEL_COLORS: Record<CoherenceLevel, string> = {
     eleve: '#34d399',
 };
 
-const CoherenceGauge: React.FC<CoherenceGaugeProps> = ({ score, level, peakFreq }) => {
+const CoherenceGauge: React.FC<CoherenceGaugeProps> = ({ score, level, peakFreq, simulated }) => {
     const value = score ?? 0;
     const color = level ? LEVEL_COLORS[level] : '#475569';
 
     return (
         <div className="flex flex-col items-center">
+            {simulated && (
+                <div className="mb-1 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-400/50 text-amber-300 text-[10px] font-semibold tracking-wider">
+                    SIMULÉ · MODE DÉMO
+                </div>
+            )}
             <svg viewBox="0 0 200 128" className="w-full max-w-[240px]">
                 {/* Arc de fond */}
                 <path
