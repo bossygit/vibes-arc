@@ -163,11 +163,13 @@ Le choix du mode est **indépendant du capteur** (caméra, ceinture ou démo) et
 
 Le score mesure la **régularité sinusoïdale** du rythme cardiaque :
 
-1. Fenêtre glissante sur les **60 derniers intervalles RR** (score affiché à partir de 30 battements)
-2. Rééchantillonnage à 4 Hz → fenêtre de Hann → FFT
-3. Analyse de la bande **0.04–0.15 Hz** (la zone VRC, cœur à ~0.1 Hz) : détection du pic dominant
-4. `ratio = puissance du pic / puissance du reste`, puis `score = 10 × tanh(ratio / 1.35)` — le tanh évite la saturation
-5. Lissage exponentiel (`α = 0.25`) pour un affichage stable
+1. Fenêtre glissante sur les **64 dernières secondes** de battements, avec leurs **instants réels** (score affiché à partir de 30 battements couvrant au moins 30 s)
+2. Rééchantillonnage à 4 Hz sur l'axe du temps réel (les RR rejetés laissent des trous interpolés, pas recollés) → **detrend linéaire** → fenêtre de Hann
+3. Périodogramme sur une grille fine (**zero-padding à 2048 points**, pas ≈ 0.002 Hz) : le score ne dépend plus de la position du pic sur la grille
+4. Analyse de la bande **0.04–0.15 Hz** (la zone VRC, cœur à ~0.1 Hz) : détection du pic dominant
+5. `ratio = puissance du pic (±0.015 Hz) / puissance du reste`, puis `score = 10 × tanh(ratio / 2.5)` — le tanh évite la saturation
+6. Pas de score si la variabilité est quasi nulle (capteur figé, RR constants)
+7. Lissage exponentiel (`α = 0.25`) pour un affichage stable
 
 Le **pic (Hz)** affiché sous le score indique où bat la régularité : proche de **0.1 Hz** en cohérence respiratoire ; ailleurs quand c'est le bruit qui domine.
 
@@ -193,7 +195,7 @@ Un capteur bruité (doigt qui bouge, fuite de lumière, pression) fait détecter
 
 Deux protections :
 
-- **Au niveau du capteur caméra** : un intervalle RR aberrant (±45 % de la médiane récente) est rejeté comme artefact.
+- **Au niveau du capteur caméra** (`ppgProcessor.ts`) : un intervalle RR à plus de ±25 % de la médiane récente est rejeté comme artefact. Un pic parasite (trop court) ne déplace pas le battement de référence ; un battement manqué (intervalle trop long) resynchronise la référence sans émettre d'RR.
 - **Au niveau de l'application** (`assessSignalQuality`) : si la fenêtre récente présente un RMSSD > 200 ms, une amplitude > 700 ms, ou plus de 20 % d'intervalles hors plage 40–150 bpm → **« ⚠ Signal instable »** s'affiche en direct. Une session instable plus de la moitié du temps n'est **pas enregistrée** (elle aurait faussé la comparaison).
 
 ### Enregistrement et comparaison des sessions
@@ -219,10 +221,11 @@ Un bouton **« Marquer comme signal du jour »** coche (et crée au besoin) l'ha
 
 ```
 src/utils/hrv/
-├── coherence.ts       # Moteur de score (FFT, bande VRC, tanh) — pur, sans DOM
+├── coherence.ts       # Moteur de score (périodogramme zero-padé, bande VRC, tanh) — pur, sans DOM
 ├── sources.ts         # Interface RrSource + source simulée (Mode Démo)
 ├── bleHeartRate.ts    # Capteur BLE Heart Rate 0x180D / 0x2A37
-├── ppgCamera.ts       # PPG caméra (canal rouge, garde anti-artefacts)
+├── ppgCamera.ts       # PPG caméra : capture du canal rouge, horodatage par image (requestVideoFrameCallback)
+├── ppgProcessor.ts    # Détecteur de battements PPG — pur, sans DOM (passe-bande, pics interpolés, rejet des RR)
 └── sessionStats.ts    # RMSSD / SDNN / qualité du signal / historique local
 
 src/components/coherence/
@@ -234,7 +237,10 @@ src/components/coherence/
 
 docs/coherence-demo.html           # Démo jouable autonome
 scripts/verify-coherence-demo.cjs  # Test navigateur du moteur (Playwright)
+scripts/test-coherence.mjs         # Tests du calcul spectral + détecteur PPG sur signaux simulés (npm run test:coherence)
 ```
+
+> `docs/coherence-demo.html` embarque sa **propre copie** du moteur de score : elle n'est pas synchronisée avec `coherence.ts`.
 
 **Prérequis** : HTTPS pour la caméra ; Web Bluetooth (Chrome/Edge) pour la ceinture.
 

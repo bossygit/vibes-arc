@@ -9,8 +9,14 @@
  */
 
 export interface RrSourceOptions {
-    /** Appelé à chaque battement : RR en ms + BPM instantané (60000/RR). */
-    onRr: (ibiMs: number, bpm: number) => void;
+    /**
+     * Appelé à chaque battement : RR en ms + BPM instantané (60000/RR).
+     * beatTimeSec (optionnel) = instant réel du battement, en secondes, dans une
+     * base de temps propre à la source. Les sources qui rejettent des battements
+     * douteux (caméra) DOIVENT le fournir : sans lui, la somme cumulée des RR
+     * écraserait les trous et fausserait l'analyse spectrale.
+     */
+    onRr: (ibiMs: number, bpm: number, beatTimeSec?: number) => void;
     /** Message d'état lisible (connexion, erreur…). */
     onStatus?: (status: string) => void;
 }
@@ -79,7 +85,7 @@ export class DemoRrSource implements RrSource {
         const clamped = Math.max(500, rr);
 
         this.t += clamped / 1000;
-        this.opts.onRr(clamped, Math.round(60000 / clamped));
+        this.opts.onRr(clamped, Math.round(60000 / clamped), this.t);
 
         this.timer = window.setTimeout(() => this.scheduleNext(), clamped);
     }

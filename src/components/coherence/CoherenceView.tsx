@@ -105,6 +105,8 @@ const CoherenceView: React.FC = () => {
 
     const sourceRef = useRef<RrSource | null>(null);
     const rrWindowRef = useRef<number[]>([]);
+    /** Instant réel (s) de chaque RR de rrWindowRef — même longueur, même ordre. */
+    const rrTimesRef = useRef<number[]>([]);
     const emaRef = useRef<number | null>(null);
     const sumScoresRef = useRef(0);
     const countScoresRef = useRef(0);
@@ -189,6 +191,7 @@ const CoherenceView: React.FC = () => {
 
         // Réinitialisation de session
         rrWindowRef.current = [];
+        rrTimesRef.current = [];
         emaRef.current = null;
         sumScoresRef.current = 0;
         countScoresRef.current = 0;
@@ -214,10 +217,18 @@ const CoherenceView: React.FC = () => {
         practiceModeRef.current = practiceMode;
         sessionStartRef.current = performance.now();
 
-        const onRr = (ibi: number, bpmNow: number) => {
+        const onRr = (ibi: number, bpmNow: number, beatTimeSec?: number) => {
             const window = rrWindowRef.current;
+            const times = rrTimesRef.current;
+            // Instant réel du battement si la source le fournit (caméra : les RR rejetés
+            // laissent des trous qu'il faut garder) ; sinon RR contigus (BLE, démo).
+            const lastTime = times.length ? times[times.length - 1] : 0;
+            times.push(beatTimeSec ?? lastTime + ibi / 1000);
             window.push(ibi);
-            if (window.length > 180) window.shift();
+            if (window.length > 180) {
+                window.shift();
+                times.shift();
+            }
 
             // Accumulation pour les statistiques de fin de session
             sessionRrRef.current.push(ibi);
@@ -257,7 +268,7 @@ const CoherenceView: React.FC = () => {
                 setSignalUnstable(flags.length >= 5 && unstableInFlags >= Math.ceil(flags.length * 0.6));
             }
 
-            const result = coherenceFromRR(window);
+            const result = coherenceFromRR(window, times);
             if (result) {
                 emaRef.current = emaScore(emaRef.current, result.score);
                 const smoothed = emaRef.current;

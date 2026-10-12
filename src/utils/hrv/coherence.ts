@@ -2,20 +2,34 @@
  * Cohérence cardiaque — analyse spectrale de la VRC (variabilité du rythme cardiaque).
  *
  * Implémentation du calcul « style HeartMath » :
- *   1. Fenêtre glissante sur les 60 derniers intervalles RR (IBI, en ms).
- *   2. Rééchantillonnage linéaire à 4 Hz sur une grille régulière.
- *   3. Detrending (soustraction de la moyenne) + fenêtre de Hann.
- *   4. PSD (périodogramme) sur les bandes VRC : VLF/LF/HF (0.0033 → 0.40 Hz).
+ *   1. Fenêtre glissante sur les 64 dernières SECONDES de battements (instants
+ *      réels fournis par la source ; à défaut, somme cumulée des RR).
+ *   2. Rééchantillonnage linéaire à 4 Hz sur une grille régulière. Les trous
+ *      laissés par des RR rejetés sont interpolés sur l'axe du temps réel — ils
+ *      ne sont pas « recollés » comme le ferait une somme cumulée.
+ *   3. Detrending LINÉAIRE (moindres carrés : une FC qui ralentit pendant la
+ *      détente ne doit pas fabriquer de puissance basse fréquence) + fenêtre
+ *      de Hann.
+ *   4. PSD (périodogramme) évaluée sur une grille fine (zero-padding à 2048
+ *      points, soit 0.002 Hz de pas) sur les bandes VRC : 0.0033 → 0.40 Hz.
+ *      Sans zero-padding, le pas n'est que de ~0.017 Hz : la bande de ±0.015 Hz
+ *      autour du pic ne contenait qu'UN bin, et le score dépendait de la
+ *      position du pic par rapport à la grille (5 cpm ≠ 4.5 cpm).
  *   5. Pic dominant en zone LF (0.04–0.15 Hz) puis puissance dans ±0.015 Hz.
  *      Ratio de cohérence = P_peak / (P_total − P_peak).
- *   6. Score 0-10 = 10 · tanh(ratio / 1.35), niveau Faible / Moyen / Élevé.
+ *   6. Score 0-10 = 10 · tanh(ratio / SCORE_K), niveau Faible / Moyen / Élevé.
+ *      Pas de score si la variabilité est quasi nulle (capteur figé, RR constants).
  *
- * Calibration (scénarios synthétiques, fenêtre 60 RR) :
- *   sinus 45 ms + bruit 10 ms  → ratio ≈ 1.5–1.9 → score ≈ 8–9  (Élevé)
- *   sinus 20 ms + bruit 12 ms  → ratio ≈ 0.7–1.4 → score ≈ 6–7  (Moyen/Élevé)
- *   sinus 10 ms + bruit 20 ms  → ratio ≈ 0.2–0.3 → score ≈ 1.5–2 (Faible)
- *   RR aléatoires              → ratio ≈ 0.1–0.2 → score ≈ 0.5–1.5 (Faible)
- * La constante SCORE_K reste ajustable si la sensibilité doit évoluer.
+ * Calibration (scénarios synthétiques, 75 s, RR moyen 1000 ms, respiration 0.1 Hz,
+ * 400 tirages par scénario ; SCORE_K choisi pour retrouver l'ancienne table) :
+ *   sinus 45 ms + bruit 10 ms  → ratio ≈ 5.6  → score ≈ 9.7  (Élevé)
+ *   sinus 20 ms + bruit 12 ms  → ratio ≈ 1.9  → score ≈ 6.3  (Moyen)
+ *   sinus 10 ms + bruit 20 ms  → ratio ≈ 0.4  → score ≈ 1.5  (Faible)
+ *   RR aléatoires ±150 ms      → ratio ≈ 0.27 → score ≈ 1.1  (Faible)
+ * Le haut de l'échelle est volontairement serré : une VRC très ample et très
+ * régulière sature vers 10. Si la sensibilité doit évoluer, ajuster SCORE_K.
+ * Les seuils Faible / Moyen / Élevé (4 et 7) sont propres à Vibes Arc : ils ne
+ * sont pas comparables aux scores d'appareils du commerce (emWave, Inner Balance…).
  */
 
 export type CoherenceLevel = 'faible' | 'moyen' | 'eleve';
@@ -31,12 +45,18 @@ export interface CoherenceResult {
     peakFreq: number;
 }
 
-/** Fenêtre d'analyse : les 60 derniers intervalles RR (spec). */
+/** Fenêtre d'affichage des statistiques vivantes (RMSSD, SDNN…) : les 60 derniers RR. */
 export const COHERENCE_WINDOW_RR = 60;
 /** Nombre minimum d'intervalles pour produire un score. */
 export const COHERENCE_MIN_RR = 30;
+/** Fenêtre d'analyse spectrale (secondes) : ≈ 6 cycles de respiration à 0.1 Hz. */
+export const COHERENCE_WINDOW_S = 64;
+/** Durée minimale couverte par les battements pour produire un score (secondes). */
+export const COHERENCE_MIN_SPAN_S = 30;
 /** Fréquence de rééchantillonnage du signal RR (Hz). */
 export const RESAMPLE_FS = 4;
+/** Longueur de la grille de fréquences (zero-padding) : pas = RESAMPLE_FS / ZERO_PAD_N ≈ 0.002 Hz. */
+export const ZERO_PAD_N = 2048;
 /** Zone de recherche du pic : LF (0.04–0.15 Hz). */
 export const LF_BAND: readonly [number, number] = [0.04, 0.15];
 /** Bande totale analysée : 0.0033–0.40 Hz (VLF + LF + HF). */
@@ -44,7 +64,9 @@ export const TOTAL_BAND: readonly [number, number] = [0.0033, 0.4];
 /** Demi-largeur de la bande autour du pic (±0.015 Hz). */
 export const PEAK_BAND_HZ = 0.015;
 /** Constante du mapping ratio → score (10 · tanh(ratio / K)). */
-export const SCORE_K = 1.35;
+export const SCORE_K = 2.5;
+/** Écart-type minimal (ms) du signal RR détrendé ; en dessous, la mesure n'a pas de sens. */
+export const MIN_VARIABILITY_MS = 1.5;
 
 export const LEVEL_LABELS: Record<CoherenceLevel, string> = {
     faible: 'Faible',
@@ -64,89 +86,139 @@ export function levelFromScore(score: number): CoherenceLevel {
     return 'faible';
 }
 
+/** Tables cos/sin de la grille de zero-padding, calculées une seule fois. */
+let cosTable: Float64Array | null = null;
+let sinTable: Float64Array | null = null;
+function twiddles(): [Float64Array, Float64Array] {
+    if (!cosTable || !sinTable) {
+        cosTable = new Float64Array(ZERO_PAD_N);
+        sinTable = new Float64Array(ZERO_PAD_N);
+        for (let i = 0; i < ZERO_PAD_N; i++) {
+            cosTable[i] = Math.cos((2 * Math.PI * i) / ZERO_PAD_N);
+            sinTable[i] = Math.sin((2 * Math.PI * i) / ZERO_PAD_N);
+        }
+    }
+    return [cosTable, sinTable];
+}
+
 /**
  * Calcule le score de cohérence à partir de la série d'intervalles RR (ms).
- * Retourne null tant que la fenêtre n'est pas exploitable (< 30 RR).
+ *
+ * beatTimesSec (optionnel, même longueur que rrMs) : instant réel de chaque
+ * battement. À fournir dès que la source peut rejeter des battements : sans
+ * lui, les RR sont supposés contigus (somme cumulée), ce qui est exact pour une
+ * ceinture BLE ou la démo, mais écrase les trous d'une source caméra.
+ *
+ * Retourne null tant que la fenêtre n'est pas exploitable (< 30 battements,
+ * < 30 s couvertes) ou que la variabilité est quasi nulle.
  */
-export function coherenceFromRR(rrMs: number[]): CoherenceResult | null {
-    const rr = rrMs.length > COHERENCE_WINDOW_RR ? rrMs.slice(-COHERENCE_WINDOW_RR) : rrMs.slice();
-    const n = rr.length;
-    if (n < COHERENCE_MIN_RR) return null;
+export function coherenceFromRR(rrMs: number[], beatTimesSec?: number[]): CoherenceResult | null {
+    const total = rrMs.length;
+    if (total < COHERENCE_MIN_RR) return null;
 
-    // 1) Timestamps cumulés des battements (secondes)
-    const beats = new Float64Array(n);
-    let acc = 0;
-    for (let i = 0; i < n; i++) {
-        acc += rr[i] / 1000;
-        beats[i] = acc;
-    }
-    const num = Math.floor(acc * RESAMPLE_FS);
-    if (num < 32) return null;
-
-    // 2) Rééchantillonnage linéaire à 4 Hz sur grille régulière
-    const x = new Float64Array(num);
-    let j = 0;
-    for (let i = 0; i < num; i++) {
-        const ct = i / RESAMPLE_FS;
-        if (ct <= beats[0]) {
-            x[i] = rr[0];
-            continue;
+    // 1) Instants des battements (s) : fournis par la source, sinon somme cumulée
+    let times: ArrayLike<number>;
+    if (beatTimesSec && beatTimesSec.length === total) {
+        times = beatTimesSec;
+    } else {
+        const cumulative = new Float64Array(total);
+        let acc = 0;
+        for (let i = 0; i < total; i++) {
+            acc += rrMs[i] / 1000;
+            cumulative[i] = acc;
         }
-        while (j < n - 2 && beats[j + 1] < ct) j++;
-        const t0 = beats[j];
-        const t1 = beats[j + 1];
-        const y0 = rr[j];
-        const y1 = rr[j + 1];
-        x[i] = t1 > t0 ? y0 + (y1 - y0) * ((ct - t0) / (t1 - t0)) : y0;
+        times = cumulative;
     }
 
-    // 3) Detrending + fenêtrage de Hann
-    let mean = 0;
-    for (let i = 0; i < num; i++) mean += x[i];
-    mean /= num;
-    const xw = new Float64Array(num);
-    for (let i = 0; i < num; i++) xw[i] = (x[i] - mean) * hann(i, num);
+    // 2) Fenêtre : battements des COHERENCE_WINDOW_S dernières secondes
+    const tEnd = times[total - 1];
+    if (!Number.isFinite(tEnd)) return null;
+    let first = total - 1;
+    while (first > 0 && times[first - 1] >= tEnd - COHERENCE_WINDOW_S) first--;
+    const n = total - first;
+    const t0 = times[first];
+    if (n < COHERENCE_MIN_RR || tEnd - t0 < COHERENCE_MIN_SPAN_S) return null;
 
-    // 4) PSD (périodogramme) sur la bande VRC
-    const df = RESAMPLE_FS / num;
+    // 3) Rééchantillonnage linéaire à 4 Hz sur l'axe du temps réel (les trous sont interpolés)
+    const num = Math.floor((tEnd - t0) * RESAMPLE_FS) + 1;
+    if (num < 32 || num > ZERO_PAD_N) return null;
+    const x = new Float64Array(num);
+    let j = first;
+    for (let i = 0; i < num; i++) {
+        const ct = t0 + i / RESAMPLE_FS;
+        while (j < total - 2 && times[j + 1] < ct) j++;
+        const ta = times[j];
+        const tb = times[j + 1];
+        const ya = rrMs[j];
+        const yb = rrMs[j + 1];
+        const u = tb > ta ? (ct - ta) / (tb - ta) : 0;
+        x[i] = ya + (yb - ya) * Math.min(1, Math.max(0, u));
+    }
+
+    // 4) Detrending linéaire (moindres carrés) + fenêtrage de Hann
+    let sx = 0;
+    let sy = 0;
+    let sxx = 0;
+    let sxy = 0;
+    for (let i = 0; i < num; i++) {
+        sx += i;
+        sy += x[i];
+        sxx += i * i;
+        sxy += i * x[i];
+    }
+    const slope = (num * sxy - sx * sy) / (num * sxx - sx * sx);
+    const intercept = (sy - slope * sx) / num;
+    const xw = new Float64Array(num);
+    let sumSq = 0;
+    for (let i = 0; i < num; i++) {
+        const r = x[i] - (intercept + slope * i);
+        sumSq += r * r;
+        xw[i] = r * hann(i, num);
+    }
+    // Aucune variabilité (capteur figé, RR constants) : un score serait un artefact de calcul
+    if (!Number.isFinite(sumSq) || Math.sqrt(sumSq / num) < MIN_VARIABILITY_MS) return null;
+
+    // 5) PSD (périodogramme) sur la grille fine zero-paddée, bande VRC uniquement
+    const [cosT, sinT] = twiddles();
+    const df = RESAMPLE_FS / ZERO_PAD_N;
+    const kMin = Math.max(1, Math.ceil(TOTAL_BAND[0] / df));
+    const kMax = Math.floor(TOTAL_BAND[1] / df);
     const freqs: number[] = [];
     const powers: number[] = [];
-    for (let k = 1; k < num / 2; k++) {
-        const f = k * df;
-        if (f < TOTAL_BAND[0] || f > TOTAL_BAND[1]) continue;
+    for (let k = kMin; k <= kMax; k++) {
         let re = 0;
         let im = 0;
-        const w = (2 * Math.PI * k) / num;
         for (let i = 0; i < num; i++) {
-            const a = w * i;
-            re += xw[i] * Math.cos(a);
-            im -= xw[i] * Math.sin(a);
+            const idx = (k * i) % ZERO_PAD_N;
+            re += xw[i] * cosT[idx];
+            im -= xw[i] * sinT[idx];
         }
-        freqs.push(f);
+        freqs.push(k * df);
         powers.push((re * re + im * im) / num);
     }
     if (powers.length === 0) return null;
 
-    // 5) Pic dominant en zone LF (0.04–0.15 Hz) + puissance dans ±0.015 Hz
-    let total = 0;
+    // 6) Pic dominant en zone LF (0.04–0.15 Hz) + puissance dans ±0.015 Hz
+    let totalPower = 0;
     let bestLf = -1;
     let peakFreq = 0.1;
     for (let i = 0; i < freqs.length; i++) {
-        total += powers[i];
+        totalPower += powers[i];
         const f = freqs[i];
         if (f >= LF_BAND[0] && f <= LF_BAND[1] && powers[i] > bestLf) {
             bestLf = powers[i];
             peakFreq = f;
         }
     }
+    if (!(totalPower > 0)) return null;
     let peakPower = 0;
     for (let i = 0; i < freqs.length; i++) {
         if (Math.abs(freqs[i] - peakFreq) <= PEAK_BAND_HZ) peakPower += powers[i];
     }
-    const rest = total - peakPower;
-    const ratio = rest > 1e-9 ? peakPower / rest : 20;
+    const rest = totalPower - peakPower;
+    const ratio = rest > totalPower * 1e-6 ? peakPower / rest : 20;
 
-    // 6) Score 0-10
+    // 7) Score 0-10
     const score = Math.round(10 * Math.tanh(Math.min(ratio, 20) / SCORE_K) * 10) / 10;
     return { score, level: levelFromScore(score), ratio, peakFreq };
 }

@@ -7,20 +7,39 @@
  *
  * Chaîne de traitement (nécessite un smartphone + HTTPS, torche activée) :
  *   1. Caméra arrière (facingMode environment) + torche si disponible.
- *   2. Moyenne du canal rouge sur un crop central 50×50, ~30 fps.
- *   3. Filtrage passe-haut (soustraction de la moyenne glissante).
- *   4. Détection de pics à seuil adaptatif (0.6 · écart-type) + période
- *      réfractaire de 400 ms (max ~150 BPM).
- *   5. Émission des intervalles RR (ms) et du BPM lissé.
+ *   2. Moyenne du canal rouge sur un crop central 50×50, UN échantillon par
+ *      image vidéo réelle (~30 fps), horodaté avec l'instant de capture de
+ *      l'image via requestVideoFrameCallback (et non le tick d'affichage à
+ *      60 Hz, qui relit deux fois la même image et ajoute de la gigue).
+ *   3. Détection des battements : voir ppgProcessor.ts (passe-bande 0.7–3.5 Hz,
+ *      pics interpolés, rejet des RR aberrants).
+ *   4. Émission de l'intervalle RR (ms), du BPM lissé et de l'instant du battement.
+ *
+ * Repli : si requestVideoFrameCallback est absent (iOS < 15.4…) ou ne livre
+ * aucune image au bout de 2 s, on lit la caméra à chaque requestAnimationFrame
+ * en ignorant les images identiques à la précédente (précision moindre).
  */
 
 import type { RrSource, RrSourceOptions } from './sources';
+import { PpgBeatDetector } from './ppgProcessor';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-const BUFFER_SIZE = 150; // ~5 s à 30 fps
-const REFRACTORY_PERIOD = 400; // ms entre deux battements → 150 BPM max
 const PROCESS_SIZE = 100; // canvas de traitement (crop centré 50×50)
+const RVFC_WATCHDOG_MS = 2000;
+
+/** Métadonnées de requestVideoFrameCallback (champs optionnels selon le navigateur). */
+interface FrameMetadata {
+    captureTime?: number;
+    presentationTime?: number;
+    expectedDisplayTime?: number;
+}
+
+/** Vue minimale de HTMLVideoElement pour requestVideoFrameCallback (absent de certains navigateurs). */
+interface RvfcVideo {
+    requestVideoFrameCallback?: (callback: (now: number, metadata: FrameMetadata) => void) => number;
+    cancelVideoFrameCallback?: (handle: number) => void;
+}
 
 export class CameraPpgSource implements RrSource {
     private readonly opts: RrSourceOptions;
@@ -29,11 +48,14 @@ export class CameraPpgSource implements RrSource {
 
     private stream: MediaStream | null = null;
     private running = false;
+    private detector: PpgBeatDetector | null = null;
+
+    private rvfcHandle = 0;
+    private rvfcFrames = 0;
+    private watchdogTimer: number | null = null;
+    private useRaf = false;
     private rafId = 0;
-    private rawRedBuffer: number[] = [];
-    private filteredBuffer: number[] = [];
-    private rrIntervals: number[] = [];
-    private lastPeakTime = 0;
+    private lastAvgRed = -1;
 
     constructor(opts: RrSourceOptions, video: HTMLVideoElement, processCanvas: HTMLCanvasElement) {
         this.opts = opts;
@@ -69,18 +91,38 @@ export class CameraPpgSource implements RrSource {
         }
 
         // Réinitialiser l'état de session
-        this.rawRedBuffer = [];
-        this.filteredBuffer = [];
-        this.rrIntervals = [];
-        this.lastPeakTime = 0;
+        this.detector = new PpgBeatDetector({
+            onBeat: (rrMs, bpm, timeSec) => this.opts.onRr(rrMs, bpm, timeSec),
+        });
+        this.rvfcFrames = 0;
+        this.lastAvgRed = -1;
+        this.useRaf = false;
         this.running = true;
 
         this.opts.onStatus?.('Mesure PPG en cours — pose l’index sur la caméra arrière, bouge le moins possible.');
-        this.loop();
+
+        if (typeof (this.video as unknown as RvfcVideo).requestVideoFrameCallback === 'function') {
+            this.scheduleVideoFrame();
+            // Garde-fou : un navigateur qui expose l'API mais ne la déclenche pas
+            this.watchdogTimer = window.setTimeout(() => {
+                this.watchdogTimer = null;
+                if (this.running && this.rvfcFrames === 0) this.startRafFallback();
+            }, RVFC_WATCHDOG_MS);
+        } else {
+            this.startRafFallback();
+        }
     }
 
     stop(): void {
         this.running = false;
+        if (this.watchdogTimer !== null) {
+            window.clearTimeout(this.watchdogTimer);
+            this.watchdogTimer = null;
+        }
+        if (this.rvfcHandle) {
+            (this.video as unknown as RvfcVideo).cancelVideoFrameCallback?.(this.rvfcHandle);
+            this.rvfcHandle = 0;
+        }
         if (this.rafId) {
             cancelAnimationFrame(this.rafId);
             this.rafId = 0;
@@ -92,76 +134,57 @@ export class CameraPpgSource implements RrSource {
         if (this.video.srcObject) {
             this.video.srcObject = null;
         }
+        this.detector = null;
     }
 
-    private loop = (): void => {
-        if (!this.running) return;
-        this.rafId = requestAnimationFrame(this.loop);
-        if (this.video.paused || this.video.ended || !this.processCtx) return;
-
-        // 1. Extraction du canal rouge moyen (crop central 50×50)
+    /** Moyenne du canal rouge sur le crop central 50×50 de l'image courante (null si indisponible). */
+    private readAverageRed(): number | null {
         const ctx = this.processCtx;
+        if (!ctx || this.video.paused || this.video.ended) return null;
         ctx.drawImage(this.video, 0, 0, PROCESS_SIZE, PROCESS_SIZE);
         const frame = ctx.getImageData(25, 25, 50, 50).data;
         let redSum = 0;
-        const pixelCount = frame.length / 4;
         for (let i = 0; i < frame.length; i += 4) redSum += frame[i];
-        const avgRed = redSum / pixelCount;
-
-        // 2. Tampon brut + filtrage passe-haut (moyenne glissante)
-        this.rawRedBuffer.push(avgRed);
-        if (this.rawRedBuffer.length > BUFFER_SIZE) this.rawRedBuffer.shift();
-
-        if (this.rawRedBuffer.length >= 30) {
-            let mean = 0;
-            for (const v of this.rawRedBuffer) mean += v;
-            mean /= this.rawRedBuffer.length;
-            const filtered = avgRed - mean;
-
-            this.filteredBuffer.push(filtered);
-            if (this.filteredBuffer.length > 300) this.filteredBuffer.shift();
-
-            // 3. Détection de pics (battements)
-            this.detectPeak(filtered, performance.now());
-        }
-    };
-
-    private detectPeak(currentValue: number, timestamp: number): void {
-        const buf = this.filteredBuffer;
-        if (buf.length < 30) return;
-
-        // Seuil adaptatif : 0.6 · écart-type local
-        let variance = 0;
-        for (const v of buf) variance += v * v;
-        variance /= buf.length;
-        const threshold = Math.sqrt(variance) * 0.6;
-
-        const timeSinceLastPeak = timestamp - this.lastPeakTime;
-        const prevValue = buf[buf.length - 2] ?? 0;
-
-        // Pic détecté : au-dessus du seuil, au sommet local, hors période réfractaire
-        if (currentValue > threshold && currentValue < prevValue && timeSinceLastPeak > REFRACTORY_PERIOD) {
-            if (this.lastPeakTime !== 0) {
-                const rr = Math.round(timeSinceLastPeak);
-                if (rr >= 250 && rr <= 2500) {
-                    // Garde anti-artefacts : un RR réel reste proche de la médiane
-                    // récente (±45 %). Un pic de mouvement/lumière produit des RR
-                    // aberrants (ex : 400 ms puis 1700 ms) qui détruiraient le score.
-                    const sorted = [...this.rrIntervals].sort((a, b) => a - b);
-                    const median = sorted.length >= 5 ? sorted[Math.floor(sorted.length / 2)] : null;
-                    const isArtifact = median !== null && Math.abs(rr - median) > 0.45 * median;
-                    if (!isArtifact) {
-                        this.rrIntervals.push(rr);
-                        if (this.rrIntervals.length > 10) this.rrIntervals.shift();
-
-                        const window = this.rrIntervals.slice(-5);
-                        const avgRR = window.reduce((a, b) => a + b, 0) / window.length;
-                        const bpm = Math.round(60000 / avgRR);
-                        this.opts.onRr(rr, bpm);
-                    }
-                }
-            }
-            this.lastPeakTime = timestamp;
-        }
+        return redSum / (frame.length / 4);
     }
+
+    // ── Voie principale : une image vidéo = un échantillon, horodaté à la capture ──
+
+    private scheduleVideoFrame(): void {
+        const video = this.video as unknown as RvfcVideo;
+        this.rvfcHandle = video.requestVideoFrameCallback!((now, metadata) => this.onVideoFrame(now, metadata));
+    }
+
+    private onVideoFrame(now: number, metadata: FrameMetadata): void {
+        if (!this.running || this.useRaf) return;
+        this.rvfcFrames += 1;
+        // Meilleure horloge disponible, toujours dans la base de performance.now()
+        const tMs = metadata?.captureTime ?? metadata?.presentationTime ?? now;
+        const avgRed = this.readAverageRed();
+        if (avgRed !== null) this.detector?.push(tMs / 1000, avgRed);
+        this.scheduleVideoFrame();
+    }
+
+    // ── Repli : lecture à chaque requestAnimationFrame, images identiques ignorées ──
+
+    private startRafFallback(): void {
+        if (!this.running || this.useRaf) return;
+        this.useRaf = true;
+        if (this.rvfcHandle) {
+            (this.video as unknown as RvfcVideo).cancelVideoFrameCallback?.(this.rvfcHandle);
+            this.rvfcHandle = 0;
+        }
+        this.detector?.reset();
+        this.rafLoop();
+    }
+
+    private rafLoop = (): void => {
+        if (!this.running || !this.useRaf) return;
+        this.rafId = requestAnimationFrame(this.rafLoop);
+        const avgRed = this.readAverageRed();
+        // Le tick (60 Hz) est plus rapide que la caméra (30 fps) : même image = même valeur exacte
+        if (avgRed === null || avgRed === this.lastAvgRed) return;
+        this.lastAvgRed = avgRed;
+        this.detector?.push(performance.now() / 1000, avgRed);
+    };
 }
