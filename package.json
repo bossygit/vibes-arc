@@ -15,6 +15,7 @@
     "export:kb": "node scripts/export_knowledge_base.mjs",
     "test:nutrition": "node scripts/test-nutrition.mjs",
     "test:coherence": "node scripts/test-coherence.mjs",
+    "test:evidence": "node scripts/test-evidence.mjs",
     "verify:foods": "node scripts/verify-food-db.mjs"
   },
   "dependencies": {

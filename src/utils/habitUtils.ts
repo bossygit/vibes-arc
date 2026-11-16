@@ -67,17 +67,22 @@ export function computePointsForAction(params: {
     return points;
 }
 
-export const getCurrentDayIndex = (): number => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+/**
+ * Index global d'un jour (0 = 1er octobre 2025, minuit local) — la convention de
+ * `habit.progress[]` et `accuser.progress[]`. Toute lecture de progression par date
+ * doit passer par ici pour rester alignée sur ce que `toggleHabitDay` a enregistré.
+ */
+export const dayIndexForDate = (date: Date): number => {
+    const day = new Date(date);
+    day.setHours(0, 0, 0, 0);
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
 
-    const diffTime = today.getTime() - start.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    return diffDays;
+    const diffTime = day.getTime() - start.getTime();
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 };
+
+export const getCurrentDayIndex = (): number => dayIndexForDate(new Date());
 
 /**
  * Weekly completion rate (last 7 days): average of daily rates.

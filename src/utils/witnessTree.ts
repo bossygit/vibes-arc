@@ -22,25 +22,21 @@ import {
     Verdict,
     getVerdict,
 } from '@/types';
-
-/** Date de référence pour le calcul des dayIndex (identique à credibilityScore.ts) */
-const REFERENCE_DATE = new Date('2025-10-01');
+import { dayIndexForDate } from './habitUtils';
+import { todayLocalISO } from './dateUtils';
 
 /**
- * Calcule le dayIndex pour une date donnée.
- * Cohérent avec le système existant des habitudes.
+ * Index global du jour (0 = 1er oct. 2025, minuit local) — la convention de `habit.progress[]`.
  */
 function dateToDayIndex(date: Date): number {
-    return Math.floor(
-        (date.getTime() - REFERENCE_DATE.getTime()) / (1000 * 60 * 60 * 24)
-    );
+    return dayIndexForDate(date);
 }
 
 /**
- * Formate une date en YYYY-MM-DD.
+ * Formate une date en YYYY-MM-DD (date locale : le jour vécu, pas le jour UTC).
  */
 function formatDate(date: Date): string {
-    return date.toISOString().slice(0, 10);
+    return todayLocalISO(date);
 }
 
 /**
@@ -145,9 +141,9 @@ export function computeWitnessTree(input: ComputeWitnessTreeInput): EvidenceEngi
         const missingHabitIds: number[] = [];
 
         for (const habit of requiredHabits) {
+            // `progress[]` est indexé par jour global : on lit le jour lui-même, à partir de la création du signal.
             const startIdx = habit.startDayIndex ?? 0;
-            const idx = dayIndex - startIdx;
-            if (idx >= 0 && idx < habit.progress.length && habit.progress[idx]) {
+            if (dayIndex >= startIdx && dayIndex >= 0 && dayIndex < habit.progress.length && habit.progress[dayIndex]) {
                 completedHabitIds.push(habit.id);
             } else {
                 missingHabitIds.push(habit.id);
