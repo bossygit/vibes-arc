@@ -33,6 +33,13 @@ import SegmentIntendingView from '@/components/SegmentIntendingView';
 import JournalView from '@/components/JournalView';
 import NutritionView from '@/components/nutrition/NutritionView';
 import CoherenceView from '@/components/coherence/CoherenceView';
+import ArcHome from '@/components/arc/ArcHome';
+import VisionHub from '@/components/arc/VisionHub';
+import IdentityHub from '@/components/arc/IdentityHub';
+import ActionHub from '@/components/arc/ActionHub';
+import EvolutionHub from '@/components/arc/EvolutionHub';
+import StageContextBar from '@/components/arc/StageContextBar';
+import InnerWorldView from '@/components/innerWorld/InnerWorldView';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Celebration from '@/components/Celebration';
 import { getCurrentDayIndex, isHabitActiveOnDay, getHabitStartDayIndex } from '@/utils/habitUtils';
@@ -76,6 +83,30 @@ function App() {
 
     const renderView = () => {
         switch (view) {
+            // ── L'arc : accueil + les 4 étapes ──
+            case 'arc':
+                return <ArcHome />;
+            case 'hubVision':
+                return <VisionHub />;
+            case 'hubIdentity':
+                return <IdentityHub />;
+            case 'hubAction':
+                return <ActionHub />;
+            case 'hubEvolution':
+                return <EvolutionHub />;
+            case 'innerWorld':
+                return (
+                    <ErrorBoundary
+                        fallback={
+                            <div className="p-6 text-center text-sm text-slate-500">
+                                Le monde intérieur n'a pas pu s'afficher. Recharge la page pour réessayer.
+                            </div>
+                        }
+                    >
+                        <InnerWorldView />
+                    </ErrorBoundary>
+                );
+            // ── Modules (chacun rattaché à une étape dans src/config/arc.ts) ──
             case 'dashboard':
                 return <Dashboard />;
             case 'identities':
@@ -165,7 +196,7 @@ function App() {
             case 'accountSettings':
                 return <AccountSettingsView />;
             default:
-                return <Dashboard />;
+                return <ArcHome />;
         }
     };
 
@@ -187,7 +218,9 @@ function App() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
             <Header />
-            <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+            <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-28 lg:pb-8">
+                {/* Rappel de l'étape à laquelle répond le module ouvert */}
+                <StageContextBar view={view} />
                 {renderView()}
             </main>
             {/* Notifications navigateur : 3 rappels/jour (7h30, 12h00, 18h30) */}
@@ -434,7 +467,7 @@ const InstallBanner: React.FC = () => {
     if (!showBanner) return null;
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 z-50 p-3 sm:p-4">
+        <div className="fixed bottom-16 lg:bottom-0 left-0 right-0 z-50 p-3 sm:p-4">
             <div className="max-w-lg mx-auto bg-white rounded-xl shadow-lg border border-indigo-200 p-4">
                 <div className="flex items-start gap-3">
                     <div className="p-2 bg-indigo-100 rounded-lg flex-shrink-0">

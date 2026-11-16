@@ -1926,6 +1926,77 @@ class SupabaseDatabaseClient {
 
         return !error;
     }
+
+    // ===== ARC — Boussole de vision (migration 20261116_arc_vision_inner_world) =====
+
+    /** `null` si aucune boussole n'est enregistrée. Lève une erreur si la table est absente. */
+    async getArcVision(): Promise<{ statement: string; updatedAt: string } | null> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { data, error } = await this.supabase
+            .from('arc_vision')
+            .select('statement, updated_at')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+        if (error) throw error;
+        if (!data) return null;
+        return { statement: data.statement ?? '', updatedAt: data.updated_at };
+    }
+
+    async saveArcVision(statement: string): Promise<boolean> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { error } = await this.supabase
+            .from('arc_vision')
+            .upsert(
+                { user_id: user.id, statement, updated_at: new Date().toISOString() },
+                { onConflict: 'user_id' },
+            );
+
+        if (error) throw error;
+        return true;
+    }
+
+    // ===== Monde intérieur — instantané Image Streaming × rêves =====
+
+    async getInnerWorldSnapshot(): Promise<{ snapshot: import('@/types/innerWorld').InnerWorldSnapshot; syncedAt: string } | null> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { data, error } = await this.supabase
+            .from('inner_world_snapshots')
+            .select('snapshot, synced_at')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+        if (error) throw error;
+        if (!data?.snapshot) return null;
+        return { snapshot: data.snapshot, syncedAt: data.synced_at };
+    }
+
+    async saveInnerWorldSnapshot(snapshot: import('@/types/innerWorld').InnerWorldSnapshot): Promise<string> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const syncedAt = new Date().toISOString();
+        const { error } = await this.supabase
+            .from('inner_world_snapshots')
+            .upsert(
+                {
+                    user_id: user.id,
+                    snapshot,
+                    generated_at: snapshot.generatedAt,
+                    synced_at: syncedAt,
+                },
+                { onConflict: 'user_id' },
+            );
+
+        if (error) throw error;
+        return syncedAt;
+    }
 }
 
 export default SupabaseDatabaseClient;

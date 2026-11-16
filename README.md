@@ -1,6 +1,19 @@
 # Vibes Arc - Identity Tracker
 
-Une plateforme moderne de suivi d'identités et d'habitudes pour transformer votre vie.
+Vibes Arc n'est pas une collection d'outils de développement personnel : c'est un **cycle en quatre étapes** que l'on parcourt chaque jour et chaque semaine.
+
+## 🧭 L'Arc — Vision → Identité → Action → Évolution
+
+| Étape | La question | Le cœur de l'étape (page d'étape) | Les outils rattachés |
+| --- | --- | --- | --- |
+| **1 · Vision** | Qui veux-je devenir ? | La **boussole** (« Je deviens… ») + les désirs actifs, leur futur soi et les identités qui doivent les recevoir | Tribunal de la Vie · Manifestation consciente · Vibes World |
+| **2 · Identité** | Quelles croyances et quels comportements définissent cette personne ? | Chaque identité : ses croyances, ses signaux quotidiens, la vision qu'elle sert — et ce qui lui manque | Identités · Bibliothèque · Créer un signal · Focus Wheel · Pivot · Abondance · Environnement |
+| **3 · Action** | Quelles preuves concrètes puis-je produire aujourd'hui ? | L'intention du matin, la preuve du soir, et les signaux du jour **rangés par identité** (cocher = verser une preuve) | Alignement du jour · Tableau des signaux · Segment Intending · Priming · Cohérence cardiaque · Focus 17/68 · Jardin karmique · Campagne d'appréciation · La Voie du Contrôle · Nutrition · Ancrages |
+| **4 · Évolution** | Que m'apprennent mes résultats sur moi-même ? | La semaine en chiffres, le verdict de chaque dossier, les leçons de Vibes AI, le **monde intérieur** — puis le retour à la vision | Fréquence · Journal · Inner Child · Monde intérieur · Vibes AI · Labo d'expériences · Coach Vibes |
+
+- **Mon Arc** (accueil) montre l'état réel des quatre étapes, la **prochaine étape** à faire (selon l'heure et ce qui manque) et le **fil d'or** : pour chaque désir, la chaîne complète désir → identités → preuves du jour → verdict.
+- Chaque module affiche un **fil d'Ariane** qui rappelle l'étape à laquelle il répond, avec un lien vers l'étape suivante — après l'Évolution, on revient à la Vision.
+- **Source unique** : [`src/config/arc.ts`](src/config/arc.ts) rattache chaque vue à une étape et à un groupe. Navigation, pages d'étape et fil d'Ariane en dérivent : pour déplacer un module, on change sa ligne.
 
 ## 🚀 Fonctionnalités
 
@@ -47,6 +60,16 @@ Une plateforme moderne de suivi d'identités et d'habitudes pour transformer vot
 
 📖 **Explication complète plus bas : section « Module Cohérence cardiaque — comment ça marche »**
 
+### 🌙 Monde intérieur — Image Streaming × rêves (étape Évolution)
+- Lit le **coffre Obsidian** : `Practice/Image Streaming` (séances, `sessions_index.json`, `symbols.json`) et `Notion/Au pays des merveilles` (un fichier par rêve, frontmatter `Date`, `Details`, `People in the Dream`…)
+- **Échos** : un rêve et une séance à ±3 jours qui partagent un symbole précis
+- **Symboles partagés** : les symboles de la base IS retrouvés dans les récits de rêve, avec leur arc émotionnel et leur évolution
+- **Écarts** : ce qui n'existe que d'un côté (symboles IS jamais rêvés ; personnages, lieux et motifs des rêves)
+- **Chronologie** : séances et rêves par semaine, face aux signaux émis et à la fréquence moyenne
+- **Ce qui évolue en toi** : les symboles touchés par la dernière séance et leur évolution
+
+📖 **Détails plus bas : section « Module Monde intérieur — comment ça marche »**
+
 ## 🛠️ Technologies
 
 - **Frontend**: React 18 avec TypeScript
@@ -89,8 +112,12 @@ npm run preview
 
 ```
 src/
+├── config/
+│   └── arc.ts           # L'arc : les 4 étapes + le rattachement de chaque module (source unique)
 ├── components/          # Composants React réutilisables
-│   ├── Dashboard.tsx    # Vue principale du tableau de bord
+│   ├── arc/             # Mon Arc (accueil), les 4 pages d'étape, boussole, fil d'Ariane
+│   ├── innerWorld/      # Monde intérieur (Image Streaming × rêves)
+│   ├── Dashboard.tsx    # Tableau des signaux (étape Action)
 │   ├── Header.tsx       # Navigation principale
 │   ├── IdentityCard.tsx # Carte d'identité
 │   ├── HabitCard.tsx    # Carte d'habitude
@@ -119,11 +146,12 @@ src/
 
 ## 🔄 Flux Utilisateur
 
-1. **Landing** → Créer des identités
-2. **Identités** → Ajouter des habitudes (liées aux identités)
-3. **Vue quotidienne** → Cocher les habitudes accomplies
-4. **Tableau de bord** → Voir les progrès et scores
-5. **Vue identité** → Analyser l'intégration des habitudes
+1. **Vision** → Écrire sa boussole, déclarer ses désirs (avoir / être) et le futur soi qu'ils supposent
+2. **Identité** → Définir les identités qui reçoivent ces désirs : croyances + signaux (comportements quotidiens)
+3. **Action** → Le matin, poser une intention ; dans la journée, cocher les signaux (preuves) ; le soir, consigner la preuve
+4. **Évolution** → Relire la semaine, les verdicts, la fréquence et le monde intérieur — puis réajuster la vision
+
+L'accueil **Mon Arc** propose à chaque ouverture la prochaine étape utile.
 
 ## 💾 Persistance des Données
 
@@ -243,6 +271,46 @@ scripts/test-coherence.mjs         # Tests du calcul spectral + détecteur PPG s
 > `docs/coherence-demo.html` embarque sa **propre copie** du moteur de score : elle n'est pas synchronisée avec `coherence.ts`.
 
 **Prérequis** : HTTPS pour la caméra ; Web Bluetooth (Chrome/Edge) pour la ceinture.
+
+## 🌙 Module Monde intérieur — comment ça marche
+
+### D'où viennent les données
+
+| Source | Quand | Comment |
+| --- | --- | --- |
+| **Coffre Obsidian (direct)** | `npm run dev` sur la machine du coffre | Le serveur de développement expose `GET /api/inner-world` ([`server/innerWorldVault.ts`](server/innerWorldVault.ts)) qui lit le coffre à chaque ouverture du module |
+| **Copie publiée (Supabase)** | Téléphone, version en ligne | Bouton « Publier sur mes appareils » (visible quand le coffre est lu en direct) → table `inner_world_snapshots` (une ligne par utilisateur, RLS) |
+| **Cache local** | Hors-ligne | Le dernier instantané est gardé dans le navigateur |
+
+Chemins par défaut : `~/Documents/Obsidian Vault`, sous-dossiers `Practice/Image Streaming` et `Notion/Au pays des merveilles`. Surcharge possible dans `.env.local` : `OBSIDIAN_VAULT_PATH`, `INNER_WORLD_IS_DIR`, `INNER_WORLD_DREAMS_DIR`.
+
+Le point d'accès de développement refuse les requêtes d'un autre site et les hôtes inattendus (données intimes ; Vite 4 accepte toutes les origines en CORS). Il n'existe pas en production : le coffre reste sur ta machine.
+
+### Règles d'analyse ([`src/utils/innerWorld/analysis.ts`](src/utils/innerWorld/analysis.ts))
+
+- Un symbole est cherché dans un rêve par son **nom** (découpé sur « / ») et ses **alias** de `symbols.json`, **mot entier**, accents ignorés, pluriel simple accepté : « eau » ne matche plus « beaucoup », ni « mer » « merci ».
+- Les **associations** de `symbols.json` ne servent pas de termes : ce sont des interprétations, pas des mots du récit.
+- Garde-fous : mots-outils exclus (« Son / Auditif » ne cherche pas « son ») ; faux amis (« cour » ≠ « cours ») ; homographes verbe/nom (« il porte un manteau » n'est pas une porte).
+- **Échos** : un rêve daté et une séance à **±3 jours** qui partagent un symbole. Les symboles **omniprésents** (> 75 % des séances, ex. « Noir / Ombre ») sont ignorés : ils ne disent rien d'un parallèle précis. La « spécificité » d'un écho monte quand les symboles partagés sont rares en IS.
+- Les personnages, lieux et motifs des rêves qui correspondent déjà à un symbole IS (un lieu de rêve qui porte le nom d'un symbole IS, par exemple) sont signalés à part.
+
+### Mise en place
+
+1. Appliquer la migration [`supabase/migrations/20261116_arc_vision_inner_world.sql`](supabase/migrations/20261116_arc_vision_inner_world.sql) (tables `arc_vision` et `inner_world_snapshots`). Sans elle, la boussole reste dans le navigateur et le module ne se publie pas — tout le reste fonctionne.
+2. `npm run dev` sur le Mac du coffre → **Évolution › Monde intérieur** → « Publier sur mes appareils » après chaque nouvelle séance ou nouveau rêve.
+
+```
+server/innerWorldVault.ts              # Lecture du coffre (Node, serveur de dev uniquement)
+src/utils/innerWorld/frontmatter.ts    # Frontmatter Obsidian tolérant (valeurs avec « : », listes, blocs)
+src/utils/innerWorld/analysis.ts       # Échos, symboles partagés, écarts, chronologie — pur, sans DOM
+src/services/innerWorldService.ts      # Coffre → Supabase → cache local
+src/components/innerWorld/             # Vue, panneaux, chronologie
+scripts/test-inner-world.mjs           # npm run test:inner-world
+```
+
+### Moteur de preuves (Tribunal)
+
+`buildDailyEvidence` et l'arbre des témoins lisent la progression à l'**index global du jour** (0 = 1er octobre 2025, minuit local), comme l'écrit `toggleHabitDay`, et datent les jours en heure locale. Le score d'action ne compte que les jours où au moins un signal existait déjà. Vérification : `npm run test:evidence` (rejoué dans deux fuseaux horaires).
 
 ## 🎯 Prochaines Fonctionnalités
 

@@ -136,7 +136,7 @@ const PrimingView: React.FC = () => {
             Calmer le système nerveux <strong>avant</strong> l’action. Objectif: sécurité, clarté, naturalité.
           </p>
         </div>
-        <button onClick={() => setView('dashboard')} className="btn-secondary flex items-center gap-2">
+        <button onClick={() => setView('hubAction')} className="btn-secondary flex items-center gap-2">
           <ArrowLeft className="w-4 h-4" />
           Retour
         </button>

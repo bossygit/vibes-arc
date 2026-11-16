@@ -86,7 +86,7 @@ const TemplatesView: React.FC = () => {
             linkedIdentities: selectedIdentityId ? [Number(selectedIdentityId)] : []
         });
         
-        setView('dashboard');
+        setView('hubAction');
     };
 
     const handleCreateIdentity = async () => {
@@ -95,7 +95,12 @@ const TemplatesView: React.FC = () => {
         const newIdentity = await addIdentity({
             name: selectedIdentityTemplate.name,
             description: selectedIdentityTemplate.description,
-            color: selectedIdentityTemplate.color
+            color: selectedIdentityTemplate.color,
+            // L'identité arrive avec ce qui la définit : croyances, pratiques, citations
+            coreBeliefs: selectedIdentityTemplate.coreBeliefs,
+            dailyPractices: selectedIdentityTemplate.dailyPractices,
+            habits: selectedIdentityTemplate.habits,
+            quotes: selectedIdentityTemplate.quotes,
         });
 
         // Créer automatiquement les habitudes liées à cette identité
@@ -110,7 +115,7 @@ const TemplatesView: React.FC = () => {
             }
         }
         
-        setView('dashboard');
+        setView('hubIdentity');
     };
 
     return (

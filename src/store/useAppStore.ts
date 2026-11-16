@@ -405,7 +405,7 @@ export const useAppStore = create<AppState>((set) => {
         // Initial state
         identities: [],
         habits: [],
-        view: 'dashboard',
+        view: 'arc',
         selectedHabitId: null,
         skipsByHabit: {},
         gamification: { points: 0, rewards: [], challenges: [] },
