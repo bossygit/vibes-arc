@@ -16,6 +16,8 @@ import {
     getVerdict,
     DailyEvidence,
 } from '@/types';
+import { dayIndexForDate } from './habitUtils';
+import { todayLocalISO } from './dateUtils';
 
 /**
  * Calcule le score de crédibilité à partir des preuves journalières.
@@ -41,20 +43,23 @@ export function computeCredibilityScore(
         };
     }
 
-    // Action Score : moyenne du taux de complétion sur tous les jours
+    // Action Score : moyenne du taux de complétion sur les jours où au moins un signal
+    // était observable (un signal n'est observé qu'à partir de sa date de création).
     let totalCompletionRate = 0;
+    let observableDays = 0;
     let alignedDays = 0;
     let accuserDays = 0;
 
     for (const day of evidence) {
         if (day.signalsTotal > 0) {
             totalCompletionRate += day.signalsCompleted / day.signalsTotal;
+            observableDays++;
         }
         if (day.isAligned) alignedDays++;
         if (day.accusatorsActive > 0) accuserDays++;
     }
 
-    const actionScore = Math.round((totalCompletionRate / periodDays) * 100);
+    const actionScore = observableDays > 0 ? Math.round((totalCompletionRate / observableDays) * 100) : 0;
     const rawAlignmentScore = Math.round((alignedDays / periodDays) * 100);
     const accuserPenalty = Math.round((accuserDays / periodDays) * 100);
 
@@ -105,33 +110,30 @@ export function buildDailyEvidence(
     for (let i = 0; i < daysBack; i++) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
-        const dateKey = date.toISOString().slice(0, 10);
+        // Date locale : c'est le jour vécu (les check-ins sont datés du jour où on les fait)
+        const dateKey = todayLocalISO(date);
 
-        // Calculer le dayIndex global (approximation basée sur la date)
-        const dayIndex = Math.floor(
-            (date.getTime() - new Date('2025-10-01').getTime()) / (1000 * 60 * 60 * 24)
-        );
+        // Index global du jour — `progress[]` est indexé par jour global (0 = 1er oct. 2025),
+        // pas par jour depuis la création du signal.
+        const dayIndex = dayIndexForDate(date);
 
-        // Signaux complétés ce jour
+        // Signaux observables ce jour (créés à cette date) et complétés
         let signalsCompleted = 0;
-        let signalsTotal = linkedHabits.length;
+        let signalsTotal = 0;
 
         for (const habit of linkedHabits) {
             const startIdx = habit.startDayIndex ?? 0;
-            const idx = dayIndex - startIdx;
-            if (idx >= 0 && idx < habit.progress.length && habit.progress[idx]) {
-                signalsCompleted++;
-            }
+            if (dayIndex < startIdx || dayIndex < 0 || dayIndex >= habit.progress.length) continue;
+            signalsTotal++;
+            if (habit.progress[dayIndex]) signalsCompleted++;
         }
 
         // Accusateurs actifs ce jour
         let accusatorsActive = 0;
         for (const accuser of accusers) {
             const startIdx = accuser.startDayIndex ?? 0;
-            const idx = dayIndex - startIdx;
-            if (idx >= 0 && idx < accuser.progress.length && accuser.progress[idx]) {
-                accusatorsActive++;
-            }
+            if (dayIndex < startIdx || dayIndex < 0 || dayIndex >= accuser.progress.length) continue;
+            if (accuser.progress[dayIndex]) accusatorsActive++;
         }
 
         // Mood du jour

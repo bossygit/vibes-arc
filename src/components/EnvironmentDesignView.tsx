@@ -105,7 +105,7 @@ const EnvironmentDesignView: React.FC = () => {
             Ici, on ne “compte pas sur la volonté”. On rend le bon comportement <strong>facile</strong> et le mauvais <strong>coûteux</strong>.
           </p>
         </div>
-        <button onClick={() => setView('dashboard')} className="btn-secondary flex items-center gap-2">
+        <button onClick={() => setView('hubIdentity')} className="btn-secondary flex items-center gap-2">
           <ArrowLeft className="w-4 h-4" />
           Retour
         </button>

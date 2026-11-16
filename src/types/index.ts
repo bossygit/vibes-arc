@@ -48,7 +48,16 @@ export interface Streak {
     endDate: string;
 }
 
-export type ViewType = 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations' | 'pivotCoach' | 'dailyAlignment' | 'lifeExperiments' | 'vibesInsights' | 'segmentIntending' | 'journal' | 'nutrition' | 'coherence';
+/**
+ * Vues de l'application.
+ * - `arc` : accueil « Mon Arc » (le cycle Vision → Identité → Action → Évolution)
+ * - `hub*` : page d'entrée de chacune des 4 étapes
+ * - les autres clés sont les modules, rattachés à une étape dans `src/config/arc.ts`
+ */
+export type ViewType =
+    | 'arc' | 'hubVision' | 'hubIdentity' | 'hubAction' | 'hubEvolution'
+    | 'dashboard' | 'identities' | 'addHabit' | 'habitDetail' | 'rewards' | 'templates' | 'magicGratitude' | 'moneyMindset' | 'focusWheel' | 'priming' | 'environment' | 'manifestation' | 'coachChat' | 'accountSettings' | 'innerChild' | 'karmicGarden' | 'voieControle' | 'focusHold' | 'tribunal' | 'moodCheckin' | 'visualizations' | 'pivotCoach' | 'dailyAlignment' | 'lifeExperiments' | 'vibesInsights' | 'segmentIntending' | 'journal' | 'nutrition' | 'coherence'
+    | 'innerWorld';
 
 export interface AppState {
     identities: Identity[];

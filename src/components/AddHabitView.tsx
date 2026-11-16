@@ -16,7 +16,7 @@ const AddHabitView: React.FC = () => {
     const handleAddHabit = () => {
         if (newHabit.name.trim() && newHabit.linkedIdentities.length > 0) {
             addHabit(newHabit);
-            setView('dashboard');
+            setView('hubAction');
         }
     };
 

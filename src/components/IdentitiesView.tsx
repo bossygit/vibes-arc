@@ -278,7 +278,7 @@ const IdentitiesView: React.FC = () => {
             </div>
 
             {isDragging && (
-                <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-indigo-600 text-white text-sm shadow-lg pointer-events-none animate-pulse">
+                <div className="fixed bottom-24 lg:bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-indigo-600 text-white text-sm shadow-lg pointer-events-none animate-pulse">
                     Approche du bord bas ou haut pour faire défiler la page
                 </div>
             )}

@@ -3,6 +3,65 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 import { handleOffSearch, handleOffProduct } from './api/nutrition/_off'
 import { getUsdaApiKey, searchUsdaFoods } from './api/nutrition/_usda'
+import { readInnerWorldSnapshot, resolveVaultConfig } from './server/innerWorldVault'
+
+/**
+ * Module « Monde intérieur » : lit le coffre Obsidian (Image Streaming + rêves)
+ * pendant `vite dev`. N'existe pas en production — l'app y lit l'instantané publié
+ * dans Supabase.
+ *
+ * Données intimes : on refuse les requêtes d'un autre site (Vite 4 répond à
+ * toutes les origines en CORS) et les hôtes inattendus (DNS rebinding).
+ */
+function isTrustedHost(hostHeader: string | undefined): boolean {
+  const host = (hostHeader ?? '').replace(/:\d+$/, '').replace(/^\[|\]$/g, '')
+  return (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '::1' ||
+    host.endsWith('.local') ||
+    /^10\./.test(host) ||
+    /^192\.168\./.test(host) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+  )
+}
+
+function innerWorldApiPlugin(mode: string): Plugin {
+  const env = loadEnv(mode, process.cwd(), '')
+  return {
+    name: 'vibes-arc:inner-world',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        const url = new URL(req.url ?? '/', 'http://localhost')
+        if (url.pathname !== '/api/inner-world') return next()
+
+        const send = (status: number, body: unknown) => {
+          res.statusCode = status
+          res.setHeader('Content-Type', 'application/json')
+          res.setHeader('Cache-Control', 'no-store')
+          res.end(JSON.stringify(body))
+        }
+
+        if (req.method !== 'GET') return send(405, { error: 'Méthode non autorisée' })
+        if (req.headers['sec-fetch-site'] === 'cross-site' || !isTrustedHost(req.headers.host)) {
+          return send(403, { error: 'Accès refusé' })
+        }
+
+        try {
+          const config = resolveVaultConfig((key) => process.env[key] ?? env[key])
+          const snapshot = await readInnerWorldSnapshot(config)
+          if (!snapshot) {
+            return send(404, { error: 'Coffre Obsidian introuvable', vaultPath: config.vaultPath })
+          }
+          send(200, snapshot)
+        } catch (error) {
+          send(500, { error: error instanceof Error ? error.message : 'Lecture du coffre impossible' })
+        }
+      })
+    },
+  }
+}
 
 /**
  * Émule les fonctions serverless du module Nutrition pendant `vite dev`.
@@ -107,7 +166,7 @@ function nutritionApiPlugin(mode: string): Plugin {
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), nutritionApiPlugin(mode)],
+  plugins: [react(), nutritionApiPlugin(mode), innerWorldApiPlugin(mode)],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
