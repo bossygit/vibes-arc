@@ -21,10 +21,27 @@
  * en ignorant les images identiques à la précédente (précision moindre).
  */
 
-import type { RrSource, RrSourceOptions } from './sources';
+import type { RrSource, RrSourceOptions, TorchState } from './sources';
 import { PpgBeatDetector, cameraSampleToPulse } from './ppgProcessor';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+/**
+ * Déduit l'état réel de la torche. Pur (testable en Node).
+ * Une contrainte `advanced` non satisfaite est IGNORÉE sans erreur par le
+ * navigateur : seul getSettings().torch confirme que la torche est allumée.
+ */
+export function torchStateFrom(
+    capabilityTorch: unknown,
+    applied: boolean,
+    settingTorch: unknown
+): TorchState {
+    if (!capabilityTorch) return 'unavailable';
+    if (!applied) return 'off';
+    if (settingTorch === true) return 'on';
+    if (settingTorch === false) return 'off';
+    return 'unknown';
+}
 
 const PROCESS_SIZE = 100; // canvas de traitement (crop centré 50×50)
 const RVFC_WATCHDOG_MS = 2000;
@@ -81,15 +98,8 @@ export class CameraPpgSource implements RrSource {
         await this.video.play();
 
         // Torche (flash) si le matériel l'expose — améliore nettement le signal.
-        try {
-            const track = stream.getVideoTracks()[0];
-            const capabilities = track.getCapabilities ? (track.getCapabilities() as any) : {};
-            if (capabilities?.torch) {
-                await track.applyConstraints({ advanced: [{ torch: true }] as any });
-            }
-        } catch {
-            // torche indisponible : on continue sans
-        }
+        // On continue sans si elle est absente, mais l'état réel est remonté à l'UI.
+        this.opts.onTorch?.(await this.enableTorch(stream));
 
         // Réinitialiser l'état de session
         this.detector = new PpgBeatDetector({
@@ -136,6 +146,33 @@ export class CameraPpgSource implements RrSource {
             this.video.srcObject = null;
         }
         this.detector = null;
+    }
+
+    /** Tente d'allumer la torche et renvoie son état réel (jamais d'exception). */
+    private async enableTorch(stream: MediaStream): Promise<TorchState> {
+        const track = stream.getVideoTracks()[0];
+        if (!track) return 'unavailable';
+        let capabilityTorch: unknown;
+        try {
+            capabilityTorch = track.getCapabilities ? (track.getCapabilities() as any)?.torch : undefined;
+        } catch {
+            capabilityTorch = undefined;
+        }
+        if (!capabilityTorch) return 'unavailable';
+        let applied = false;
+        try {
+            await track.applyConstraints({ advanced: [{ torch: true }] as any });
+            applied = true;
+        } catch {
+            applied = false;
+        }
+        let settingTorch: unknown;
+        try {
+            settingTorch = track.getSettings ? (track.getSettings() as any)?.torch : undefined;
+        } catch {
+            settingTorch = undefined;
+        }
+        return torchStateFrom(capabilityTorch, applied, settingTorch);
     }
 
     /** Moyenne du canal rouge sur le crop central 50×50 de l'image courante (null si indisponible). */

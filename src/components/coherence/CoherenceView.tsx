@@ -32,7 +32,7 @@ import {
     COHERENCE_WINDOW_RR,
     type CoherenceLevel,
 } from '@/utils/hrv/coherence';
-import { DemoRrSource, type RrSource } from '@/utils/hrv/sources';
+import { DemoRrSource, type RrSource, type TorchState } from '@/utils/hrv/sources';
 import { BleHeartRateSource } from '@/utils/hrv/bleHeartRate';
 import { CameraPpgSource } from '@/utils/hrv/ppgCamera';
 import {
@@ -64,6 +64,14 @@ interface LiveStats {
 }
 
 const HABIT_NAME = 'Cohérence Cardiaque';
+
+const LAMP_TIP = 'place une lampe vive face au dos de l’appareil, la lumière doit traverser ton doigt.';
+const TORCH_LABELS: Record<TorchState, string> = {
+    on: 'Torche : allumée ✓',
+    off: `Torche : présente mais restée éteinte — ${LAMP_TIP}`,
+    unknown: 'Torche : allumage demandé, mais le navigateur ne confirme pas — vérifie au dos de l’appareil.',
+    unavailable: `Torche : non accessible depuis ce navigateur — ${LAMP_TIP}`,
+};
 
 function formatDuration(ms: number): string {
     const totalSec = Math.max(0, Math.round(ms / 1000));
@@ -104,6 +112,8 @@ const CoherenceView: React.FC = () => {
     const [calibSec, setCalibSec] = useState(0);
     /** Session réelle terminée mais NON enregistrée : signal instable, ou trop courte pour un score. */
     const [sessionNotice, setSessionNotice] = useState<'' | 'unstable' | 'short'>('');
+    /** Caméra : état réel de la torche (null tant que la caméra n'a pas démarré). */
+    const [torch, setTorch] = useState<TorchState | null>(null);
 
     const cpmRef = useRef(cpm);
     useEffect(() => {
@@ -200,6 +210,7 @@ const CoherenceView: React.FC = () => {
         setSessionNotice('');
         setScoreBlocked(false);
         setCalibSec(0);
+        setTorch(null);
         setStarting(true);
 
         // Réinitialisation de session
@@ -328,7 +339,11 @@ const CoherenceView: React.FC = () => {
                 if (!videoRef.current || !processCanvasRef.current) {
                     throw new Error('Éléments caméra indisponibles.');
                 }
-                source = new CameraPpgSource({ onRr, onStatus }, videoRef.current, processCanvasRef.current);
+                source = new CameraPpgSource(
+                    { onRr, onStatus, onTorch: setTorch },
+                    videoRef.current,
+                    processCanvasRef.current
+                );
             }
             sourceRef.current = source;
             await source.start();
@@ -506,6 +521,14 @@ const CoherenceView: React.FC = () => {
                 {sourceKind === 'camera' && (
                     <p className="text-xs text-slate-400">
                         Sur smartphone : pose l’index sur la caméra arrière (torche activée automatiquement si disponible), sans bouger.
+                    </p>
+                )}
+                {sourceKind === 'camera' && torch && (
+                    <p
+                        role="status"
+                        className={`text-xs font-medium ${torch === 'on' ? 'text-emerald-300' : 'text-amber-300'}`}
+                    >
+                        🔦 {TORCH_LABELS[torch]}
                     </p>
                 )}
 
