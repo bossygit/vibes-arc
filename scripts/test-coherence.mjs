@@ -23,7 +23,8 @@ writeFileSync(
 export * from '@/utils/hrv/coherence';
 export { PpgBeatDetector, cameraSampleToPulse } from '@/utils/hrv/ppgProcessor';
 export { torchStateFrom } from '@/utils/hrv/ppgCamera';
-export { computeRmssd } from '@/utils/hrv/sessionStats';
+export * from '@/utils/hrv/sessionStats';
+export * from '@/utils/hrv/sessionRows';
 `
 );
 await build({
@@ -41,6 +42,12 @@ const {
     cameraSampleToPulse,
     torchStateFrom,
     computeRmssd,
+    mergeSessions,
+    sessionAlgoVersion,
+    summarizeByMode,
+    recordToRow,
+    rowToRecord,
+    COHERENCE_ALGO_FIX_AT,
     COHERENCE_MIN_RR,
     COHERENCE_MIN_SPAN_S,
 } = await import(pathToFileURL(path.join(outDir, 'bundle.mjs')).href);
@@ -433,6 +440,44 @@ check('Torche exposée mais allumage refusé → éteinte', torchStateFrom(true,
 check('Allumage accepté et confirmé par la caméra → allumée', torchStateFrom(true, true, true) === 'on');
 check('Contrainte ignorée en silence (réglage relu = false) → éteinte, pas « allumée »', torchStateFrom(true, true, false) === 'off');
 check('Navigateur qui ne relit pas le réglage → non confirmée', torchStateFrom(true, true, undefined) === 'unknown');
+
+/* ────────────────── D. Historique partagé (Supabase) ────────────────── */
+
+console.log('\nD. Historique — fusion local/cloud, version de calcul, conversion des lignes');
+{
+    const rec = (id, endedAt, extra = {}) => ({
+        id, endedAt, mode: 'guide', source: 'camera', durationMs: 300000, beats: 300,
+        avgScore: 6.4, highPct: 40, avgBpm: 66, rmssd: 40, sdnn: 50, ...extra,
+    });
+    const before = '2026-11-20T08:00:00.000Z';
+    const after = '2026-11-23T15:03:00.000Z';
+
+    const merged = mergeSessions(
+        [rec('a', '2026-11-21T10:00:00.000Z'), rec('b', '2026-11-22T10:00:00.000Z', { avgScore: 1 })],
+        [rec('b', '2026-11-22T10:00:00.000Z', { avgScore: 7 }), rec('c', '2026-11-20T10:00:00.000Z')],
+    );
+    check('Fusion : chaque séance une seule fois (même id = même séance)', merged.map((s) => s.id).join() === 'c,a,b', merged.map((s) => s.id).join());
+    check('Fusion : la copie cloud l\'emporte', merged.find((s) => s.id === 'b').avgScore === 7);
+
+    check('Version explicite respectée', sessionAlgoVersion(rec('x', before, { algoVersion: 2 })) === 2);
+    check(`Sans version, terminée avant ${COHERENCE_ALGO_FIX_AT} → calcul v1`, sessionAlgoVersion(rec('x', before)) === 1);
+    check('Sans version, terminée après la correction → calcul v2', sessionAlgoVersion(rec('x', after)) === 2);
+
+    const summary = summarizeByMode([rec('old', before, { avgScore: 9 }), rec('new', after, { avgScore: 5, algoVersion: 2 })]);
+    check('Comparaison : les séances v1 (avant correction) ne sont pas comptées', summary.guide.count === 1 && summary.guide.avgScore === 5, `${summary.guide.count} séance(s), score ${summary.guide.avgScore}`);
+
+    const original = rec('rt', after, { algoVersion: 2 });
+    const row = recordToRow(original);
+    // Postgres renvoie l'horodatage en « +00:00 » et le NUMERIC parfois en chaîne
+    const back = rowToRecord({ ...row, ended_at: '2026-11-23T15:03:00+00:00', avg_score: '6.4' });
+    check('Aller-retour séance → ligne → séance identique', JSON.stringify(back) === JSON.stringify(original), JSON.stringify(back));
+    check('Valeurs hors schéma bornées (BPM 999 → 400, % 130 → 100)', (() => {
+        const r = recordToRow(rec('b1', after, { avgBpm: 999, highPct: 130 }));
+        return r.avg_bpm === 400 && r.high_pct === 100;
+    })());
+    check('Séance invalide (mode démo, date illisible) → non envoyée', recordToRow(rec('d', after, { mode: 'demo' })) === null && recordToRow(rec('e', 'pas une date')) === null);
+    check('Ligne cloud invalide → ignorée', rowToRecord({ id: 'z', ended_at: 'x', mode: 'guide', source: 'camera' }) === null);
+}
 
 /* ────────────────────────── bilan ────────────────────────── */
 

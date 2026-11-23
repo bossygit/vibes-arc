@@ -6,16 +6,28 @@
 
 import React from 'react';
 import { Eye, Trash2, Wind } from 'lucide-react';
-import { summarizeByMode, type CoherenceSessionRecord } from '@/utils/hrv/sessionStats';
+import { isComparableSession, summarizeByMode, type CoherenceSessionRecord } from '@/utils/hrv/sessionStats';
+import type { CoherenceCloudState } from '@/services/coherenceSessionService';
 
 interface SessionHistoryProps {
     sessions: CoherenceSessionRecord[];
+    /** null : synchronisation en cours */
+    cloudState: CoherenceCloudState | null;
     onClear: () => void;
 }
 
-const SessionHistory: React.FC<SessionHistoryProps> = ({ sessions, onClear }) => {
+const CLOUD_LABELS: Record<CoherenceCloudState | 'pending', { text: string; className: string }> = {
+    pending: { text: 'Synchronisation de l’historique…', className: 'text-slate-500' },
+    synced: { text: 'Historique partagé entre tes appareils ✓', className: 'text-emerald-400/80' },
+    'local-only': { text: 'Historique local à cet appareil (partage pas encore activé)', className: 'text-slate-500' },
+    error: { text: 'Partage momentanément indisponible — tes séances sont gardées ici et seront envoyées plus tard', className: 'text-amber-300/80' },
+};
+
+const SessionHistory: React.FC<SessionHistoryProps> = ({ sessions, cloudState, onClear }) => {
     const summary = summarizeByMode(sessions);
     const last = sessions.slice(-12);
+    const olderCount = sessions.filter((s) => !isComparableSession(s)).length;
+    const cloud = CLOUD_LABELS[cloudState ?? 'pending'];
 
     const fmt = (value: number | null, suffix = '') => (value === null ? '—' : `${value}${suffix}`);
     const fmtDate = (iso: string) => {
@@ -42,7 +54,7 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ sessions, onClear }) =>
                 {sessions.length > 0 && (
                     <button
                         onClick={() => {
-                            if (window.confirm('Effacer l’historique local des sessions ?')) onClear();
+                            if (window.confirm('Effacer l’historique des séances de cohérence sur tous tes appareils ?')) onClear();
                         }}
                         className="text-[11px] text-slate-500 hover:text-rose-300 flex items-center gap-1 shrink-0"
                     >
@@ -55,8 +67,8 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ sessions, onClear }) =>
             {sessions.length === 0 ? (
                 <p className="text-xs text-slate-400">
                     Aucune session enregistrée pour le moment. Termine une session « Observation libre » et une session
-                    « Cohérence guidée » (≥ 30 battements) : la comparaison s’affichera ici. Les sessions du Mode Démo ne
-                    sont jamais enregistrées.
+                    « Cohérence guidée » (au moins 1 minute de signal propre) : la comparaison s’affichera ici. Les
+                    sessions du Mode Démo ne sont jamais enregistrées.
                 </p>
             ) : (
                 <>
@@ -96,12 +108,12 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ sessions, onClear }) =>
                                 <div
                                     key={session.id}
                                     className="flex-1 flex flex-col items-center justify-end gap-1"
-                                    title={`${session.mode === 'guide' ? 'Guidée' : 'Observation libre'} · ${fmtDate(session.endedAt)} · score ${session.avgScore ?? '—'}/10 · ${session.beats} battements`}
+                                    title={`${session.mode === 'guide' ? 'Guidée' : 'Observation libre'} · ${fmtDate(session.endedAt)} · score ${session.avgScore ?? '—'}/10 · ${session.beats} battements${isComparableSession(session) ? '' : ' · mesure ancienne (avant la correction du 23/11), non comptée'}`}
                                 >
                                     <div
                                         className={`w-full rounded-t ${
                                             session.mode === 'guide' ? 'bg-cyan-400/80' : 'bg-violet-400/80'
-                                        }`}
+                                        } ${isComparableSession(session) ? '' : 'opacity-25'}`}
                                         style={{ height: `${Math.max(4, ((session.avgScore ?? 0) / 10) * 60)}px` }}
                                     />
                                     <span className="text-[9px] text-slate-500">{fmtDate(session.endedAt)}</span>
@@ -129,8 +141,16 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ sessions, onClear }) =>
                         lentement. Ne compare pas libre et guidée avec lui ; suis plutôt son évolution dans un même
                         mode, semaine après semaine.
                     </p>
+                    {olderCount > 0 && (
+                        <p className="text-[11px] text-slate-500">
+                            {olderCount} séance{olderCount > 1 ? 's' : ''} mesurée{olderCount > 1 ? 's' : ''} avant la
+                            correction du 23/11 (barres pâles) : gardée{olderCount > 1 ? 's' : ''} dans l’historique,
+                            mais pas comptée{olderCount > 1 ? 's' : ''} dans la comparaison.
+                        </p>
+                    )}
                 </>
             )}
+            <p className={`text-[11px] ${cloud.className}`}>{cloud.text}</p>
         </div>
     );
 };

@@ -1997,6 +1997,50 @@ class SupabaseDatabaseClient {
         if (error) throw error;
         return syncedAt;
     }
+
+    // ===== Cohérence cardiaque — séances (migration 20261123_coherence_sessions) =====
+    // Lignes brutes (snake_case) : la conversion vit dans services/coherenceSessionService.ts.
+
+    /** Toutes les séances de l'utilisateur, plus anciennes d'abord. Lève une erreur si la table est absente. */
+    async getCoherenceSessionRows(): Promise<Record<string, unknown>[]> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { data, error } = await this.supabase
+            .from('coherence_sessions')
+            .select('id, ended_at, mode, source, duration_ms, beats, avg_score, high_pct, avg_bpm, rmssd, sdnn, algo_version')
+            .eq('user_id', user.id)
+            .order('ended_at', { ascending: true });
+
+        if (error) throw error;
+        return (data ?? []) as Record<string, unknown>[];
+    }
+
+    /** Ajoute ou met à jour des séances (clé : user_id + id) — idempotent. */
+    async upsertCoherenceSessionRows(rows: Record<string, unknown>[]): Promise<void> {
+        if (rows.length === 0) return;
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { error } = await this.supabase
+            .from('coherence_sessions')
+            .upsert(rows.map((row) => ({ ...row, user_id: user.id })), { onConflict: 'user_id,id' });
+
+        if (error) throw error;
+    }
+
+    /** Efface toutes les séances de l'utilisateur (tous appareils). */
+    async deleteAllCoherenceSessions(): Promise<void> {
+        const user = await this.getCurrentUser();
+        if (!user) throw new Error('Utilisateur non authentifié');
+
+        const { error } = await this.supabase
+            .from('coherence_sessions')
+            .delete()
+            .eq('user_id', user.id);
+
+        if (error) throw error;
+    }
 }
 
 export default SupabaseDatabaseClient;

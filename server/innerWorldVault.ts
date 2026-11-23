@@ -17,6 +17,8 @@ import type {
     ImageStreamingSession,
     ImageStreamingSymbol,
     InnerWorldSnapshot,
+    PracticeItem,
+    RareParallel,
 } from '../src/types/innerWorld';
 
 export interface VaultConfig {
@@ -220,6 +222,62 @@ async function readDreams(dir: string): Promise<DreamEntry[]> {
     return dreams.sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
 }
 
+// ── Données écrites par le bot Image Streaming (facultatives) ───────────────
+
+const str = (value: unknown): string => (typeof value === 'string' ? value : '');
+const num = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+const DIRECTIONS: RareParallel['direction'][] = ['session → rêve', 'rêve → session', 'même jour'];
+const PRACTICE_STATUS: PracticeItem['status'][] = ['active', 'done', 'dropped'];
+
+/** `dream_parallels.json` (écrit par dream_parallels.py) → parallèles rares ; [] si absent ou illisible. */
+export function parseRareParallels(raw: unknown): RareParallel[] {
+    const list = (raw as { parallels?: unknown } | null)?.parallels;
+    if (!Array.isArray(list)) return [];
+    const out: RareParallel[] = [];
+    for (const item of list as Record<string, unknown>[]) {
+        const sessionDate = toIsoDate(str(item?.session_date));
+        const dreamDate = toIsoDate(str(item?.dream_date));
+        const direction = item?.direction as RareParallel['direction'];
+        const words = stringArray(item?.words);
+        if (!str(item?.session) || !str(item?.dream) || !sessionDate || !dreamDate || words.length === 0) continue;
+        out.push({
+            session: str(item.session),
+            sessionDate,
+            dream: str(item.dream),
+            dreamDate,
+            gapDays: Math.abs(num(item.gap_days) ?? 0),
+            direction: DIRECTIONS.includes(direction) ? direction : 'même jour',
+            words,
+            sessionExcerpt: str(item.session_excerpt),
+            dreamExcerpt: str(item.dream_excerpt),
+        });
+    }
+    return out;
+}
+
+/** `practice_reminders.json` (écrit par reminders.py) → exercices ; [] si absent ou illisible. */
+export function parsePracticeItems(raw: unknown): PracticeItem[] {
+    const list = (raw as { items?: unknown } | null)?.items;
+    if (!Array.isArray(list)) return [];
+    const out: PracticeItem[] = [];
+    for (const item of list as Record<string, unknown>[]) {
+        const status = item?.status as PracticeItem['status'];
+        if (!str(item?.id) || !str(item?.title) || !PRACTICE_STATUS.includes(status)) continue;
+        out.push({
+            id: str(item.id),
+            sessionNumber: num(item.session_number) ?? 0,
+            type: str(item.type) || 'exercice',
+            title: str(item.title),
+            criterion: str(item.criterion),
+            status,
+            createdAt: str(item.created_at),
+            doneAt: str(item.done_at) || null,
+            doneVia: str(item.done_via) || null,
+        });
+    }
+    return out;
+}
+
 // ── Instantané ──────────────────────────────────────────────────────────────
 
 /** `null` si aucun des deux dossiers n'existe. */
@@ -228,10 +286,12 @@ export async function readInnerWorldSnapshot(config: VaultConfig): Promise<Inner
     if (!hasIs && !hasDreams) return null;
 
     const noSymbols: { symbols: ImageStreamingSymbol[]; updatedAt?: string } = { symbols: [] };
-    const [sessions, symbolData, dreams] = await Promise.all([
+    const [sessions, symbolData, dreams, parallelsRaw, practiceRaw] = await Promise.all([
         hasIs ? readSessions(config.imageStreamingDir) : Promise.resolve([]),
         hasIs ? readSymbols(config.imageStreamingDir) : Promise.resolve(noSymbols),
         hasDreams ? readDreams(config.dreamsDir) : Promise.resolve([]),
+        hasIs ? readJson<unknown>(path.join(config.imageStreamingDir, 'dream_parallels.json')) : Promise.resolve(null),
+        hasIs ? readJson<unknown>(path.join(config.imageStreamingDir, 'practice_reminders.json')) : Promise.resolve(null),
     ]);
 
     return {
@@ -241,5 +301,7 @@ export async function readInnerWorldSnapshot(config: VaultConfig): Promise<Inner
         sessions,
         symbols: symbolData.symbols,
         dreams,
+        parallels: parseRareParallels(parallelsRaw),
+        practice: parsePracticeItems(practiceRaw),
     };
 }

@@ -38,7 +38,7 @@ import { CameraPpgSource } from '@/utils/hrv/ppgCamera';
 import {
     appendSession,
     assessSignalQuality,
-    clearSessions,
+    COHERENCE_ALGO_VERSION,
     computeRmssd,
     computeSdnn,
     loadSessions,
@@ -46,6 +46,12 @@ import {
     type CoherenceSessionRecord,
     type PracticeMode,
 } from '@/utils/hrv/sessionStats';
+import {
+    clearAllCoherenceSessions,
+    pushCoherenceSession,
+    syncCoherenceSessions,
+    type CoherenceCloudState,
+} from '@/services/coherenceSessionService';
 import { getCurrentDayIndex } from '@/utils/habitUtils';
 import { totalDays } from '@/utils/dateUtils';
 import BreathingOrb from './BreathingOrb';
@@ -114,6 +120,21 @@ const CoherenceView: React.FC = () => {
     const [sessionNotice, setSessionNotice] = useState<'' | 'unstable' | 'short'>('');
     /** Caméra : état réel de la torche (null tant que la caméra n'a pas démarré). */
     const [torch, setTorch] = useState<TorchState | null>(null);
+    /** Historique partagé via Supabase (null : synchronisation en cours). */
+    const [cloudState, setCloudState] = useState<CoherenceCloudState | null>(null);
+
+    // Au chargement : fusion de l'historique local et de Supabase (tous appareils)
+    useEffect(() => {
+        let cancelled = false;
+        void syncCoherenceSessions().then((result) => {
+            if (cancelled) return;
+            setSessions(result.sessions);
+            setCloudState(result.cloud);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const cpmRef = useRef(cpm);
     useEffect(() => {
@@ -182,8 +203,10 @@ const CoherenceView: React.FC = () => {
                 avgBpm: bpmCountRef.current ? Math.round(bpmSumRef.current / bpmCountRef.current) : null,
                 rmssd: computeRmssd(rrList),
                 sdnn: computeSdnn(rrList),
+                algoVersion: COHERENCE_ALGO_VERSION,
             };
             setSessions(appendSession(record));
+            void pushCoherenceSession(record).then(setCloudState);
             setSavedRecord(record);
             setSessionNotice('');
         } else {
@@ -725,10 +748,11 @@ const CoherenceView: React.FC = () => {
             {/* ── Comparaison des sessions (libre vs guidée) ── */}
             <SessionHistory
                 sessions={sessions}
+                cloudState={cloudState}
                 onClear={() => {
-                    clearSessions();
                     setSessions([]);
                     setSavedRecord(null);
+                    void clearAllCoherenceSessions().then(setCloudState);
                 }}
             />
         </div>
