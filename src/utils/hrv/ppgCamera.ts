@@ -11,8 +11,9 @@
  *      image vidéo réelle (~30 fps), horodaté avec l'instant de capture de
  *      l'image via requestVideoFrameCallback (et non le tick d'affichage à
  *      60 Hz, qui relit deux fois la même image et ajoute de la gigue).
- *   3. Détection des battements : voir ppgProcessor.ts (passe-bande 0.7–3.5 Hz,
- *      pics interpolés, rejet des RR aberrants).
+ *   3. Inversion (cameraSampleToPulse) : le rouge BAISSE à chaque battement, le
+ *      détecteur attend un signal qui MONTE. Puis détection des battements : voir
+ *      ppgProcessor.ts (passe-bande 0.7–3.5 Hz, pics interpolés, rejet des RR aberrants).
  *   4. Émission de l'intervalle RR (ms), du BPM lissé et de l'instant du battement.
  *
  * Repli : si requestVideoFrameCallback est absent (iOS < 15.4…) ou ne livre
@@ -21,7 +22,7 @@
  */
 
 import type { RrSource, RrSourceOptions } from './sources';
-import { PpgBeatDetector } from './ppgProcessor';
+import { PpgBeatDetector, cameraSampleToPulse } from './ppgProcessor';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -161,7 +162,7 @@ export class CameraPpgSource implements RrSource {
         // Meilleure horloge disponible, toujours dans la base de performance.now()
         const tMs = metadata?.captureTime ?? metadata?.presentationTime ?? now;
         const avgRed = this.readAverageRed();
-        if (avgRed !== null) this.detector?.push(tMs / 1000, avgRed);
+        if (avgRed !== null) this.detector?.push(tMs / 1000, cameraSampleToPulse(avgRed));
         this.scheduleVideoFrame();
     }
 
@@ -185,6 +186,6 @@ export class CameraPpgSource implements RrSource {
         // Le tick (60 Hz) est plus rapide que la caméra (30 fps) : même image = même valeur exacte
         if (avgRed === null || avgRed === this.lastAvgRed) return;
         this.lastAvgRed = avgRed;
-        this.detector?.push(performance.now() / 1000, avgRed);
+        this.detector?.push(performance.now() / 1000, cameraSampleToPulse(avgRed));
     };
 }

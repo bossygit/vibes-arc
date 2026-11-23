@@ -13,6 +13,8 @@ interface CoherenceGaugeProps {
     peakFreq?: number | null;
     /** Session simulée (Mode Démo) : le score ne mesure pas l'utilisateur. */
     simulated?: boolean;
+    /** Libellé affiché tant qu'il n'y a pas de score (« calibrage… », « signal instable »…). */
+    emptyLabel?: string;
 }
 
 const LEVEL_COLORS: Record<CoherenceLevel, string> = {
@@ -21,9 +23,11 @@ const LEVEL_COLORS: Record<CoherenceLevel, string> = {
     eleve: '#34d399',
 };
 
-const CoherenceGauge: React.FC<CoherenceGaugeProps> = ({ score, level, peakFreq, simulated }) => {
+const UNSTABLE_LABEL = 'signal instable';
+
+const CoherenceGauge: React.FC<CoherenceGaugeProps> = ({ score, level, peakFreq, simulated, emptyLabel = 'collecte…' }) => {
     const value = score ?? 0;
-    const color = level ? LEVEL_COLORS[level] : '#475569';
+    const color = level ? LEVEL_COLORS[level] : emptyLabel === UNSTABLE_LABEL ? '#fbbf24' : '#475569';
 
     return (
         <div className="flex flex-col items-center">
@@ -61,7 +65,7 @@ const CoherenceGauge: React.FC<CoherenceGaugeProps> = ({ score, level, peakFreq,
                     {score === null ? '—' : score.toFixed(1)}
                 </text>
                 <text x="100" y="102" textAnchor="middle" fontSize="12" fill={color}>
-                    {level ? LEVEL_LABELS[level] : 'collecte…'}
+                    {level ? LEVEL_LABELS[level] : emptyLabel}
                 </text>
                 <text x="100" y="122" textAnchor="middle" fontSize="10" fill="#64748b">
                     {peakFreq ? `pic ${peakFreq.toFixed(3)} Hz` : 'cohérence 0-10'}

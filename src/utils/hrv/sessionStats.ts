@@ -3,8 +3,10 @@
  *
  * Permet de comparer « Observation libre » (pas de guidage respiratoire) et
  * « Cohérence guidée » (respiration à 4.5-7 cpm) :
- *   - RMSSD : variabilité battement-à-battement (tonus parasympathique)
- *   - SDNN  : écart-type des intervalles RR (variabilité globale)
+ *   - SDNN  : écart-type des intervalles RR (variabilité globale) — métrique de
+ *     comparaison libre/guidée, indépendante du rythme respiratoire
+ *   - RMSSD : variabilité battement-à-battement (tonus parasympathique) — dépend
+ *     du rythme respiratoire, donc à ne PAS comparer entre libre et guidée
  *
  * Stockage : localStorage (v1) — suffisant pour comparer sur le même appareil.
  * Étape suivante possible : table Supabase `coherence_sessions` pour croiser
@@ -126,6 +128,12 @@ export interface ModeSummary {
     avgHighPct: number | null;
     avgBpm: number | null;
     avgRmssd: number | null;
+    /**
+     * SDNN moyen : LA bonne métrique pour comparer libre et guidée. Le RMSSD dépend
+     * du rythme respiratoire (à amplitude égale, il BAISSE quand on respire
+     * lentement : ~24 ms à 6 cpm contre ~47 ms à 15 cpm), le SDNN non.
+     */
+    avgSdnn: number | null;
     totalMinutes: number;
 }
 
@@ -135,6 +143,7 @@ const EMPTY_SUMMARY: ModeSummary = {
     avgHighPct: null,
     avgBpm: null,
     avgRmssd: null,
+    avgSdnn: null,
     totalMinutes: 0,
 };
 
@@ -165,6 +174,7 @@ export function summarizeByMode(sessions: CoherenceSessionRecord[]): Record<Prac
             avgHighPct: average(list.map((s) => s.highPct)),
             avgBpm: average(list.map((s) => s.avgBpm)),
             avgRmssd: average(list.map((s) => s.rmssd)),
+            avgSdnn: average(list.map((s) => s.sdnn)),
             totalMinutes: Math.round(list.reduce((sum, s) => sum + s.durationMs, 0) / 60000),
         };
     });

@@ -1,9 +1,17 @@
 /**
  * Détecteur de battements PPG — pur (aucun accès DOM), donc testable en Node.
  *
- * Entrée : des échantillons (instant en secondes, intensité moyenne du canal
- * rouge) fournis par ppgCamera.ts, UN par image vidéo réelle, avec l'instant de
- * capture de l'image (pas l'instant du tick d'affichage).
+ * Entrée : des échantillons (instant en secondes, valeur du pouls) fournis par
+ * ppgCamera.ts, UN par image vidéo réelle, avec l'instant de capture de l'image
+ * (pas l'instant du tick d'affichage).
+ *
+ * POLARITÉ — la valeur attendue MONTE à chaque battement (polarité « volume
+ * sanguin »). Or l'intensité brute du canal rouge fait l'inverse : à chaque
+ * systole le doigt contient plus de sang, absorbe plus de lumière, et le rouge
+ * BAISSE. La caméra doit donc passer chaque moyenne par cameraSampleToPulse().
+ * Sans cette inversion, les maxima recherchés ici sont le plateau de fin de
+ * diastole (mal défini) au lieu du pic systolique : en simulation, le score
+ * d'une cohérence forte tombait de ~9 à ~1.
  *
  * Chaîne de traitement :
  *   1. Passe-bande 0.7–3.5 Hz : deux biquads Butterworth (passe-haut puis
@@ -104,6 +112,14 @@ class Biquad {
         this.y1 = 0;
         this.y2 = 0;
     }
+}
+
+/**
+ * Convertit la moyenne du canal rouge (0-255) en signal de pouls pour PpgBeatDetector :
+ * l'intensité baisse quand le volume sanguin monte, on l'inverse (voir POLARITÉ ci-dessus).
+ */
+export function cameraSampleToPulse(avgRed: number): number {
+    return 255 - avgRed;
 }
 
 function median(values: number[]): number {
