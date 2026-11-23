@@ -52,6 +52,45 @@ export interface DreamEntry {
     wakeTime?: string;
 }
 
+/**
+ * Parallèle rare rêve ↔ séance, détecté par le bot Image Streaming
+ * (`dream_parallels.json` dans le dossier Image Streaming) : un mot présent dans
+ * ≤ 5 % des séances, partagé avec un rêve noté à ±7 jours.
+ */
+export interface RareParallel {
+    /** Nom de la note de séance (sans .md) */
+    session: string;
+    /** YYYY-MM-DD */
+    sessionDate: string;
+    /** Titre du rêve */
+    dream: string;
+    /** YYYY-MM-DD */
+    dreamDate: string;
+    /** Écart en jours (valeur absolue) */
+    gapDays: number;
+    direction: 'session → rêve' | 'rêve → session' | 'même jour';
+    /** Mots rares partagés, les plus rares d'abord */
+    words: string[];
+    sessionExcerpt: string;
+    dreamExcerpt: string;
+}
+
+/** Exercice ou point d'attention proposé par l'analyse d'une séance (`practice_reminders.json`). */
+export interface PracticeItem {
+    id: string;
+    sessionNumber: number;
+    /** « exercice » ou « attention » */
+    type: string;
+    title: string;
+    criterion: string;
+    status: 'active' | 'done' | 'dropped';
+    /** ISO */
+    createdAt: string;
+    doneAt: string | null;
+    /** Où il a été confirmé : telegram, ios */
+    doneVia: string | null;
+}
+
 export interface InnerWorldSnapshot {
     version: 1;
     /** Construction de l'instantané (ISO) */
@@ -61,4 +100,8 @@ export interface InnerWorldSnapshot {
     sessions: ImageStreamingSession[];
     symbols: ImageStreamingSymbol[];
     dreams: DreamEntry[];
+    /** Absent des instantanés publiés avant le 2026-11-23 */
+    parallels?: RareParallel[];
+    /** Absent des instantanés publiés avant le 2026-11-23 */
+    practice?: PracticeItem[];
 }

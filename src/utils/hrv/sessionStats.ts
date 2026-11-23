@@ -8,9 +8,10 @@
  *   - RMSSD : variabilité battement-à-battement (tonus parasympathique) — dépend
  *     du rythme respiratoire, donc à ne PAS comparer entre libre et guidée
  *
- * Stockage : localStorage (v1) — suffisant pour comparer sur le même appareil.
- * Étape suivante possible : table Supabase `coherence_sessions` pour croiser
- * ces données avec le coach (Telegram / in-app).
+ * Stockage : table Supabase `coherence_sessions` (tous appareils, lue aussi par
+ * coach-api), avec ce module comme cache local hors-ligne — voir
+ * services/coherenceSessionService.ts. Les fonctions ici restent pures ou
+ * limitées au localStorage, donc testables en Node.
  */
 
 export type PracticeMode = 'guide' | 'libre';
@@ -32,10 +33,49 @@ export interface CoherenceSessionRecord {
     avgBpm: number | null;
     rmssd: number | null;
     sdnn: number | null;
+    /**
+     * Version du calcul. Absent sur les séances enregistrées avant son introduction :
+     * voir sessionAlgoVersion().
+     */
+    algoVersion?: number;
 }
 
 const STORAGE_KEY = 'vibes-arc-coherence-sessions';
-const MAX_SESSIONS = 120;
+/** Cache local (hors-ligne) : la copie de référence est dans Supabase. */
+const MAX_SESSIONS = 500;
+
+/**
+ * Version du calcul actuel. 2 = corrections du 2026-11-23 (signal caméra
+ * inversé, pas de score avant 60 s, pic cherché jusqu'à 0.26 Hz, score suspendu
+ * si signal instable). Les séances v1 ne sont pas comparables aux v2.
+ */
+export const COHERENCE_ALGO_VERSION = 2;
+/** Mise en ligne du calcul v2 : une séance sans algoVersion terminée après cette date est v2. */
+export const COHERENCE_ALGO_FIX_AT = '2026-11-23T13:45:00Z';
+
+export function sessionAlgoVersion(record: Pick<CoherenceSessionRecord, 'algoVersion' | 'endedAt'>): number {
+    if (typeof record.algoVersion === 'number') return record.algoVersion;
+    return record.endedAt >= COHERENCE_ALGO_FIX_AT ? 2 : 1;
+}
+
+/** Séance mesurée avec le calcul actuel — seules celles-ci entrent dans les comparaisons. */
+export function isComparableSession(record: Pick<CoherenceSessionRecord, 'algoVersion' | 'endedAt'>): boolean {
+    return sessionAlgoVersion(record) >= COHERENCE_ALGO_VERSION;
+}
+
+/**
+ * Fusionne l'historique local et celui de Supabase (même id = même séance, la
+ * copie cloud l'emporte). Trié par date de fin croissante.
+ */
+export function mergeSessions(
+    local: CoherenceSessionRecord[],
+    remote: CoherenceSessionRecord[]
+): CoherenceSessionRecord[] {
+    const byId = new Map<string, CoherenceSessionRecord>();
+    for (const s of local) byId.set(s.id, s);
+    for (const s of remote) byId.set(s.id, s);
+    return [...byId.values()].sort((a, b) => a.endedAt.localeCompare(b.endedAt));
+}
 
 /** Écart-type des intervalles RR (ms) — variabilité globale. */
 export function computeSdnn(rrMs: number[]): number | null {
@@ -100,14 +140,19 @@ export function loadSessions(): CoherenceSessionRecord[] {
     }
 }
 
-export function appendSession(record: CoherenceSessionRecord): CoherenceSessionRecord[] {
-    const all = [...loadSessions(), record].slice(-MAX_SESSIONS);
+/** Remplace le cache local (après fusion avec Supabase). */
+export function saveLocalSessions(sessions: CoherenceSessionRecord[]): CoherenceSessionRecord[] {
+    const all = sessions.slice(-MAX_SESSIONS);
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
     } catch {
         // quota plein / mode privé : on n'empêche pas la session de se terminer
     }
     return all;
+}
+
+export function appendSession(record: CoherenceSessionRecord): CoherenceSessionRecord[] {
+    return saveLocalSessions(mergeSessions(loadSessions(), [record]));
 }
 
 export function clearSessions(): void {
@@ -147,10 +192,14 @@ const EMPTY_SUMMARY: ModeSummary = {
     totalMinutes: 0,
 };
 
-/** Agrège l'historique par mode (guide / libre) pour la comparaison. */
+/**
+ * Agrège l'historique par mode (guide / libre) pour la comparaison.
+ * Seules les séances mesurées avec le calcul actuel sont comptées (isComparableSession).
+ */
 export function summarizeByMode(sessions: CoherenceSessionRecord[]): Record<PracticeMode, ModeSummary> {
     const buckets: Record<PracticeMode, CoherenceSessionRecord[]> = { guide: [], libre: [] };
     for (const session of sessions) {
+        if (!isComparableSession(session)) continue;
         if (session.mode === 'guide' || session.mode === 'libre') buckets[session.mode].push(session);
     }
 

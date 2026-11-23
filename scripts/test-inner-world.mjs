@@ -19,6 +19,7 @@ writeFileSync(
     `
 export * from '@/utils/innerWorld/frontmatter';
 export * from '@/utils/innerWorld/analysis';
+export { parseRareParallels, parsePracticeItems } from ${JSON.stringify(path.join(ROOT, 'server', 'innerWorldVault.ts'))};
 `
 );
 await build({
@@ -30,8 +31,10 @@ await build({
     alias: { '@': path.join(ROOT, 'src') },
     logLevel: 'silent',
 });
-const { parseFrontmatter, fmString, fmList, extractSection, excerpt, buildMatcher, symbolTerms, normalizeText, analyzeInnerWorld } =
-    await import(pathToFileURL(path.join(outDir, 'bundle.mjs')).href);
+const {
+    parseFrontmatter, fmString, fmList, extractSection, excerpt, buildMatcher, symbolTerms, normalizeText, analyzeInnerWorld,
+    parseRareParallels, parsePracticeItems,
+} = await import(pathToFileURL(path.join(outDir, 'bundle.mjs')).href);
 
 let passed = 0;
 const failures = [];
@@ -170,6 +173,38 @@ console.log('\nAnalyse croisée rêves ↔ séances');
     check('évolutions de la dernière séance', a.latestEvolutions.map((s) => s.name).join(',') === 'Serpent');
     check('semaines lundi → lundi', a.weeks[0]?.weekStart === '2026-07-06' && a.weeks.at(-1)?.weekStart === '2026-07-20', `${a.weeks[0]?.weekStart} → ${a.weeks.at(-1)?.weekStart}`);
     check('comptes hebdomadaires', a.weeks.reduce((s, w) => s + w.sessions, 0) === 8 && a.weeks.reduce((s, w) => s + w.dreams, 0) === 1);
+}
+
+console.log('\nFichiers écrits par le bot Image Streaming (dream_parallels.json, practice_reminders.json)');
+{
+    // Format exact écrit par dream_parallels.py
+    const parallels = parseRareParallels({
+        generated_at: '2026-11-23T14:00:00+00:00',
+        parallels: [
+            {
+                session: 'Image Streaming - 2026-07-11 0917', session_date: '2026-07-11', dream: 'Olive oil', dream_date: '2026-07-12',
+                gap_days: -1, direction: 'session → rêve', words: ['étagère'], session_excerpt: '…une étagère en bois…', dream_excerpt: '…l’étagère est en bois peint en vert…',
+            },
+            { session: 'X', session_date: 'pas une date', dream: 'Y', dream_date: '2026-07-12', words: ['mot'] },
+            { session: 'X', session_date: '2026-07-11', dream: 'Y', dream_date: '2026-07-12', words: [] },
+        ],
+    });
+    check('parallèle valide lu (dates, mots, sens, écart en valeur absolue)', parallels.length === 1 && parallels[0].words[0] === 'étagère' && parallels[0].gapDays === 1 && parallels[0].direction === 'session → rêve');
+    check('parallèles invalides ignorés (date illisible, aucun mot)', parallels.length === 1);
+    check('fichier absent ou mal formé → aucun parallèle', parseRareParallels(null).length === 0 && parseRareParallels({ parallels: 'x' }).length === 0);
+
+    // Format exact écrit par reminders.py (export_practice)
+    const practice = parsePracticeItems({
+        updated_at: '2026-11-23T15:00:00+01:00',
+        items: [
+            { id: 'd2ff004f', session_number: 44, type: 'exercice', title: 'Entrer par le son quand le sol se dérobe', criterion: 'Au moins un moment…', status: 'active', created_at: '2026-11-23T14:30:00+01:00', done_at: null, done_via: null },
+            { id: 'a1', session_number: 43, type: 'attention', title: 'Fait', criterion: '', status: 'done', created_at: 'x', done_at: '2026-11-22T08:00:00+01:00', done_via: 'ios' },
+            { id: 'bad', session_number: 1, title: 'Statut inconnu', status: 'paused' },
+        ],
+    });
+    check('exercices lus avec leur statut', practice.length === 2 && practice[0].status === 'active' && practice[1].doneVia === 'ios');
+    check('statut inconnu ignoré', !practice.some((p) => p.id === 'bad'));
+    check('fichier absent → aucun exercice', parsePracticeItems(undefined).length === 0);
 }
 
 /* ────────────────────────── bilan ────────────────────────── */

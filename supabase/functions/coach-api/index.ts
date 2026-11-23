@@ -263,12 +263,15 @@ serve(async (req) => {
       return await handlePostKnowledgeGraph(adminClient, userId, req);
     } else if (path.endsWith("/knowledge-graph")) {
       return await handleGetKnowledgeGraph(adminClient, userId);
+    } else if (path.endsWith("/inner-world") && req.method === "POST") {
+      return await handlePostInnerWorld(adminClient, userId, req);
     } else {
       return jsonResponse({
         error: "Unknown endpoint",
         availableEndpoints: [
           "/habits", "/stats", "/today", "/motivation", "/profile",
           "/insights (POST)", "/review-context", "/psychology", "/knowledge-graph",
+          "/inner-world (POST)",
         ],
       }, 404);
     }
@@ -671,6 +674,177 @@ async function handleGetMotivation(
 // ============================================================
 // GET /review-context — Aggregated data for coaching reviews
 // ============================================================
+// ============================================================
+// Pratiques — cohérence cardiaque (table coherence_sessions)
+// ============================================================
+
+type CoherenceRow = {
+  ended_at: string;
+  mode: string;
+  duration_ms: number;
+  avg_score: number | string | null;
+  high_pct: number;
+  sdnn: number | null;
+};
+
+function averageOf(values: Array<number | null>): number | null {
+  const nums = values.filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+  if (nums.length === 0) return null;
+  return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) / 10;
+}
+
+function summarizeCoherence(rows: CoherenceRow[]) {
+  return {
+    seances: rows.length,
+    minutes: Math.round(rows.reduce((sum, r) => sum + (r.duration_ms || 0), 0) / 60000),
+    scoreMoyen: averageOf(rows.map((r) => (r.avg_score === null ? null : Number(r.avg_score)))),
+    pctCoherenceElevee: averageOf(rows.map((r) => r.high_pct)),
+    sdnnMoyen: averageOf(rows.map((r) => r.sdnn)),
+  };
+}
+
+/**
+ * Résumé compact des séances de cohérence (calcul v2 uniquement : les séances
+ * d'avant la correction du 2026-11-23 ne sont pas comparables). null si la
+ * table n'existe pas encore.
+ */
+async function buildCoherenceContext(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+  startDate: Date,
+) {
+  const { data, error } = await adminClient
+    .from("coherence_sessions")
+    .select("ended_at, mode, duration_ms, avg_score, high_pct, sdnn")
+    .eq("user_id", userId)
+    .gte("algo_version", 2)
+    .order("ended_at", { ascending: false })
+    .limit(300);
+  if (error) return null;
+
+  const all = (data || []) as CoherenceRow[];
+  const inPeriod = all.filter((r) => new Date(r.ended_at) >= startDate);
+  const last = all[0];
+  return {
+    periode: {
+      libre: summarizeCoherence(inPeriod.filter((r) => r.mode === "libre")),
+      guidee: summarizeCoherence(inPeriod.filter((r) => r.mode === "guide")),
+    },
+    derniereSeance: last
+      ? {
+          date: String(last.ended_at).slice(0, 10),
+          mode: last.mode === "guide" ? "guidée" : "libre",
+          score: last.avg_score === null ? null : Number(last.avg_score),
+          sdnn: last.sdnn,
+          minutes: Math.round((last.duration_ms || 0) / 60000),
+        }
+      : null,
+    totalSeances: all.length,
+    note: "Score 0-10 (style HeartMath). Comparer libre et guidée avec le SDNN, pas le RMSSD (qui dépend du rythme respiratoire).",
+  };
+}
+
+// ============================================================
+// Monde intérieur — instantané Image Streaming × rêves (table inner_world_snapshots)
+// ============================================================
+
+const MAX_SNAPSHOT_BYTES = 5_000_000;
+
+/** POST /inner-world — publié par le bot Image Streaming (scripts/publish-inner-world.mjs). */
+async function handlePostInnerWorld(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+  req: Request,
+): Promise<Response> {
+  const raw = await req.text();
+  if (raw.length > MAX_SNAPSHOT_BYTES) {
+    return jsonResponse({ error: `snapshot too large (${raw.length} bytes, max ${MAX_SNAPSHOT_BYTES})` }, 413);
+  }
+  // deno-lint-ignore no-explicit-any
+  let snapshot: any;
+  try {
+    snapshot = JSON.parse(raw);
+  } catch {
+    return jsonResponse({ error: "invalid JSON" }, 400);
+  }
+  if (
+    !snapshot || snapshot.version !== 1 ||
+    !Array.isArray(snapshot.sessions) || !Array.isArray(snapshot.symbols) || !Array.isArray(snapshot.dreams)
+  ) {
+    return jsonResponse({ error: "invalid snapshot: expected { version: 1, sessions[], symbols[], dreams[] }" }, 400);
+  }
+
+  const syncedAt = new Date().toISOString();
+  const { error } = await adminClient
+    .from("inner_world_snapshots")
+    .upsert(
+      {
+        user_id: userId,
+        snapshot,
+        generated_at: typeof snapshot.generatedAt === "string" ? snapshot.generatedAt : null,
+        synced_at: syncedAt,
+      },
+      { onConflict: "user_id" },
+    );
+  if (error) return jsonResponse({ error: error.message }, 500);
+
+  return jsonResponse({
+    ok: true,
+    syncedAt,
+    sessions: snapshot.sessions.length,
+    dreams: snapshot.dreams.length,
+    parallels: Array.isArray(snapshot.parallels) ? snapshot.parallels.length : 0,
+    practice: Array.isArray(snapshot.practice) ? snapshot.practice.length : 0,
+  });
+}
+
+/** Résumé compact du monde intérieur pour le coach (null si rien n'a été publié). */
+async function buildInnerWorldContext(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+  startDate: Date,
+) {
+  const { data, error } = await adminClient
+    .from("inner_world_snapshots")
+    .select("snapshot, synced_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error || !data?.snapshot) return null;
+
+  // deno-lint-ignore no-explicit-any
+  const s = data.snapshot as any;
+  const start = startDate.toISOString().slice(0, 10);
+  // deno-lint-ignore no-explicit-any
+  const list = (value: unknown): any[] => (Array.isArray(value) ? value : []);
+  const sessions = list(s.sessions);
+  const last = sessions.reduce(
+    // deno-lint-ignore no-explicit-any
+    (best: any, x: any) => (!best || String(x.date) > String(best.date) ? x : best),
+    null,
+  );
+  const practice = list(s.practice);
+
+  return {
+    seancesPeriode: sessions.filter((x) => String(x.date ?? "") >= start).length,
+    revesPeriode: list(s.dreams).filter((d) => String(d.date ?? "") >= start).length,
+    derniereSeance: last
+      ? { date: last.date, numero: last.number, extrait: String(last.excerpt ?? "").slice(0, 200) }
+      : null,
+    exercicesEnCours: practice
+      .filter((p) => p.status === "active")
+      .slice(0, 3)
+      .map((p) => ({ titre: p.title, critere: String(p.criterion ?? "").slice(0, 160), seance: p.sessionNumber })),
+    exercicesPratiquesPeriode: practice
+      .filter((p) => p.status === "done" && String(p.doneAt ?? "") >= startDate.toISOString())
+      .length,
+    parallelesRares: list(s.parallels)
+      .filter((p) => String(p.sessionDate ?? "") >= start || String(p.dreamDate ?? "") >= start)
+      .slice(0, 3)
+      .map((p) => ({ mots: list(p.words).slice(0, 3), reve: p.dream, sens: p.direction, ecartJours: p.gapDays })),
+    publieLe: data.synced_at,
+  };
+}
+
 async function handleGetReviewContext(
   adminClient: ReturnType<typeof createClient>,
   userId: string,
@@ -838,6 +1012,11 @@ async function handleGetReviewContext(
     texte: String(row.content ?? "").slice(0, 400),
   }));
 
+  const pratiques = {
+    coherenceCardiaque: await buildCoherenceContext(adminClient, userId, startDate),
+    mondeInterieur: await buildInnerWorldContext(adminClient, userId, startDate),
+  };
+
   return jsonResponse({
     period: {
       type: period,
@@ -851,6 +1030,8 @@ async function handleGetReviewContext(
     // Journal placé tôt dans la réponse : le bot lit le JSON tronqué (8000 chars),
     // le journal doit rester visible pour être transmis au coach.
     journal,
+    // Pratiques (cohérence, monde intérieur) : compactes, juste après le journal pour la même raison.
+    pratiques,
     habits: {
       total: habits.length,
       analytics: habitAnalytics,

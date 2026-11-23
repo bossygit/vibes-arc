@@ -11,11 +11,13 @@ import { todayLocalISO } from '@/utils/dateUtils';
 import { formatShortDate } from '@/components/arc/format';
 import InnerWorldTimeline from './InnerWorldTimeline';
 import { EchoesPanel, GapsPanel, SymbolsPanel, ThreadPanel } from './InnerWorldPanels';
+import { PracticeSection, RareParallelsPanel } from './InnerWorldPractice';
 
 const ECHO_WINDOW_DAYS = 3;
 
 const TABS = [
     { key: 'echoes', label: 'Échos' },
+    { key: 'rare', label: 'Parallèles rares' },
     { key: 'symbols', label: 'Symboles partagés' },
     { key: 'gaps', label: 'Écarts' },
     { key: 'timeline', label: 'Chronologie' },
@@ -162,8 +164,9 @@ const InnerWorldView: React.FC = () => {
                                 </p>
                             ) : (
                                 <p className="text-sm text-slate-600">
-                                    Ton coffre est sur ton Mac : lance Vibes Arc avec <code className="mx-1">npm run dev</code> sur cette machine, ouvre ce module,
-                                    puis clique sur « Publier sur mes appareils ». Tes séances et tes rêves apparaîtront ensuite ici, sur tous tes appareils.
+                                    Ton coffre est sur ton Mac : le bot Image Streaming publie ton monde intérieur automatiquement après chaque séance.
+                                    Tu peux aussi le publier à la main : lance Vibes Arc avec <code className="mx-1">npm run dev</code> sur cette machine,
+                                    ouvre ce module, puis clique sur « Publier sur mes appareils ».
                                 </p>
                             )}
                             {innerWorld?.error && <p className="text-xs text-rose-600">Supabase : {innerWorld.error}</p>}
@@ -172,6 +175,8 @@ const InnerWorldView: React.FC = () => {
                 </section>
             ) : analysis && (
                 <>
+                    <PracticeSection items={snapshot.practice ?? []} />
+
                     {evolving.length > 0 && (
                         <section aria-labelledby="ce-qui-evolue" className="space-y-2">
                             <h2 id="ce-qui-evolue" className="text-sm font-bold uppercase tracking-wider text-amber-800">
@@ -207,6 +212,7 @@ const InnerWorldView: React.FC = () => {
                         </div>
                         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
                             {tab === 'echoes' && <EchoesPanel echoes={analysis.echoes} windowDays={ECHO_WINDOW_DAYS} />}
+                            {tab === 'rare' && <RareParallelsPanel parallels={snapshot.parallels ?? []} />}
                             {tab === 'symbols' && <SymbolsPanel analysis={analysis} />}
                             {tab === 'gaps' && <GapsPanel analysis={analysis} />}
                             {tab === 'timeline' && <InnerWorldTimeline weeks={analysis.weeks} />}

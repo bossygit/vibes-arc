@@ -39,11 +39,18 @@ export function isInnerWorldSnapshot(value: unknown): value is InnerWorldSnapsho
     return !!v && v.version === 1 && Array.isArray(v.sessions) && Array.isArray(v.symbols) && Array.isArray(v.dreams);
 }
 
-/** Résumé stable du contenu : change dès qu'une séance, un rêve ou un symbole est ajouté. */
+/**
+ * Résumé stable du contenu : change dès qu'une séance, un rêve ou un symbole est
+ * ajouté, qu'un parallèle rare apparaît ou qu'un exercice change d'état.
+ */
 export function snapshotFingerprint(s: InnerWorldSnapshot): string {
     const lastSession = s.sessions.reduce((max, x) => (x.date > max ? x.date : max), '');
     const lastDream = s.dreams.reduce((max, x) => ((x.date ?? '') > max ? x.date ?? '' : max), '');
-    return [s.sessions.length, lastSession, s.dreams.length, lastDream, s.symbols.length, s.sourceUpdatedAt ?? ''].join('|');
+    const practice = (s.practice ?? []).map((p) => `${p.id}:${p.status}`).join(',');
+    return [
+        s.sessions.length, lastSession, s.dreams.length, lastDream, s.symbols.length, s.sourceUpdatedAt ?? '',
+        s.parallels?.length ?? 0, practice,
+    ].join('|');
 }
 
 export function readCachedInnerWorld(): CacheRecord | null {
