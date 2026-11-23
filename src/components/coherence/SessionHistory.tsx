@@ -29,7 +29,8 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ sessions, onClear }) =>
         { label: 'Score moyen', libre: fmt(summary.libre.avgScore, '/10'), guide: fmt(summary.guide.avgScore, '/10') },
         { label: 'Temps en coh. élevée', libre: fmt(summary.libre.avgHighPct, '%'), guide: fmt(summary.guide.avgHighPct, '%') },
         { label: 'BPM moyen', libre: fmt(summary.libre.avgBpm), guide: fmt(summary.guide.avgBpm) },
-        { label: 'RMSSD moyen', libre: fmt(summary.libre.avgRmssd, ' ms'), guide: fmt(summary.guide.avgRmssd, ' ms') },
+        { label: 'SDNN moyen', libre: fmt(summary.libre.avgSdnn, ' ms'), guide: fmt(summary.guide.avgSdnn, ' ms') },
+        { label: 'RMSSD moyen *', libre: fmt(summary.libre.avgRmssd, ' ms'), guide: fmt(summary.guide.avgRmssd, ' ms') },
     ];
 
     return (
@@ -121,7 +122,12 @@ const SessionHistory: React.FC<SessionHistoryProps> = ({ sessions, onClear }) =>
 
                     <p className="text-[11px] text-slate-500">
                         Astuce : la comparaison devient parlante à partir de ~3 sessions de chaque type. Un écart
-                        « Guidée &gt; Libre » sur le score et le RMSSD = ta respiration fait son travail.
+                        « Guidée &gt; Libre » sur le score et le SDNN = ta respiration fait son travail.
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                        * Le RMSSD dépend du rythme respiratoire : à variabilité égale, il baisse quand on respire
+                        lentement. Ne compare pas libre et guidée avec lui ; suis plutôt son évolution dans un même
+                        mode, semaine après semaine.
                     </p>
                 </>
             )}

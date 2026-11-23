@@ -21,7 +21,7 @@ writeFileSync(
     entryPath,
     `
 export * from '@/utils/hrv/coherence';
-export { PpgBeatDetector } from '@/utils/hrv/ppgProcessor';
+export { PpgBeatDetector, cameraSampleToPulse } from '@/utils/hrv/ppgProcessor';
 export { computeRmssd } from '@/utils/hrv/sessionStats';
 `
 );
@@ -34,9 +34,8 @@ await build({
     alias: { '@': path.join(ROOT, 'src') },
     logLevel: 'silent',
 });
-const { coherenceFromRR, PpgBeatDetector, computeRmssd, COHERENCE_MIN_RR } = await import(
-    pathToFileURL(path.join(outDir, 'bundle.mjs')).href
-);
+const { coherenceFromRR, PpgBeatDetector, cameraSampleToPulse, computeRmssd, COHERENCE_MIN_RR, COHERENCE_MIN_SPAN_S } =
+    await import(pathToFileURL(path.join(outDir, 'bundle.mjs')).href);
 
 /* ────────────────────────── utilitaires ────────────────────────── */
 
@@ -177,10 +176,33 @@ console.log('\nA. Calcul spectral — coherenceFromRR');
     check('RR constants à 1 ms près → pas de score', coherenceFromRR(Array.from({ length: 70 }, (_, i) => 1000 + (i % 2) * 0.5)) === null);
     check(`Moins de ${COHERENCE_MIN_RR} battements → pas de score`, coherenceFromRR(rr.slice(0, COHERENCE_MIN_RR - 1)) === null);
     check('Moins de 30 s de signal → pas de score', coherenceFromRR(new Array(32).fill(500).map((v, i) => v + (i % 3) * 20)) === null);
+    const short = genRR(makeRng(52), { A: 45, sigma: 10, durS: COHERENCE_MIN_SPAN_S - 5 });
+    check(`Moins de ${COHERENCE_MIN_SPAN_S} s de signal → pas de score (score encore sous-évalué)`, coherenceFromRR(short.rr, short.times) === null);
     check('Valeurs non numériques → pas de plantage ni de score absurde', (() => {
         const r = coherenceFromRR(rr.map((v, i) => (i === 10 ? NaN : v)));
         return r === null || (Number.isFinite(r.score) && r.score >= 0 && r.score <= 10);
     })());
+}
+
+{
+    // Le premier score affiché ne doit plus être sous-évalué par une fenêtre trop courte
+    // (avant : ~4.4 à 32 s pour un signal qui vaut ~9.8 une fois la fenêtre pleine).
+    for (const [label, p, minRatio] of [['forte', { A: 45, sigma: 10 }, 0.9], ['moyenne', { A: 20, sigma: 12 }, 0.85]]) {
+        const first = meanOver(150, 53, { ...p, durS: COHERENCE_MIN_SPAN_S + 2 }, (rr, t) => coherenceFromRR(rr, t)?.score ?? null);
+        const settled = meanOver(150, 53, { ...p, durS: 90 }, (rr, t) => coherenceFromRR(rr, t)?.score ?? null);
+        check(`Cohérence ${label} : 1er score (≈${COHERENCE_MIN_SPAN_S} s) ≥ ${minRatio * 100} % du score établi`, first >= minRatio * settled, `${f1(first)} vs ${f1(settled)}`);
+    }
+}
+
+{
+    // Respiration libre (10-15 cpm) : une VRC très régulière doit être reconnue comme cohérente.
+    // Avant, la recherche du pic s'arrêtait à 0.15 Hz : ~0/10 à 12 cpm pour le même signal qu'à 6 cpm.
+    const at = (cpm) => meanOver(150, 61, { A: 45, sigma: 10, f: cpm / 60, durS: 90 }, (rr, t) => coherenceFromRR(rr, t)?.score ?? null);
+    const s6 = at(6);
+    const libre = [10, 12, 15].map(at);
+    check('VRC régulière à 10, 12 et 15 cpm → cohérence élevée, comme à 6 cpm', libre.every((s) => s >= 9), `${libre.map(f1).join(' / ')} (6 cpm : ${f1(s6)})`);
+    const s20 = at(20);
+    check('Respiration à 20 cpm (0.33 Hz, hors plage 0.04-0.26 Hz) → pas de cohérence', s20 < 4, f1(s20));
 }
 
 /* ────────────────── B. Détecteur de battements PPG ────────────────── */
@@ -198,6 +220,9 @@ function pulse(tau, dic) {
 
 /**
  * Simule ~durS secondes de canal rouge à `fps` images/s.
+ * Polarité PHYSIQUE : à chaque battement le doigt absorbe plus de lumière, l'intensité
+ * rouge BAISSE (120 − pouls). Comme la caméra, runDetector convertit chaque valeur avec
+ * cameraSampleToPulse avant le détecteur.
  * Les VALEURS sont échantillonnées à l'instant vrai de l'image ; le détecteur reçoit
  * un instant bruité (tJitter) — comme un horodatage de navigateur imparfait.
  */
@@ -232,7 +257,7 @@ function simulatePpg(seed, p = {}) {
         for (let i = lo; i >= 0 && t - bt[i] < 1.5; i--) if (!missed.has(i)) s += pulse(t - bt[i], dic);
         s *= 1 + m * Math.sin(2 * Math.PI * fResp * t + ph[1]);
         for (const ts of spikeAt) s += 1.3 * Math.exp(-((t - ts) ** 2) / (2 * 0.05 ** 2));
-        return 120 + s + bAmp * Math.sin(2 * Math.PI * fResp * t + ph[2]) + drift * Math.sin(2 * Math.PI * 0.03 * t);
+        return 120 - s + bAmp * Math.sin(2 * Math.PI * fResp * t + ph[2]) + drift * Math.sin(2 * Math.PI * 0.03 * t);
     };
 
     const frames = [];
@@ -245,13 +270,15 @@ function simulatePpg(seed, p = {}) {
     return { frames, bt, rrTrue };
 }
 
-function runDetector(frames, { duplicate = false, gapAt = null, gapS = 0 } = {}) {
+/** Chaîne de ppgCamera.ts : moyenne du rouge → cameraSampleToPulse → détecteur (raw = sans conversion). */
+function runDetector(frames, { duplicate = false, gapAt = null, gapS = 0, raw = false } = {}) {
     const beats = [];
     const det = new PpgBeatDetector({ onBeat: (rr, bpm, t) => beats.push({ rr, bpm, t }) });
     for (const f of frames) {
         const t = gapAt !== null && f.t >= gapAt ? f.t + gapS : f.t;
-        det.push(t, f.v);
-        if (duplicate) det.push(t + 0.0004, f.v); // même image relue (rAF 60 Hz sur caméra 30 fps)
+        const v = raw ? f.v : cameraSampleToPulse(f.v);
+        det.push(t, v);
+        if (duplicate) det.push(t + 0.0004, v); // même image relue (rAF 60 Hz sur caméra 30 fps)
     }
     return beats;
 }
@@ -300,6 +327,21 @@ sweep('FC basse (RR 1250 ms)', { base: 1250, A: 55 }, SEEDS, { kept: 95, dRmssd:
 sweep('Caméra à 24 images/s', { fps: 24 }, SEEDS, { kept: 95, dRmssd: 14, dMean: 3 });
 sweep('Caméra à 60 images/s', { fps: 60 }, SEEDS, { kept: 95, dRmssd: 12, dMean: 3 });
 sweep('Gigue d\'horodatage de 8 ms', { tJitter: 0.008 }, SEEDS, { kept: 95, dRmssd: 20, dMean: 3 });
+
+{
+    // Garde-fou de polarité : le canal rouge brut BAISSE à chaque battement. Sans
+    // cameraSampleToPulse, le détecteur se cale sur le plateau de fin de diastole et la
+    // mesure s'effondre. Si ce test « passe » sans conversion, le simulateur ou la
+    // conversion ont été inversés : c'était le bug corrigé en 2026-11 (score ~9 → ~1).
+    const rows = SEEDS.map((s) => {
+        const sim = simulatePpg(s);
+        return { ok: evaluate(sim, runDetector(sim.frames)), raw: evaluate(sim, runDetector(sim.frames, { raw: true })) };
+    });
+    const dOk = mean(rows.map((r) => Math.abs(r.ok.rmssdEst - r.ok.rmssdTrue)));
+    const dRaw = mean(rows.map((r) => Math.abs(r.raw.rmssdEst - r.raw.rmssdTrue)));
+    check('Polarité : cameraSampleToPulse fait monter le pouls quand le rouge baisse', cameraSampleToPulse(100) > cameraSampleToPulse(110));
+    check('Polarité : sans conversion, le rouge brut donne une mesure inexploitable', dRaw > 5 * dOk && dRaw > 50, `|ΔRMSSD| ${f1(dRaw)} ms brut vs ${f1(dOk)} ms converti`);
+}
 
 {
     // Images relues deux fois (repli rAF 60 Hz) : les doublons doivent être sans effet.

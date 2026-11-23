@@ -11,10 +11,12 @@
  *   - Observation libre   : aucun guidage, on regarde le cœur en direct (BPM,
  *     RMSSD, SDNN, amplitude RR) → cohérence spontanée
  *
- * Les sessions réelles (≥ 30 battements, hors Mode Démo) sont enregistrées
- * localement et comparées dans SessionHistory (libre vs guidée). Une session
- * dont le signal est jugé instable (assessSignalQuality) n'est PAS enregistrée :
- * un score calculé sur un signal bruité ne mesure pas l'utilisateur.
+ * Les sessions réelles (hors Mode Démo, avec au moins un score fiable, donc
+ * ≥ 1 min de signal propre) sont enregistrées localement et comparées dans
+ * SessionHistory (libre vs guidée). Pendant qu'un signal est jugé instable
+ * (assessSignalQuality), aucun score n'est affiché ni compté ; une session
+ * instable plus de la moitié du temps n'est PAS enregistrée : un score calculé
+ * sur un signal bruité ne mesure pas l'utilisateur.
  * En fin de session, l'utilisateur peut cocher un signal « Cohérence Cardiaque »
  * (créé au besoin) — pattern « coché = signal réellement émis ».
  */
@@ -26,6 +28,7 @@ import {
     emaScore,
     levelFromScore,
     COHERENCE_MIN_RR,
+    COHERENCE_MIN_SPAN_S,
     COHERENCE_WINDOW_RR,
     type CoherenceLevel,
 } from '@/utils/hrv/coherence';
@@ -95,8 +98,12 @@ const CoherenceView: React.FC = () => {
     const [savedRecord, setSavedRecord] = useState<CoherenceSessionRecord | null>(null);
     /** Signal jugé instable (capteur bruité) — avertissement en direct. */
     const [signalUnstable, setSignalUnstable] = useState(false);
-    /** Session terminée dont le signal était instable — non enregistrée. */
-    const [sessionWarning, setSessionWarning] = useState(false);
+    /** Le score est suspendu : signal non fiable au dernier battement (rien n'est compté). */
+    const [scoreBlocked, setScoreBlocked] = useState(false);
+    /** Secondes de signal déjà couvertes, plafonnées à COHERENCE_MIN_SPAN_S (calibrage du score). */
+    const [calibSec, setCalibSec] = useState(0);
+    /** Session réelle terminée mais NON enregistrée : signal instable, ou trop courte pour un score. */
+    const [sessionNotice, setSessionNotice] = useState<'' | 'unstable' | 'short'>('');
 
     const cpmRef = useRef(cpm);
     useEffect(() => {
@@ -137,14 +144,17 @@ const CoherenceView: React.FC = () => {
 
         // Enregistrement de la session réelle (jamais le Mode Démo), et jamais
         // si le signal a été instable plus de la moitié du temps : un score
-        // calculé sur un signal bruité ne mesure pas l'utilisateur.
+        // calculé sur un signal bruité ne mesure pas l'utilisateur. Il faut aussi
+        // au moins un score fiable (≥ 60 s de signal propre), sinon la session
+        // ajouterait un « 0 % en cohérence élevée » artificiel à la comparaison.
         const source = sessionSourceRef.current;
         const rrList = sessionRrRef.current;
+        const scores = scoresRef.current;
         const qualityCount = qualityAssessmentsRef.current;
         const reliable =
             qualityCount < 5 || unstableAssessmentsRef.current / Math.max(1, qualityCount) <= 0.5;
-        if (source && source !== 'demo' && rrList.length >= COHERENCE_MIN_RR && reliable) {
-            const scores = scoresRef.current;
+        const isReal = Boolean(source && source !== 'demo');
+        if (source && source !== 'demo' && rrList.length >= COHERENCE_MIN_RR && reliable && scores.length > 0) {
             const highPct = scores.length
                 ? Math.round((100 * scores.filter((s) => s >= 7).length) / scores.length)
                 : 0;
@@ -165,10 +175,11 @@ const CoherenceView: React.FC = () => {
             };
             setSessions(appendSession(record));
             setSavedRecord(record);
-            setSessionWarning(false);
+            setSessionNotice('');
         } else {
             setSavedRecord(null);
-            setSessionWarning(Boolean(source && source !== 'demo'));
+            const unstable = !reliable || (scores.length === 0 && unstableAssessmentsRef.current > 0);
+            setSessionNotice(!isReal ? '' : unstable ? 'unstable' : 'short');
         }
     }, []);
 
@@ -186,7 +197,9 @@ const CoherenceView: React.FC = () => {
         setHabitFeedback('');
         setSavedRecord(null);
         setLiveStats(null);
-        setSessionWarning(false);
+        setSessionNotice('');
+        setScoreBlocked(false);
+        setCalibSec(0);
         setStarting(true);
 
         // Réinitialisation de session
@@ -257,6 +270,9 @@ const CoherenceView: React.FC = () => {
 
             // Qualité du signal (garde-fou anti-artefacts caméra) : un signal
             // physiologiquement impossible est signalé au lieu d'être noté.
+            // assessSignalQuality porte sur les 60 derniers RR, soit ≈ la fenêtre
+            // spectrale de 64 s : « ok » veut dire que le score repose sur des RR plausibles.
+            let reliableNow = true;
             if (window.length >= COHERENCE_MIN_RR) {
                 const quality = assessSignalQuality(recent);
                 qualityAssessmentsRef.current += 1;
@@ -265,11 +281,22 @@ const CoherenceView: React.FC = () => {
                 flags.push(quality === 'ok');
                 if (flags.length > 10) flags.shift();
                 const unstableInFlags = flags.filter((ok) => !ok).length;
-                setSignalUnstable(flags.length >= 5 && unstableInFlags >= Math.ceil(flags.length * 0.6));
+                const smoothedUnstable = flags.length >= 5 && unstableInFlags >= Math.ceil(flags.length * 0.6);
+                setSignalUnstable(smoothedUnstable);
+                reliableNow = quality === 'ok' && !smoothedUnstable;
             }
+            setScoreBlocked(!reliableNow);
+            setCalibSec(Math.min(COHERENCE_MIN_SPAN_S, times[times.length - 1] - times[0]));
 
-            const result = coherenceFromRR(window, times);
-            if (result) {
+            // Signal non fiable : aucun score n'est affiché NI compté dans la moyenne
+            // et le temps en cohérence élevée ; le lissage repart de zéro ensuite.
+            const result = reliableNow ? coherenceFromRR(window, times) : null;
+            if (!reliableNow) {
+                emaRef.current = null;
+                setScore(null);
+                setLevel(null);
+                setPeakFreq(null);
+            } else if (result) {
                 emaRef.current = emaScore(emaRef.current, result.score);
                 const smoothed = emaRef.current;
                 sumScoresRef.current += smoothed;
@@ -355,7 +382,8 @@ const CoherenceView: React.FC = () => {
         ? Math.round(recent.reduce((sum, p) => sum + p.bpm, 0) / recent.length)
         : null;
 
-    const collected = Math.min(rrCount, COHERENCE_WINDOW_RR);
+    const calibrated = calibSec >= COHERENCE_MIN_SPAN_S;
+    const gaugeEmptyLabel = running && scoreBlocked ? 'signal instable' : running && !calibrated ? 'calibrage…' : 'collecte…';
     const showSummary = !running && rrCount >= COHERENCE_MIN_RR;
     const highCoherencePct = scoresRef.current.length
         ? Math.round((100 * scoresRef.current.filter((s) => s >= 7).length) / scoresRef.current.length)
@@ -555,7 +583,13 @@ const CoherenceView: React.FC = () => {
                 )}
 
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 space-y-4">
-                    <CoherenceGauge score={score} level={level} peakFreq={peakFreq} simulated={isSimulated} />
+                    <CoherenceGauge
+                        score={score}
+                        level={level}
+                        peakFreq={peakFreq}
+                        simulated={isSimulated}
+                        emptyLabel={gaugeEmptyLabel}
+                    />
                     <p className="text-[11px] text-slate-500 text-center -mt-2">
                         {practiceMode === 'guide'
                             ? 'Cohérence guidée par la respiration'
@@ -590,16 +624,16 @@ const CoherenceView: React.FC = () => {
 
                     <div>
                         <div className="flex justify-between text-[11px] text-slate-400 mb-1">
-                            <span>Collecte d’intervalles RR</span>
+                            <span>{calibrated ? 'Score calibré ✓' : 'Calibrage du score (1 min de signal)'}</span>
                             <span>
-                                {collected}/{COHERENCE_WINDOW_RR}
-                                {score === null && rrCount > 0 ? ' — score dans quelques secondes…' : ''}
+                                {Math.floor(calibSec)}/{COHERENCE_MIN_SPAN_S} s
+                                {!calibrated && rrCount > 0 ? ' — avant, le score serait sous-évalué' : ''}
                             </span>
                         </div>
                         <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
                             <div
                                 className="h-full bg-gradient-to-r from-indigo-500 to-cyan-400 transition-all duration-500"
-                                style={{ width: `${(collected / COHERENCE_WINDOW_RR) * 100}%` }}
+                                style={{ width: `${(calibSec / COHERENCE_MIN_SPAN_S) * 100}%` }}
                             />
                         </div>
                     </div>
@@ -635,11 +669,17 @@ const CoherenceView: React.FC = () => {
                             {savedRecord.sdnn ?? '—'} ms · comparaison libre/guidée mise à jour ci-dessous.
                         </p>
                     )}
-                    {sessionWarning && (
+                    {sessionNotice === 'unstable' && (
                         <p className="text-[11px] text-amber-300">
                             Signal instable pendant la session — non enregistrée (un score calculé sur un signal bruité
                             ne mesure pas ta physiologie, il aurait faussé la comparaison). Vérifie le placement du doigt
                             et réessaie.
+                        </p>
+                    )}
+                    {sessionNotice === 'short' && (
+                        <p className="text-[11px] text-amber-300">
+                            Session trop courte pour un score fiable (il faut au moins 1 minute de signal propre) — non
+                            enregistrée.
                         </p>
                     )}
                     {isSimulated ? (

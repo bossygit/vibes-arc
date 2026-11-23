@@ -15,17 +15,26 @@
  *      Sans zero-padding, le pas n'est que de ~0.017 Hz : la bande de ±0.015 Hz
  *      autour du pic ne contenait qu'UN bin, et le score dépendait de la
  *      position du pic par rapport à la grille (5 cpm ≠ 4.5 cpm).
- *   5. Pic dominant en zone LF (0.04–0.15 Hz) puis puissance dans ±0.015 Hz.
+ *   5. Pic dominant entre 0.04 et 0.26 Hz (plage retenue par HeartMath : la
+ *      cohérence peut s'y installer, soit une respiration de ~2.4 à ~15.6
+ *      cycles/min), puis puissance dans ±0.015 Hz.
  *      Ratio de cohérence = P_peak / (P_total − P_peak).
+ *      Jusqu'en 2026-11 la recherche s'arrêtait à 0.15 Hz : une VRC très régulière
+ *      à 10-15 cycles/min (respiration libre) notait ~0, si bien que le score
+ *      « libre » mesurait surtout le fait de respirer lentement.
  *   6. Score 0-10 = 10 · tanh(ratio / SCORE_K), niveau Faible / Moyen / Élevé.
  *      Pas de score si la variabilité est quasi nulle (capteur figé, RR constants).
+ *   7. Pas de score avant 60 s de signal : la résolution d'une fenêtre plus
+ *      courte étale le pic hors de ±0.015 Hz et SOUS-ESTIME le score (même
+ *      signal très cohérent : ~4.4 à 32 s, ~7.9 à 48 s, ~9.8 à 64 s).
  *
  * Calibration (scénarios synthétiques, 75 s, RR moyen 1000 ms, respiration 0.1 Hz,
  * 400 tirages par scénario ; SCORE_K choisi pour retrouver l'ancienne table) :
  *   sinus 45 ms + bruit 10 ms  → ratio ≈ 5.6  → score ≈ 9.7  (Élevé)
  *   sinus 20 ms + bruit 12 ms  → ratio ≈ 1.9  → score ≈ 6.3  (Moyen)
- *   sinus 10 ms + bruit 20 ms  → ratio ≈ 0.4  → score ≈ 1.5  (Faible)
- *   RR aléatoires ±150 ms      → ratio ≈ 0.27 → score ≈ 1.1  (Faible)
+ *   sinus 10 ms + bruit 20 ms  → ratio ≈ 0.4  → score ≈ 1.6  (Faible)
+ *   RR aléatoires ±150 ms      → ratio ≈ 0.33 → score ≈ 1.3  (Faible)
+ *   (recherche du pic jusqu'à 0.26 Hz ; avec l'ancienne limite à 0.15 Hz : 1.5 et 1.1)
  * Le haut de l'échelle est volontairement serré : une VRC très ample et très
  * régulière sature vers 10. Si la sensibilité doit évoluer, ajuster SCORE_K.
  * Les seuils Faible / Moyen / Élevé (4 et 7) sont propres à Vibes Arc : ils ne
@@ -41,7 +50,7 @@ export interface CoherenceResult {
     level: CoherenceLevel;
     /** Ratio brut peak / (total − peak) — utile pour debug/calibration. */
     ratio: number;
-    /** Fréquence (Hz) du pic dominant en zone LF. 0.1 Hz = 6 cycles/min. */
+    /** Fréquence (Hz) du pic dominant (0.04–0.26 Hz). 0.1 Hz = 6 cycles/min. */
     peakFreq: number;
 }
 
@@ -51,14 +60,18 @@ export const COHERENCE_WINDOW_RR = 60;
 export const COHERENCE_MIN_RR = 30;
 /** Fenêtre d'analyse spectrale (secondes) : ≈ 6 cycles de respiration à 0.1 Hz. */
 export const COHERENCE_WINDOW_S = 64;
-/** Durée minimale couverte par les battements pour produire un score (secondes). */
-export const COHERENCE_MIN_SPAN_S = 30;
+/**
+ * Durée minimale couverte par les battements pour produire un score (secondes).
+ * Proche de la fenêtre d'analyse (64 s) : en dessous, le score est biaisé vers le bas.
+ * Pas exactement 64 : le premier battement de la fenêtre tombe jusqu'à un RR après son début.
+ */
+export const COHERENCE_MIN_SPAN_S = 60;
 /** Fréquence de rééchantillonnage du signal RR (Hz). */
 export const RESAMPLE_FS = 4;
 /** Longueur de la grille de fréquences (zero-padding) : pas = RESAMPLE_FS / ZERO_PAD_N ≈ 0.002 Hz. */
 export const ZERO_PAD_N = 2048;
-/** Zone de recherche du pic : LF (0.04–0.15 Hz). */
-export const LF_BAND: readonly [number, number] = [0.04, 0.15];
+/** Zone de recherche du pic (HeartMath) : 0.04–0.26 Hz, respiration de ~2.4 à ~15.6 cycles/min. */
+export const PEAK_SEARCH_BAND: readonly [number, number] = [0.04, 0.26];
 /** Bande totale analysée : 0.0033–0.40 Hz (VLF + LF + HF). */
 export const TOTAL_BAND: readonly [number, number] = [0.0033, 0.4];
 /** Demi-largeur de la bande autour du pic (±0.015 Hz). */
@@ -110,7 +123,7 @@ function twiddles(): [Float64Array, Float64Array] {
  * ceinture BLE ou la démo, mais écrase les trous d'une source caméra.
  *
  * Retourne null tant que la fenêtre n'est pas exploitable (< 30 battements,
- * < 30 s couvertes) ou que la variabilité est quasi nulle.
+ * < 60 s couvertes) ou que la variabilité est quasi nulle.
  */
 export function coherenceFromRR(rrMs: number[], beatTimesSec?: number[]): CoherenceResult | null {
     const total = rrMs.length;
@@ -198,15 +211,15 @@ export function coherenceFromRR(rrMs: number[], beatTimesSec?: number[]): Cohere
     }
     if (powers.length === 0) return null;
 
-    // 6) Pic dominant en zone LF (0.04–0.15 Hz) + puissance dans ±0.015 Hz
+    // 6) Pic dominant entre 0.04 et 0.26 Hz + puissance dans ±0.015 Hz
     let totalPower = 0;
-    let bestLf = -1;
+    let bestPeak = -1;
     let peakFreq = 0.1;
     for (let i = 0; i < freqs.length; i++) {
         totalPower += powers[i];
         const f = freqs[i];
-        if (f >= LF_BAND[0] && f <= LF_BAND[1] && powers[i] > bestLf) {
-            bestLf = powers[i];
+        if (f >= PEAK_SEARCH_BAND[0] && f <= PEAK_SEARCH_BAND[1] && powers[i] > bestPeak) {
+            bestPeak = powers[i];
             peakFreq = f;
         }
     }
