@@ -19,7 +19,18 @@ export interface RrSourceOptions {
     onRr: (ibiMs: number, bpm: number, beatTimeSec?: number) => void;
     /** Message d'état lisible (connexion, erreur…). */
     onStatus?: (status: string) => void;
+    /** Caméra uniquement : état réel de la torche après la tentative d'allumage. */
+    onTorch?: (state: TorchState) => void;
 }
+
+/**
+ * État de la torche (flash) pour la source caméra :
+ *   - on          : allumée, confirmé par la caméra (getSettings)
+ *   - off         : la caméra a une torche mais elle est restée éteinte
+ *   - unknown     : allumage demandé, mais le navigateur ne dit pas s'il a obéi
+ *   - unavailable : le navigateur n'expose pas de torche pour cette caméra
+ */
+export type TorchState = 'on' | 'off' | 'unknown' | 'unavailable';
 
 export interface RrSource {
     start(): Promise<void>;

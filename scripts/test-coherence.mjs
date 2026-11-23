@@ -22,6 +22,7 @@ writeFileSync(
     `
 export * from '@/utils/hrv/coherence';
 export { PpgBeatDetector, cameraSampleToPulse } from '@/utils/hrv/ppgProcessor';
+export { torchStateFrom } from '@/utils/hrv/ppgCamera';
 export { computeRmssd } from '@/utils/hrv/sessionStats';
 `
 );
@@ -34,8 +35,15 @@ await build({
     alias: { '@': path.join(ROOT, 'src') },
     logLevel: 'silent',
 });
-const { coherenceFromRR, PpgBeatDetector, cameraSampleToPulse, computeRmssd, COHERENCE_MIN_RR, COHERENCE_MIN_SPAN_S } =
-    await import(pathToFileURL(path.join(outDir, 'bundle.mjs')).href);
+const {
+    coherenceFromRR,
+    PpgBeatDetector,
+    cameraSampleToPulse,
+    torchStateFrom,
+    computeRmssd,
+    COHERENCE_MIN_RR,
+    COHERENCE_MIN_SPAN_S,
+} = await import(pathToFileURL(path.join(outDir, 'bundle.mjs')).href);
 
 /* ────────────────────────── utilitaires ────────────────────────── */
 
@@ -416,6 +424,15 @@ sweep('Gigue d\'horodatage de 8 ms', { tJitter: 0.008 }, SEEDS, { kept: 95, dRms
     const nN = mean(noneNoisy.map((r) => r.detected));
     check('Bruit ×3 : le score reste discriminant (cohérence ≫ aucune RSA)', sN - nN >= 2.5 && nN < 2.5, `cohérence ${f1(sN)} vs aucune RSA ${f1(nN)} (réel ${f1(mean(strongNoisy.map((r) => r.truth)))})`);
 }
+
+/* ────────────────── C. Torche (indicateur caméra) ────────────────── */
+
+console.log('\nC. Torche — torchStateFrom (capacité, allumage accepté, réglage relu)');
+check('Pas de torche exposée → non disponible', torchStateFrom(undefined, false, undefined) === 'unavailable');
+check('Torche exposée mais allumage refusé → éteinte', torchStateFrom(true, false, undefined) === 'off');
+check('Allumage accepté et confirmé par la caméra → allumée', torchStateFrom(true, true, true) === 'on');
+check('Contrainte ignorée en silence (réglage relu = false) → éteinte, pas « allumée »', torchStateFrom(true, true, false) === 'off');
+check('Navigateur qui ne relit pas le réglage → non confirmée', torchStateFrom(true, true, undefined) === 'unknown');
 
 /* ────────────────────────── bilan ────────────────────────── */
 
